@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration></ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{4F2D3D28-6D00-4F12-9F5B-0A7DE8C9F005}</ProjectGuid><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\..\Native.Common.props" />
+  <PropertyGroup><TargetName>T7.RuntimeTests</TargetName></PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><PreprocessorDefinitions>T7_NATIVE_BRIDGE_TESTING;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>python314.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ServerLifecycleSmoke.cpp" />
+    <ClCompile Include="JournalContractTests.cpp" />
+    <ClCompile Include="SessionCleanupTests.cpp" />
+    <ClCompile Include="../../src/Runtime/bridge/Session.cpp" />
+    <ClCompile Include="../../src/Runtime/core/Common.cpp" />
+    <ClCompile Include="../../src/Runtime/core/Protocol.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/Bootstrap.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/MovementOverlay.cpp" />
+    <ClCompile Include="../../src/Runtime/server/Journal.cpp" />
+    <ClCompile Include="../../src/Runtime/server/RunDirectory.cpp" />
+    <ClCompile Include="../../src/Runtime/server/PythonHost.cpp" />
+    <ClCompile Include="../../src/Runtime/server/Server.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

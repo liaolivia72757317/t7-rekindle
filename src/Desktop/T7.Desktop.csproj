@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Version>0.1.0</Version>
+    <SourceRevisionId Condition="'$(GITHUB_SHA)' != ''">$(GITHUB_SHA)</SourceRevisionId>
+    <RootNamespace>T7.Rekindle.Desktop</RootNamespace>
+    <AssemblyName>T7-Rekindle</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\Assets\brand\app-icon-derived.ico</ApplicationIcon>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>7.3</LangVersion>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Assets\**\*" />
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute" Condition="'$(SourceRevisionId)' != ''">
+      <_Parameter1>CommitHash</_Parameter1>
+      <_Parameter2>$(SourceRevisionId)</_Parameter2>
+    </AssemblyAttribute>
+    <EmbeddedResource Include="$(RepositoryRoot)LICENSE" LogicalName="T7.Rekindle.Documents.LICENSE" />
+    <EmbeddedResource Include="$(RepositoryRoot)THIRD-PARTY.txt" LogicalName="T7.Rekindle.Documents.THIRD-PARTY.txt" />
+    <EmbeddedResource Include="Resources\CHANGELOG.md" LogicalName="T7.Rekindle.Documents.CHANGELOG.md" />
+    <EmbeddedResource Include="Resources\THANKS.md" LogicalName="T7.Rekindle.Documents.THANKS.md" />
+    <EmbeddedResource Include="Resources\THIRD-PARTY-NOTICES.txt" LogicalName="T7.Rekindle.Documents.THIRD-PARTY-NOTICES.txt" />
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>T7.ManagedHarness</_Parameter1>
+    </AssemblyAttribute>
+    <None Update="NLog.config" CopyToOutputDirectory="PreserveNewest" />
+    <Page Update="Resources\Theme.Dark.xaml" />
+    <Page Update="Resources\Theme.HighContrast.xaml" />
+    <ProjectReference Include="..\Core\T7.Core.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="[8.4.2]" ExcludeAssets="analyzers" />
+    <PackageReference Include="Newtonsoft.Json" Version="[13.0.4]" />
+    <PackageReference Include="NLog" Version="[6.2.1]" />
+  </ItemGroup>
+  <Target Name="CopyNativeBridge" AfterTargets="Build">
+    <Copy SourceFiles="$(RepositoryRoot)artifacts\native\bin\$(PlatformTarget)\$(Configuration)\T7.NativeBridge.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(RepositoryRoot)artifacts\native\bin\$(PlatformTarget)\$(Configuration)\T7.NativeBridge.dll')" />
+  </Target>
+</Project>

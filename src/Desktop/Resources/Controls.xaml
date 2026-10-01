@@ -1,0 +1,109 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <FontFamily x:Key="UiFontFamily">Microsoft YaHei UI, Microsoft YaHei, Segoe UI</FontFamily>
+  <FontFamily x:Key="CodeFontFamily">Consolas, Microsoft YaHei UI, Microsoft YaHei</FontFamily>
+  <Style x:Key="KeyboardFocus">
+    <Setter Property="Control.Template">
+      <Setter.Value><ControlTemplate><Rectangle Margin="-3" Stroke="{DynamicResource FocusBrush}" StrokeThickness="2" RadiusX="4" RadiusY="4" /></ControlTemplate></Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="ScrollBar">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource ScrollBarThumbBrush}" />
+    <Setter Property="MinWidth" Value="8" />
+    <Setter Property="MinHeight" Value="8" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Grid x:Name="Root" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+            <Track x:Name="PART_Track" Focusable="False" Orientation="{TemplateBinding Orientation}">
+              <Track.Thumb>
+                <Thumb x:Name="Thumb" Background="{TemplateBinding Foreground}" Focusable="False" Margin="1,0" MinWidth="6" MinHeight="24">
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border x:Name="ThumbBorder" Background="{TemplateBinding Background}" CornerRadius="3" Opacity="0.55" />
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource ScrollBarThumbHoverBrush}" />
+                          <Setter TargetName="ThumbBorder" Property="Opacity" Value="0.82" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                          <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource ScrollBarThumbHoverBrush}" />
+                          <Setter TargetName="ThumbBorder" Property="Opacity" Value="0.9" />
+                        </Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Track.Thumb>
+            </Track>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+              <Setter TargetName="Thumb" Property="Margin" Value="0,1" />
+              <Setter TargetName="Thumb" Property="MinWidth" Value="24" />
+              <Setter TargetName="Thumb" Property="MinHeight" Value="6" />
+            </Trigger>
+            <Trigger Property="Orientation" Value="Vertical">
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="True" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="TextBlock" />
+  <Style x:Key="MutedText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style x:Key="InlineNotice" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" /><Setter Property="FontSize" Value="12" /><Setter Property="TextWrapping" Value="Wrap" />
+    <Style.Triggers><DataTrigger Binding="{Binding IsNoticeError}" Value="True"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger></Style.Triggers>
+  </Style>
+  <Style TargetType="Button">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" /><Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="Padding" Value="14,6" />
+    <Setter Property="MinHeight" Value="36" /><Setter Property="FontSize" Value="13" /><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" /><Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True" /></Border></ControlTemplate></Setter.Value></Setter>
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource HoverBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" /></Trigger>
+      <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource GoldSoftBrush}" /></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBrush}" /><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" /></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource GoldBrush}" /><Setter Property="Foreground" Value="{DynamicResource ButtonForegroundBrush}" /><Setter Property="FontWeight" Value="SemiBold" />
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource GoldHoverBrush}" /></Trigger>
+      <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryPressedBrush}" /></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBrush}" /><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource DisabledTextBrush}" /></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="LinkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Foreground" Value="{DynamicResource LinkBrush}" /><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="MinHeight" Value="24" /><Setter Property="FontSize" Value="12" /><Setter Property="Padding" Value="0,2" />
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource PrimaryPressedBrush}" /><Setter Property="TextBlock.TextDecorations" Value="Underline" /></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" /></Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style TargetType="TextBox">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" /><Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="MinHeight" Value="36" /><Setter Property="Padding" Value="12,7" /><Setter Property="FontSize" Value="13" /><Setter Property="VerticalContentAlignment" Value="Center" /><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4"><ScrollViewer x:Name="PART_ContentHost" Margin="0" /></Border></ControlTemplate></Setter.Value></Setter>
+    <Style.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusBrush}" /></Trigger><Trigger Property="IsReadOnly" Value="True"><Setter Property="Background" Value="{DynamicResource DisabledBrush}" /></Trigger></Style.Triggers>
+  </Style>
+  <Style TargetType="Label"><Setter Property="Foreground" Value="{DynamicResource TextBrush}" /><Setter Property="FontSize" Value="13" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="Padding" Value="0" /><Setter Property="Margin" Value="0,0,0,6" /></Style>
+  <Style x:Key="NavigationTab" TargetType="RadioButton">
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" /><Setter Property="MinWidth" Value="44" /><Setter Property="Height" Value="32" /><Setter Property="Margin" Value="0,0,24,0" /><Setter Property="Padding" Value="7,0" /><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}" />
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton"><Grid Background="Transparent"><ContentPresenter Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" /><Border x:Name="Underline" Width="30" Height="3" VerticalAlignment="Bottom" HorizontalAlignment="Center" Background="Transparent" /></Grid><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter Property="Foreground" Value="{DynamicResource TextBrush}" /><Setter Property="FontWeight" Value="SemiBold" /><Setter TargetName="Underline" Property="Background" Value="{DynamicResource GoldBrush}" /></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource TextBrush}" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="Card" TargetType="Border"><Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="6" /><Setter Property="Padding" Value="16" /></Style>
+  <Style x:Key="StatusDot" TargetType="Ellipse"><Setter Property="Fill" Value="{DynamicResource MutedTextBrush}" /><Style.Triggers><DataTrigger Binding="{Binding StatusTone}" Value="Success"><Setter Property="Fill" Value="{DynamicResource SuccessBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Danger"><Setter Property="Fill" Value="{DynamicResource DangerBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Error"><Setter Property="Fill" Value="{DynamicResource DangerBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Warning"><Setter Property="Fill" Value="{DynamicResource WarningBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Working"><Setter Property="Fill" Value="{DynamicResource PrimaryBrush}" /></DataTrigger></Style.Triggers></Style>
+  <Style x:Key="StatusIcon" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" /><Style.Triggers><DataTrigger Binding="{Binding StatusTone}" Value="Success"><Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Danger"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Error"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Warning"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}" /></DataTrigger><DataTrigger Binding="{Binding StatusTone}" Value="Working"><Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" /></DataTrigger></Style.Triggers></Style>
+</ResourceDictionary>

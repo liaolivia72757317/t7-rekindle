@@ -1,0 +1,41 @@
+<Application x:Class="T7.Rekindle.Desktop.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnMainWindowClose">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary>
+          <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F7F7F5" />
+          <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="PrimaryBrush" Color="#465E73" />
+          <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#3D5367" />
+          <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#34495C" />
+          <SolidColorBrush x:Key="TextBrush" Color="#1F2832" />
+          <SolidColorBrush x:Key="MutedTextBrush" Color="#5F6B78" />
+          <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ControlBorderBrush" Color="#ADA89F" />
+          <SolidColorBrush x:Key="DividerBrush" Color="#D9D4CB" />
+          <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="HoverBrush" Color="#F0EDE7" />
+          <SolidColorBrush x:Key="DisabledBrush" Color="#E2E0DB" />
+          <SolidColorBrush x:Key="DisabledTextBrush" Color="#777C80" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#38664F" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#A14943" />
+          <SolidColorBrush x:Key="ErrorBrush" Color="#A14943" />
+          <SolidColorBrush x:Key="WarningBrush" Color="#806124" />
+          <SolidColorBrush x:Key="GoldBrush" Color="#B08A45" />
+          <SolidColorBrush x:Key="GoldHoverBrush" Color="#9C7A3D" />
+          <SolidColorBrush x:Key="GoldSoftBrush" Color="#F3EBDD" />
+          <SolidColorBrush x:Key="AccentSoftBrush" Color="#F3EBDD" />
+          <SolidColorBrush x:Key="FocusBrush" Color="#465E73" />
+          <SolidColorBrush x:Key="LinkBrush" Color="#465E73" />
+          <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#7C8996" />
+          <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#526779" />
+        </ResourceDictionary>
+        <ResourceDictionary Source="Resources/Controls.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  build:
+    name: Windows x64 / Release
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up CPython
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.4"
+          architecture: x64
+
+      - name: Set up Inno Setup 7.1.0
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup-7.1.0-x64.exe"
+          $innoDirectory = Join-Path $env:RUNNER_TEMP "InnoSetup"
+          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe" -OutFile $installer
+          $arguments = @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
+            "/CURRENTUSER", "/PORTABLE=1", "/NOICONS", "/DIR=`"$innoDirectory`""
+          )
+          $process = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Inno Setup preparation failed with exit code $($process.ExitCode)"
+          }
+
+      - name: Install test dependencies
+        run: python -m pip install pytest==9.1.1
+
+      - name: Run Python tests
+        run: python -m pytest -q tests/python --junitxml=artifacts/test-results/python.xml
+
+      - name: Build and test native projects
+        run: python scripts/build.py --project native-tests
+
+      - name: Build managed projects
+        run: python scripts/build.py --project managed
+
+      - name: Run managed tests
+        run: .\artifacts\bin\T7.ManagedHarness\x64\Release\net48\T7.ManagedHarness.exe
+
+      - name: Run synthetic integration tests
+        run: python scripts/integration_test.py --report artifacts/test-results/integration.json
+
+      - name: Download embeddable CPython
+        run: >-
+          Invoke-WebRequest
+          -Uri "https://www.python.org/ftp/python/3.14.4/python-3.14.4-embed-amd64.zip"
+          -OutFile "$env:RUNNER_TEMP/python-3.14.4-embed-amd64.zip"
+
+      - name: Package application
+        run: >-
+          python scripts/package.py --output artifacts/package
+          --python-archive "$env:RUNNER_TEMP/python-3.14.4-embed-amd64.zip"
+          --release
+
+      - name: Verify package
+        run: python scripts/package.py --output artifacts/package --verify --release
+
+      - name: Create portable release archive
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path "artifacts/package/*" `
+            -DestinationPath "dist/T7-Rekindle-windows-x64.zip"
+
+      - name: Build installer
+        run: |
+          $arguments = @("--messages-jsonl")
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            # AppVersion accepts Inno constants; keep the tag name literal.
+            $version = $env:GITHUB_REF_NAME.Replace("{", "{{")
+            $arguments += "--define=MyAppVersion=$version"
+          }
+          $arguments += "installer/T7-Rekindle.iss"
+          $messages = "artifacts/test-results/inno.jsonl"
+          & "$env:RUNNER_TEMP/InnoSetup/ISCC.exe" @arguments 2> $messages
+          $compilerExitCode = $LASTEXITCODE
+          Get-Content -Encoding UTF8 -LiteralPath $messages
+          if ($compilerExitCode -ne 0) { exit $compilerExitCode }
+          if (Select-String -LiteralPath $messages -Pattern '"severity"\s*:\s*"warning"' -Quiet) {
+            throw "Inno Setup reported compiler warnings."
+          }
+
+      - name: Upload application package
+        uses: actions/upload-artifact@v7
+        with:
+          name: T7-Rekindle-windows-x64
+          path: artifacts/package/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: T7-Rekindle-setup-windows-x64
+          path: dist/T7-Rekindle-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload portable release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: T7-Rekindle-portable-windows-x64
+          path: dist/T7-Rekindle-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-windows-x64
+          path: artifacts/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted }}
+    runs-on: windows-2022
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified application package
+        uses: actions/download-artifact@v8
+        with:
+          name: T7-Rekindle-windows-x64
+          path: artifacts/package
+
+      - name: Download installer
+        uses: actions/download-artifact@v8
+        with:
+          name: T7-Rekindle-setup-windows-x64
+          path: dist
+
+      - name: Create release archive
+        run: >-
+          Compress-Archive -Path "artifacts/package/*"
+          -DestinationPath "dist/T7-Rekindle-windows-x64.zip"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create --repo "$env:GITHUB_REPOSITORY"
+          --verify-tag --generate-notes --title "$env:RELEASE_TAG"
+          -- "$env:RELEASE_TAG" "dist/T7-Rekindle-windows-x64.zip"
+          "dist/T7-Rekindle-Setup.exe"

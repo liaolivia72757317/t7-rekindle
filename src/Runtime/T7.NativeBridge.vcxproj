@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{4F2D3D28-6D00-4F12-9F5B-0A7DE8C9F003}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\..\Native.Common.props" />
+  <PropertyGroup>
+    <TargetName>T7.NativeBridge</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><PreprocessorDefinitions>T7_NATIVE_BRIDGE_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <ModuleDefinitionFile>bridge\T7NativeBridge.def</ModuleDefinitionFile>
+      <AdditionalDependencies>python314.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="bridge\T7NativeBridge.cpp" />
+    <ClCompile Include="bridge\Session.cpp" />
+    <ClCompile Include="core\Common.cpp" />
+    <ClCompile Include="core\Protocol.cpp" />
+    <ClCompile Include="launcher\Bootstrap.cpp" />
+    <ClCompile Include="launcher\MovementOverlay.cpp" />
+    <ClCompile Include="server\Journal.cpp" />
+    <ClCompile Include="server\RunDirectory.cpp" />
+    <ClCompile Include="server\PythonHost.cpp" />
+    <ClCompile Include="server\Server.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bridge\T7NativeBridge.h" />
+    <ClInclude Include="bridge\Session.h" />
+    <ClInclude Include="core\Common.h" />
+    <ClInclude Include="core\PlayerName.h" />
+    <ClInclude Include="core\Protocol.h" />
+    <ClInclude Include="launcher\Bootstrap.h" />
+    <ClInclude Include="launcher\ClientPath.h" />
+    <ClInclude Include="launcher\EndpointLayout.h" />
+    <ClInclude Include="launcher\ModuleLookup.h" />
+    <ClInclude Include="launcher\MovementOverlay.h" />
+    <ClInclude Include="launcher\ProcessCleanup.h" />
+    <ClInclude Include="server\Journal.h" />
+    <ClInclude Include="server\RunDirectory.h" />
+    <ClInclude Include="server\PythonHost.h" />
+    <ClInclude Include="server\SendQueue.h" />
+    <ClInclude Include="server\Server.h" />
+    <ClInclude Include="server\ServerTiming.h" />
+  </ItemGroup>
+  <ItemGroup><None Include="bridge\T7NativeBridge.def" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

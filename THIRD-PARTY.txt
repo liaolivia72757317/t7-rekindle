@@ -1,0 +1,24 @@
+第三方依赖与许可证
+
+随完整产品包分发的主要组件：
+
+- CPython 3.14.4 AMD64 — Python Software Foundation License 2.0
+- CommunityToolkit.Mvvm 8.4.2 — MIT
+- Newtonsoft.Json 13.0.4 — MIT
+- NLog 6.2.1 — BSD-3-Clause
+
+托管传递依赖包括 Microsoft.Bcl.AsyncInterfaces 10.0.1、System.Buffers 4.6.1、
+System.ComponentModel.Annotations 5.0.0、System.Memory 4.6.3、System.Numerics.Vectors 4.6.1、
+System.Runtime.CompilerServices.Unsafe 6.1.2、System.Threading.Tasks.Extensions 4.6.3，采用 MIT License。
+
+运行时组件许可及上游声明随启动器嵌入，可在“关于 → 开源软件说明”中离线阅读。
+源码位置为 src/Desktop/Resources/THIRD-PARTY-NOTICES.txt。
+托管依赖版本记录在 src/Desktop/packages.lock.json；更新依赖时同步核对许可声明。
+
+构建工具：
+
+- Inno Setup 7.1.0（安装器构建）— Inno Setup License
+  项目与许可证：https://jrsoftware.org/isinfo.php
+
+Visual Studio、Windows SDK、.NET SDK/Targeting Pack 和 pytest 等开发工具不作为运行时
+依赖随产品目录打包。开发环境要求见 docs/development.md。

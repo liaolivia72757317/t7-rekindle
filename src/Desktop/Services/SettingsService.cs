@@ -1,0 +1,140 @@
+using System;
+using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using T7.Rekindle.Core;
+
+namespace T7.Rekindle.Desktop.Services
+{
+    public sealed class SettingsService
+    {
+        private readonly string _directory;
+        private readonly string _path;
+        private readonly string _backupPath;
+
+        public string LastWarning { get; private set; } = string.Empty;
+
+        public SettingsService()
+            : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "T7-Rekindle"))
+        {
+        }
+
+        // A directory overload keeps persistence tests isolated without
+        // changing the product's fixed LocalAppData location.
+        public SettingsService(string directory)
+        {
+            if (string.IsNullOrWhiteSpace(directory)) throw new ArgumentException("设置目录不能为空。", nameof(directory));
+            _directory = Path.GetFullPath(directory);
+            _path = Path.Combine(_directory, "settings.json");
+            _backupPath = _path + ".bak";
+        }
+
+        public UserSettings Load()
+        {
+            LastWarning = string.Empty;
+            var settings = TryRead(_path);
+            if (settings != null)
+            {
+                return settings;
+            }
+
+            if (File.Exists(_path))
+            {
+                LastWarning = "设置文件无效，已保留原文件并尝试恢复备份。";
+            }
+
+            var backup = TryRead(_backupPath);
+            if (backup != null)
+            {
+                LastWarning += "已从 settings.json.bak 恢复。";
+                return backup;
+            }
+
+            if (File.Exists(_backupPath))
+            {
+                LastWarning += "备份也无效，请重新选择客户端目录。";
+            }
+            return new UserSettings();
+        }
+
+        public void Save(UserSettings settings)
+        {
+            if (!SettingsSchema.IsValid(settings))
+            {
+                throw new InvalidDataException("设置不符合当前 schema。");
+            }
+
+            Directory.CreateDirectory(_directory);
+            // A per-write name plus CreateNew avoids following a stale
+            // settings.json.tmp reparse point and keeps the replace in the
+            // same directory for atomicity.
+            var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            var json = JsonConvert.SerializeObject(settings, Formatting.Indented, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.None,
+                MissingMemberHandling = MissingMemberHandling.Error,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
+            }) + Environment.NewLine;
+            var bytes = new System.Text.UTF8Encoding(false).GetBytes(json);
+            var committed = false;
+            try
+            {
+                using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush(true);
+                }
+
+                if (File.Exists(_path))
+                {
+                    File.Replace(temporary, _path, _backupPath, true);
+                }
+                else
+                {
+                    File.Move(temporary, _path);
+                }
+                committed = true;
+            }
+            finally
+            {
+                if (!committed)
+                {
+                    try
+                    {
+                        if (File.Exists(temporary)) File.Delete(temporary);
+                    }
+                    catch (Exception cleanupError) when (cleanupError is IOException || cleanupError is UnauthorizedAccessException)
+                    {
+                        // Preserve the original write/replace failure; a
+                        // uniquely named temp file cannot affect the next
+                        // atomic save.
+                    }
+                }
+            }
+        }
+
+        private static UserSettings TryRead(string path)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                var settings = JsonConvert.DeserializeObject<UserSettings>(File.ReadAllText(path), new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.None,
+                    MissingMemberHandling = MissingMemberHandling.Error,
+                    CheckAdditionalContent = true,
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                });
+                return SettingsSchema.IsValid(settings) ? settings : null;
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
+            {
+                return null;
+            }
+        }
+    }
+}

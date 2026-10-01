@@ -1,0 +1,30 @@
+# Build and release output
+/artifacts/
+/dist/
+/packages/
+*.user
+*.suo
+*.userprefs
+
+# Python generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE and local configuration
+.vs/
+/.local/
+/.claude/
+*.log
+local/
+
+# Runtime state and diagnostics
+src/Business/data/
+src/Business/cache/
+src/Runtime/data/
+*.dmp
+
+# Never include client or extracted game material
+client/
+work/
+extracted/
