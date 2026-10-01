@@ -301,7 +301,8 @@ namespace T7.ManagedHarness
         private static void TestUpdates()
         {
             var interaction = new FakeDesktopInteraction();
-            var about = new AboutViewModel(interaction);
+            var update = new LauncherUpdateInfo { CurrentVersion = "v0.1.0", TargetVersion = "v0.2.0", IsNewVersion = true };
+            var about = new AboutViewModel(interaction, () => Task.FromResult(update));
             var checkingWhenResultShown = true;
             interaction.OnShowUpdate = () => checkingWhenResultShown = about.IsCheckingUpdate;
             RunTask(about.CheckUpdateCommand.ExecuteAsync(null));
@@ -323,6 +324,23 @@ namespace T7.ManagedHarness
             about = new AboutViewModel(interaction, () => Task.FromResult(new LauncherUpdateInfo { IsNewVersion = false }));
             RunTask(about.CheckUpdateCommand.ExecuteAsync(null));
             Assert(about.UpdateStatus.Contains("最新"), "up-to-date state missing");
+            var pending = new TaskCompletionSource<LauncherUpdateInfo>();
+            about = new AboutViewModel(interaction, () => pending.Task);
+            var checking = about.CheckUpdateCommand.ExecuteAsync(null);
+            Pump();
+            Assert(about.IsCheckingUpdate && !about.CheckUpdateCommand.CanExecute(null), "concurrent update checks were not disabled");
+            pending.SetResult(new LauncherUpdateInfo { HasPublishedRelease = false });
+            RunTask(checking);
+            Assert(!about.IsCheckingUpdate && about.UpdateStatus == "暂无正式发布版本", "no-release state missing");
+            var calls = 0;
+            about = new AboutViewModel(interaction, () => ++calls == 1
+                ? Task.FromException<LauncherUpdateInfo>(new IOException("network fixture"))
+                : Task.FromResult(new LauncherUpdateInfo { IsCurrentVersionAhead = true }));
+            RunTask(about.CheckUpdateCommand.ExecuteAsync(null));
+            Assert(about.HasFeedback && about.UpdateError == "network fixture", "network failure lost its explanation");
+            RunTask(about.CheckUpdateCommand.ExecuteAsync(null));
+            Assert(about.UpdateStatus.Contains("高于") && !about.HasFeedback && about.UpdateError.Length == 0,
+                "successful retry retained an earlier update error");
         }
 
         internal static void RunTask(Task task)

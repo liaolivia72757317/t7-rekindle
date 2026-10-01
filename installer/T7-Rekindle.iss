@@ -9,6 +9,7 @@
 AppId={{A8D06D9F-5E67-4E77-9B6B-0B4A3C1A4F30}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppMutex=Local\T7-Rekindle.Desktop
 AppPublisher={#MyAppPublisher}
 DefaultDirName={localappdata}\Programs\T7-Rekindle
 DisableDirPage=no

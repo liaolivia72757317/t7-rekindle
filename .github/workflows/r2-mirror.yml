@@ -1,0 +1,62 @@
+name: Mirror release to R2
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      R2_ACCESS_KEY_ID:
+        required: true
+      R2_SECRET_ACCESS_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable GitHub Release tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r2-mirror-${{ vars.R2_BUCKET }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  mirror:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      RELEASE_TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: "3"
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - name: Check out mirror scripts
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up CPython
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.4"
+          architecture: x64
+
+      - name: Mirror and verify release
+        shell: pwsh
+        run: python scripts/mirror_release.py

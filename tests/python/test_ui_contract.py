@@ -94,6 +94,17 @@ def test_about_page_starts_with_information_card_without_heading():
     }
 
 
+def test_project_information_uses_the_public_repository():
+    project = ET.parse(ROOT / "src/Desktop/T7.Desktop.csproj").getroot()
+    assert project.findtext("PropertyGroup/RepositoryUrl") == "https://github.com/liaolivia72757317/t7-rekindle"
+    metadata = {item.attrib["Include"]: item.attrib["Value"]
+                for item in project.findall("ItemGroup/AssemblyMetadata")}
+    assert set(metadata) == {"RepositoryUrl", "DownloadUrl", "BuildsUrl", "IssuesUrl", "UpdateBaseUrl"}
+    assert metadata["RepositoryUrl"] == "$(RepositoryUrl)"
+    assert metadata["DownloadUrl"] == "$(RepositoryUrl)/releases"
+    assert metadata["UpdateBaseUrl"] == "$(T7_UPDATE_BASE_URL)"
+
+
 def test_update_dialog_keeps_heading_and_actions_outside_scrollable_content():
     root = _xaml(ROOT / "src/Desktop/Views/UpdateDialog.xaml")
     scroll = _find(root, "ScrollViewer")[0]
@@ -102,8 +113,11 @@ def test_update_dialog_keeps_heading_and_actions_outside_scrollable_content():
     assert not _find(scroll, "Button")
     footer = _find(root, "Border")[-1]
     assert footer.attrib["Grid.Row"] == "2"
-    assert [button.attrib["{" + XAML + "}Name"] for button in _find(footer, "Button")] == ["LaterButton", "DownloadButton"]
+    assert [button.attrib["{" + XAML + "}Name"] for button in _find(footer, "Button")] == [
+        "LaterButton", "CancelDownloadButton", "DownloadButton"]
     assert _find(footer, "Button")[0].attrib["IsCancel"] == "True"
+    assert _find(root, "ProgressBar")[0].attrib["Value"] == "{Binding Percent, Mode=OneWay}"
+    assert _find(footer, "Button")[1].attrib["Command"] == "{Binding CancelDownloadCommand}"
 
 
 def test_interface_copy_has_no_prototype_annotations():
@@ -209,6 +223,10 @@ def test_inno_version_accepts_a_release_override_with_a_local_default():
     text = (ROOT / "installer" / "T7-Rekindle.iss").read_text(encoding="utf-8")
     assert '#ifndef MyAppVersion\n#define MyAppVersion "0.1.0"\n#endif' in text
     assert 'AppVersion={#MyAppVersion}' in text
+    assert r'AppMutex=Local\T7-Rekindle.Desktop' in text
+    project = ET.parse(ROOT / "src/Desktop/T7.Desktop.csproj").getroot()
+    assert project.findtext("PropertyGroup/AssemblyVersion") == "$(T7_RELEASE_VERSION)"
+    assert project.findtext("PropertyGroup/FileVersion") == "$(T7_RELEASE_VERSION)"
 
 
 def test_app_reacts_to_high_contrast_changes():

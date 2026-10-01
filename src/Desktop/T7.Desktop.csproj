@@ -5,6 +5,10 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Version>0.1.0</Version>
+    <Version Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</Version>
+    <AssemblyVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</AssemblyVersion>
+    <FileVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</FileVersion>
+    <RepositoryUrl>https://github.com/liaolivia72757317/t7-rekindle</RepositoryUrl>
     <SourceRevisionId Condition="'$(GITHUB_SHA)' != ''">$(GITHUB_SHA)</SourceRevisionId>
     <RootNamespace>T7.Rekindle.Desktop</RootNamespace>
     <AssemblyName>T7-Rekindle</AssemblyName>
@@ -16,6 +20,10 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />
+    <AssemblyMetadata Include="DownloadUrl" Value="$(RepositoryUrl)/releases" />
+    <AssemblyMetadata Include="UpdateBaseUrl" Value="$(T7_UPDATE_BASE_URL)" />
     <Resource Include="Resources\Assets\**\*" />
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute" Condition="'$(SourceRevisionId)' != ''">
       <_Parameter1>CommitHash</_Parameter1>

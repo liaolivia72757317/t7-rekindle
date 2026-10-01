@@ -103,15 +103,17 @@ Compress-Archive -Path artifacts/package/* -DestinationPath dist/T7-Rekindle-win
 
 ### 版本与关于页
 
-启动器版本来自 `src/Desktop/T7.Desktop.csproj`；`MyAppVersion` 只设置安装器版本，不会自动更新程序集版本或内置版本日志。发布时需同步核对。
+本地启动器默认版本来自 `src/Desktop/T7.Desktop.csproj`；正式 tag 构建通过 `T7_RELEASE_VERSION` 将同一数字版本写入程序集和安装器。本地单独设置 `MyAppVersion` 仍只影响安装器。内置版本日志由维护者更新。
 
-CI 通过 `GITHUB_SHA` 写入 Git 提交元数据。关于页读取 `RepositoryUrl`、`DownloadUrl` 的接口已存在，但当前项目文件未生成这三项元数据，因此默认显示地址缺失状态。更新检查仍是内置示例，不是发行版本查询；完善这些发布信息属于[交付待办](planning/task-list.md)。
+CI 通过 `GITHUB_SHA` 写入 Git 提交元数据，并生成仓库地址 `RepositoryUrl`、发布页 `DownloadUrl` 和镜像地址 `UpdateBaseUrl` 元数据。
+
+更新检查仅在用户点击时进行，优先匿名请求内置域名的 R2 清单，失败时回退 GitHub Releases `latest` API，每个检查请求超时为 10 秒；不查询预发布版或 CI 开发构建。数字版本比较支持四段数字及不影响优先级的 `+构建标识`。用户可在更新弹窗下载安装版、查看进度和取消；大小及 SHA-256 校验成功后，由用户再次确认安装。未配置镜像地址的开发构建仍使用 GitHub。配置、协议和验收见 [R2 发布镜像](release-mirror.md)。
 
 ## 5. CI 产物与正式发布
 
 [CI 工作流](../.github/workflows/ci.yml)在分支 push、tag push、PR 和手动运行时执行构建、测试、包校验及安装器编译。成功的构建上传产品目录、安装器、便携 ZIP 和测试报告，当前保留期为 14 天。
 
-**当前工作流在任意 tag push 的构建通过后自动创建 GitHub Release。** 它没有集成应用签名、人工审批、真实界面或客户端验收步骤。CI 成功和 Release 页面存在都不等于已经满足正式发行标准；使用者应查看该版本的验收记录和已知限制。
+**当前工作流在符合正式版本格式的 tag push 构建通过后自动创建 GitHub Release，并同步 R2 镜像。** 正式 tag 构建前需配置镜像公开域名，上传前需配置桶和凭据；镜像失败不会删除已发布的 GitHub Release，可单独补传。该流程没有集成应用签名、人工审批、真实界面或客户端验收步骤。CI 成功和 Release 页面存在都不等于已经满足正式发行标准；使用者应查看该版本的验收记录和已知限制。
 
 正式发布前的签名、安装/卸载、真实客户端和版本信息检查，由维护者按[发行验收清单](planning/implementation-plan.md#发行验收)执行并记录。尚未完成的事项在任务清单保留，不描述成已生效的自动门禁。
 

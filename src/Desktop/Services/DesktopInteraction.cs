@@ -15,6 +15,7 @@ namespace T7.Rekindle.Desktop.Services
         void ShowMarkdown(string title, string markdown);
         void CopyText(string text);
         void OpenDirectory(string path);
+        void OpenAddress(string address);
         void ShowUpdate(LauncherUpdateInfo info);
     }
 
@@ -61,6 +62,14 @@ namespace T7.Rekindle.Desktop.Services
         {
             Directory.CreateDirectory(path);
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+
+        public void OpenAddress(string address)
+        {
+            if (!Uri.TryCreate(address, UriKind.Absolute, out var uri)
+                || uri.Scheme != Uri.UriSchemeHttps || uri.UserInfo.Length != 0)
+                throw new ArgumentException("链接不是有效的 HTTPS 地址。", nameof(address));
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
         }
 
         public void ShowUpdate(LauncherUpdateInfo info)

@@ -114,6 +114,7 @@ namespace T7.ManagedHarness
                 TestFirstRunLayout(settingsDirectory, outputDirectory);
                 TestDirectorySearchLayout(settingsDirectory, outputDirectory);
                 TestUpdateLayout(outputDirectory);
+                TestUpdateProgressLayout(outputDirectory);
                 TestTextDialogLayout(outputDirectory);
                 TestMarkdownDialogLayout(outputDirectory);
                 LauncherTests.Assert(bindingErrors.Messages.Length == 0, "WPF binding error: " + bindingErrors.Messages);
@@ -178,7 +179,11 @@ namespace T7.ManagedHarness
 
         private static void TestUpdateLayout(string outputDirectory)
         {
-            var info = LauncherInformation.CheckSampleUpdateAsync().Result;
+            var info = new LauncherUpdateInfo
+            {
+                CurrentVersion = "v0.1.0", TargetVersion = "v0.2.0", IsNewVersion = true,
+                Summary = "• 改进启动流程。\n• 完善诊断信息。", DownloadAddress = LauncherInformation.DownloadAddress
+            };
             var update = new UpdateDialog(info);
             var root = (FrameworkElement)update.Content;
             foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
@@ -193,6 +198,7 @@ namespace T7.ManagedHarness
                 CurrentVersion = info.CurrentVersion,
                 TargetVersion = info.TargetVersion,
                 IsNewVersion = true,
+                DownloadAddress = info.DownloadAddress,
                 Summary = string.Join("\n", new string[80]).Replace("\n", "更新条目：长内容应滚动阅读。\n")
             });
             root = (FrameworkElement)longUpdate.Content;
@@ -206,6 +212,79 @@ namespace T7.ManagedHarness
             Render((FrameworkElement)current.Content, null, outputDirectory, "update-dialog-current", 464, 361);
             LauncherTests.Assert(((Button)current.FindName("DownloadButton")).Visibility == Visibility.Collapsed
                 && ((TextBlock)current.FindName("Heading")).Text.Contains("最新"), "up-to-date dialog still offers a new version");
+            var unpublished = new UpdateDialog(new LauncherUpdateInfo
+            {
+                CurrentVersion = info.CurrentVersion, TargetVersion = "未发布", HasPublishedRelease = false,
+                Summary = "GitHub Releases 暂无正式版本。\n开发构建请查看项目仓库的 Actions 页面。", DownloadAddress = info.DownloadAddress
+            });
+            foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
+            {
+                Render((FrameworkElement)unpublished.Content, null, outputDirectory, "update-dialog-unpublished-" + (int)(scale * 100), 464, 361, scale);
+                AssertWithin((Button)unpublished.FindName("DownloadButton"), (FrameworkElement)unpublished.Content, 464, 361);
+            }
+            LauncherTests.Assert(((TextBlock)unpublished.FindName("Heading")).Text == "暂无正式发布版本"
+                && ((Button)unpublished.FindName("DownloadButton")).Visibility == Visibility.Visible,
+                "unpublished release dialog reported an up-to-date version or lost the release page link");
+        }
+
+        private static void TestUpdateProgressLayout(string outputDirectory)
+        {
+            var attempt = 0;
+            var info = UpdateDialogTests.Info();
+            info.Installer = new LauncherUpdateAsset(info.Installer.DownloadAddress, info.Installer.FallbackAddress,
+                16 * 1024 * 1024, info.Installer.Sha256, "R2");
+            using (var model = new UpdateDialogViewModel(info, (asset, progress, token) =>
+            {
+                attempt++;
+                if (attempt == 2) return System.Threading.Tasks.Task.FromException<string>(new IOException("磁盘写入失败，请检查剩余空间。"));
+                if (attempt == 3) return System.Threading.Tasks.Task.FromResult("verified-installer.exe");
+                var pending = new System.Threading.Tasks.TaskCompletionSource<string>();
+                token.Register(() => pending.TrySetCanceled());
+                progress.Report(new UpdateDownloadProgress(asset.Size / 2, asset.Size, "GitHub", "R2 下载失败，已切换到 GitHub。"));
+                return pending.Task;
+            }, path => System.Threading.Tasks.Task.FromResult(false), address => { }))
+            {
+                var dialog = new UpdateDialog(info, model);
+                var root = (FrameworkElement)dialog.Content;
+                var operation = model.PrimaryCommand.ExecuteAsync(null);
+                LauncherTests.Pump();
+                foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
+                {
+                    Render(root, null, outputDirectory, "update-downloading-" + (int)(scale * 100), 464, 381, scale);
+                    AssertWithin((Button)dialog.FindName("CancelDownloadButton"), root, 464, 381);
+                    AssertWithin((Button)dialog.FindName("DownloadButton"), root, 464, 381);
+                }
+                LauncherTests.Assert(((ProgressBar)dialog.FindName("DownloadProgress")).Value > 0
+                    && ((Button)dialog.FindName("CancelDownloadButton")).IsEnabled, "download controls were not bound");
+                LauncherTests.RunTask(model.CancelAndWaitAsync());
+                LauncherTests.RunTask(operation);
+                foreach (var state in new[] { "cancelled", "failed", "completed" })
+                {
+                    if (state != "cancelled") LauncherTests.RunTask(model.PrimaryCommand.ExecuteAsync(null));
+                    foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
+                        Render(root, null, outputDirectory, "update-" + state + "-" + (int)(scale * 100), 464, 381, scale);
+                }
+                LauncherTests.Assert(((Button)dialog.FindName("DownloadButton")).Content.ToString() == "立即安装",
+                    "completed download lost its explicit installation action");
+                dialog.Close();
+            }
+            using (var model = new UpdateDialogViewModel(info, (asset, progress, token) =>
+            {
+                var pending = new System.Threading.Tasks.TaskCompletionSource<string>();
+                token.Register(() => pending.TrySetCanceled());
+                return pending.Task;
+            }, path => System.Threading.Tasks.Task.FromResult(false), address => { }))
+            {
+                var dialog = new UpdateDialog(info, model);
+                var closed = false;
+                dialog.Closed += (_, __) => closed = true;
+                var operation = model.PrimaryCommand.ExecuteAsync(null);
+                dialog.Close();
+                LauncherTests.RunTask(operation);
+                LauncherTests.Pump();
+                LauncherTests.Assert(closed && !model.IsDownloading && !model.HasDownloadedInstaller,
+                    "closing the update window did not cancel and await the active download");
+            }
         }
 
         private static void TestTextDialogLayout(string outputDirectory)

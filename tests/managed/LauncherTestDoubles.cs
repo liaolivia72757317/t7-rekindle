@@ -90,6 +90,7 @@ namespace T7.ManagedHarness
         public void ShowMarkdown(string title, string markdown) { Text = markdown; IsMarkdown = true; }
         public void CopyText(string text) { Text = text; }
         public void OpenDirectory(string path) { Text = path; }
+        public void OpenAddress(string address) { Text = address; }
         public void ShowUpdate(LauncherUpdateInfo info) { Update = info; OnShowUpdate?.Invoke(); }
     }
 }

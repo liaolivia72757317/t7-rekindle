@@ -1,6 +1,9 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows;
+using T7.Rekindle.Desktop.Services;
 using T7.Rekindle.Desktop.ViewModels;
 
 namespace T7.Rekindle.Desktop
@@ -86,6 +89,33 @@ namespace T7.Rekindle.Desktop
         {
             if (DataContext is MainWindowViewModel model) model.PropertyChanged -= OnModelPropertyChanged;
             (DataContext as System.IDisposable)?.Dispose();
+        }
+
+        internal async Task<bool> InstallUpdateAsync(string installerPath, Action allowDialogClose)
+        {
+            if (_closePending || _closeAfterCleanup) return false;
+            if (!(DataContext is MainWindowViewModel model)) throw new InvalidOperationException("启动器状态尚未就绪。");
+            _closePending = true;
+            try
+            {
+                var installation = new UpdateInstallationService(model.RequestCloseAsync,
+                    () => model.SaveSettings(ActualWidth, ActualHeight),
+                    path =>
+                    {
+                        using (var installer = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }))
+                        {
+                            if (installer == null) throw new InvalidOperationException("安装向导未成功启动。");
+                        }
+                    },
+                    () =>
+                    {
+                        _closeAfterCleanup = true;
+                        allowDialogClose();
+                        Close();
+                    });
+                return await installation.InstallAsync(installerPath).ConfigureAwait(true);
+            }
+            finally { _closePending = false; }
         }
     }
 }

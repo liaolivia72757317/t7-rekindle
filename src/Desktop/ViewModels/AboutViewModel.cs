@@ -12,10 +12,11 @@ namespace T7.Rekindle.Desktop.ViewModels
         private readonly Func<Task<LauncherUpdateInfo>> _checkUpdate;
         private string _feedback = string.Empty;
         private string _updateStatus = string.Empty;
+        private string _updateError = string.Empty;
         private bool _isCheckingUpdate;
 
         public AboutViewModel(IDesktopInteraction interaction)
-            : this(interaction, LauncherInformation.CheckSampleUpdateAsync) { }
+            : this(interaction, LauncherInformation.CheckUpdateAsync) { }
 
         internal AboutViewModel(IDesktopInteraction interaction, Func<Task<LauncherUpdateInfo>> checkUpdate)
         {
@@ -47,6 +48,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         }
         public bool HasFeedback => Feedback.Length != 0;
         public string UpdateStatus { get => _updateStatus; private set => SetProperty(ref _updateStatus, value); }
+        public string UpdateError { get => _updateError; private set => SetProperty(ref _updateError, value); }
         public bool IsCheckingUpdate
         {
             get => _isCheckingUpdate;
@@ -69,19 +71,22 @@ namespace T7.Rekindle.Desktop.ViewModels
         private async Task CheckUpdateAsync()
         {
             IsCheckingUpdate = true;
+            Feedback = string.Empty;
+            UpdateError = string.Empty;
             UpdateStatus = "正在检查更新…";
             try
             {
                 await Task.Yield();
                 var result = await _checkUpdate();
                 IsCheckingUpdate = false;
-                UpdateStatus = result.IsNewVersion ? "发现新版本" : "已是最新版本";
+                UpdateStatus = result.StatusText;
                 _interaction.ShowUpdate(result);
             }
             catch (Exception error)
             {
                 UpdateStatus = "检查更新失败；不影响本地启动。";
-                Feedback = error.Message;
+                UpdateError = error.Message;
+                Feedback = UpdateError;
             }
             finally { IsCheckingUpdate = false; }
         }

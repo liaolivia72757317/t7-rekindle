@@ -46,6 +46,11 @@ jobs:
           python-version: "3.14.4"
           architecture: x64
 
+      - name: Configure release version and update mirror
+        env:
+          R2_PUBLIC_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+        run: python scripts/release_metadata.py prepare-build
+
       - name: Set up Inno Setup 7.1.0
         run: |
           $installer = Join-Path $env:RUNNER_TEMP "innosetup-7.1.0-x64.exe"
@@ -103,8 +108,7 @@ jobs:
         run: |
           $arguments = @("--messages-jsonl")
           if ($env:GITHUB_REF_TYPE -eq "tag") {
-            # AppVersion accepts Inno constants; keep the tag name literal.
-            $version = $env:GITHUB_REF_NAME.Replace("{", "{{")
+            $version = $env:T7_RELEASE_VERSION
             $arguments += "--define=MyAppVersion=$version"
           }
           $arguments += "installer/T7-Rekindle.iss"
@@ -186,3 +190,13 @@ jobs:
           --verify-tag --generate-notes --title "$env:RELEASE_TAG"
           -- "$env:RELEASE_TAG" "dist/T7-Rekindle-windows-x64.zip"
           "dist/T7-Rekindle-Setup.exe"
+
+  mirror:
+    name: Mirror published release to R2
+    needs: release
+    uses: ./.github/workflows/r2-mirror.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

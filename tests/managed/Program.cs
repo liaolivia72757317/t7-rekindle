@@ -33,6 +33,10 @@ namespace T7.ManagedHarness
             if (SettingsSchema.IsValid(new UserSettings { ClientDirectory = "\\\\" })) return 17;
             NativeAbiLayout.Validate();
             NativeBridgeServiceTests.Run();
+            GitHubReleaseUpdateTests.Run();
+            UpdateFeedTests.Run();
+            UpdateDownloadTests.Run();
+            UpdateDialogTests.Run();
             LauncherTests.Run();
             ThemeTests.Run(args.Length == 2 && args[0] == "--render-ui" ? args[1] : null);
             Console.WriteLine("managed contract checks passed");
