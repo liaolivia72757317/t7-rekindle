@@ -11,7 +11,7 @@
 | 系统 | Windows 10 22H2 / Windows 11 x64 |
 | 原生工具 | [VS 2022 Build Tools](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history)，安装“使用 C++ 的桌面开发”、v143 工具集和 Windows SDK |
 | Python | [CPython 3.14.4](https://www.python.org/downloads/release/python-3144/) 的 Windows installer (64-bit)，包含头文件、导入库、运行时 DLL 和标准库 |
-| 托管工具 | [.NET SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)，以及 [.NET Framework 4.8 Developer Pack](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48) |
+| 托管工具 | [.NET SDK 8.0.425](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)，以及 [.NET Framework 4.8 Developer Pack](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48) |
 | 测试工具 | `pytest==9.1.1`，安装命令见下方 |
 | 安装器工具 | [Inno Setup 7.1.0](https://jrsoftware.org/isdl.php)，仅制作安装器时需要 |
 
@@ -32,7 +32,7 @@ dotnet --list-sdks
 python -m pip install pytest==9.1.1
 ```
 
-Python 应显示 3.14.4、64 位；`dotnet --list-sdks` 应列出 SDK，而不只是 Runtime。仓库不要求预先存在构建产物或维护者的本地工具目录。
+Python 应显示 3.14.4、64 位；`dotnet --list-sdks` 应列出 SDK 8.0.425，而不只是 Runtime。仓库不要求预先存在构建产物或维护者的本地工具目录。
 
 ## 2. 构建与测试
 
@@ -60,6 +60,8 @@ python scripts/integration_test.py --report artifacts/test-results/integration.j
 合成集成测试依赖 `native-tests` 的输出，并生成 JSON 报告。`realClient=false` 表示未启动真实客户端；它验证所覆盖的合成流程，不代替进图、移动、AI 或完整对局验收。真实客户端与界面验收项目见[实施计划](planning/implementation-plan.md)。
 
 ### 依赖锁定
+
+仓库通过根目录的 `global.json` 固定 .NET SDK 8.0.425，CI 按同一文件安装 SDK，避免默认 RuntimeIdentifier 随 SDK 版本变化而与 lock file 不一致。升级 SDK 时需同步便携工具链脚本，并验证依赖锁定与输出路径。
 
 托管构建通过 `RestoreLockedMode=true` 使用项目级 `packages.lock.json`。正常构建不更新依赖版本。
 

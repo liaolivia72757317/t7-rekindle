@@ -61,3 +61,25 @@ def test_each_managed_project_has_a_complete_nuget_lock_file():
             for dependency in dependencies.values():
                 if dependency["type"] != "Project":
                     assert len(dependency["contentHash"]) == 88
+
+
+def test_managed_sdk_is_pinned_to_the_portable_toolchain():
+    sdk = json.loads((ROOT / "global.json").read_text(encoding="utf-8"))["sdk"]
+    assert sdk["rollForward"] == "disable"
+    assert sdk["allowPrerelease"] is False
+    portable = (ROOT / "scripts/Use-ManagedTools.ps1").read_text(encoding="utf-8")
+    assert f"'dotnet-{sdk['version']}'" in portable
+    assert f"'sdk\\{sdk['version']}\\Sdks'" in portable
+
+
+def test_ci_installs_the_pinned_sdk_before_building():
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    steps = workflow.split("      - name: ")
+    sdk_steps = [step for step in steps if "uses: actions/setup-dotnet@" in step]
+    assert len(sdk_steps) == 1
+    assert "\n          global-json-file: global.json\n" in sdk_steps[0]
+    assert "dotnet-version:" not in sdk_steps[0]
+    setup = workflow.index("uses: actions/setup-dotnet@")
+    assert workflow.index("uses: actions/checkout@") < setup
+    assert setup < workflow.index("python scripts/build.py --project native-tests")
+    assert setup < workflow.index("python scripts/build.py --project managed")
