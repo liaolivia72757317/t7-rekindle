@@ -15,6 +15,7 @@
     <ClCompile Include="ServerLifecycleSmoke.cpp" />
     <ClCompile Include="JournalContractTests.cpp" />
     <ClCompile Include="SessionCleanupTests.cpp" />
+    <ClCompile Include="SessionOperationTests.cpp" />
     <ClCompile Include="../../src/Runtime/bridge/Session.cpp" />
     <ClCompile Include="../../src/Runtime/core/Common.cpp" />
     <ClCompile Include="../../src/Runtime/core/Protocol.cpp" />

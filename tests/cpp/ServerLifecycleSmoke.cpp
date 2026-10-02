@@ -13,6 +13,7 @@
 bool verifyJournalContracts(const t7::fs::path& fixtureRoot);
 bool verifyFailureCleanup(const t7::fs::path& packageRoot, bool cancel);
 bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, bool normalExit);
+bool verifyOperationPublication(const t7::fs::path& packageRoot, uint32_t expectedStatus);
 
 namespace {
 bool verifyJobAssignmentOrder() {
@@ -407,6 +408,9 @@ int wmain(int argc, wchar_t** argv) {
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 0xC0000005, false)) result = 31;
         if (!verifyFailureCleanup(t7::fs::path(argv[1]), true)) result = 26;
         if (!verifyFailureCleanup(t7::fs::path(argv[1]), false)) result = 27;
+        if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_SUCCEEDED)) result = 32;
+        if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_FAILED)) result = 33;
+        if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_CANCELLED)) result = 34;
 
         // Journal writes are bounded and flushed on destruction without
         // exposing a second product process.  This is the disk-side contract

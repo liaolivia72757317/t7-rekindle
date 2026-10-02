@@ -7,6 +7,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -47,7 +48,8 @@ public:
     // Internal test seam. It is compiled only into native test hosts and is
     // deliberately absent from the exported C ABI.
     static std::shared_ptr<Session> createForTest(
-        std::string packageRoot, Bootstrap::TestAdapter adapter);
+        std::string packageRoot, Bootstrap::TestAdapter adapter,
+        std::function<void()> afterOperation = {});
     bool waitForWorkerForTest(std::chrono::milliseconds timeout);
 #endif
     ~Session();
@@ -68,6 +70,7 @@ private:
     explicit Session(std::string packageRoot, Bootstrap::TestAdapter adapter = {});
     void startWorker();
     void workerLoop();
+    void finishOperationLocked(uint64_t operationId, uint32_t status);
     void execute(const Command& command);
     void executeCheck(const Command& command);
     void executeStart(const Command& command);
@@ -91,6 +94,9 @@ private:
     uint64_t revisionCounter_ = 0;
     bool closing_ = false;
     bool workerExited_ = false;
+#if defined(T7_NATIVE_BRIDGE_TESTING)
+    std::function<void()> afterOperationForTest_;
+#endif
     Snapshot snapshot_;
     std::atomic<uint64_t> cancelOperation_{0};
     std::unique_ptr<Server> server_;

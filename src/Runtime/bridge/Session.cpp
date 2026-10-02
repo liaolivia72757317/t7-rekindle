@@ -35,9 +35,10 @@ std::shared_ptr<Session> Session::create(std::string packageRoot) {
 
 #if defined(T7_NATIVE_BRIDGE_TESTING)
 std::shared_ptr<Session> Session::createForTest(
-    std::string packageRoot, Bootstrap::TestAdapter adapter) {
+    std::string packageRoot, Bootstrap::TestAdapter adapter, std::function<void()> afterOperation) {
     auto result = std::shared_ptr<Session>(
         new Session(std::move(packageRoot), std::move(adapter)));
+    result->afterOperationForTest_ = std::move(afterOperation);
     result->startWorker();
     return result;
 }
@@ -277,7 +278,7 @@ void Session::workerLoop() {
                     // publishing success must have one atomic ordering.
                     std::lock_guard<std::mutex> lock(mutex_);
                     cancellationWon = cancelled(command.id) && command.kind != T7NB_OPERATION_STOP;
-                    if (!cancellationWon) operations_.at(command.id).status = T7NB_OPERATION_SUCCEEDED;
+                    if (!cancellationWon) finishOperationLocked(command.id, T7NB_OPERATION_SUCCEEDED);
                 }
                 if (cancellationWon) {
                     // Cancellation can race with the final instruction of a
@@ -292,22 +293,9 @@ void Session::workerLoop() {
             } catch (...) {
                 setFailure(command.id, T7NB_INTERNAL_ERROR, "non-standard native exception");
             }
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                snapshot_.operation = T7NB_OPERATION_NONE;
-                snapshot_.operationId = command.id;
-                if (snapshot_.state != T7NB_STATE_FAILED && snapshot_.state != T7NB_STATE_FAILED_CLEANING) {
-                    snapshot_.state = (command.kind == T7NB_OPERATION_STOP || command.kind == T7NB_OPERATION_CHECK)
-                        ? T7NB_STATE_IDLE : snapshot_.state;
-                    snapshot_.phase = snapshot_.state == T7NB_STATE_RUNNING ? "running" : "idle";
-                }
-                if (snapshot_.state == T7NB_STATE_RUNNING || snapshot_.state == T7NB_STATE_FAILED_CLEANING)
-                    snapshot_.flags &= ~1u;
-                else snapshot_.flags |= 1u;
-                auto expectedCancel = command.id;
-                cancelOperation_.compare_exchange_strong(expectedCancel, 0, std::memory_order_acq_rel);
-                changed_.notify_all();
-            }
+#if defined(T7_NATIVE_BRIDGE_TESTING)
+            if (afterOperationForTest_) afterOperationForTest_();
+#endif
         }
     } catch (...) {
         cleanup();
@@ -317,6 +305,26 @@ void Session::workerLoop() {
         std::lock_guard<std::mutex> lock(mutex_);
         workerExited_ = true;
     }
+    changed_.notify_all();
+}
+
+void Session::finishOperationLocked(uint64_t operationId, uint32_t status) {
+    // Caller holds mutex_: terminal results and the idle operation marker
+    // must become visible together before another command can be submitted.
+    auto& operation = operations_.at(operationId);
+    operation.status = status;
+    snapshot_.operation = T7NB_OPERATION_NONE;
+    snapshot_.operationId = operationId;
+    if (snapshot_.state != T7NB_STATE_FAILED && snapshot_.state != T7NB_STATE_FAILED_CLEANING) {
+        snapshot_.state = (operation.kind == T7NB_OPERATION_STOP || operation.kind == T7NB_OPERATION_CHECK)
+            ? T7NB_STATE_IDLE : snapshot_.state;
+        snapshot_.phase = snapshot_.state == T7NB_STATE_RUNNING ? "running" : "idle";
+    }
+    if (snapshot_.state == T7NB_STATE_RUNNING || snapshot_.state == T7NB_STATE_FAILED_CLEANING)
+        snapshot_.flags &= ~1u;
+    else snapshot_.flags |= 1u;
+    auto expectedCancel = operationId;
+    cancelOperation_.compare_exchange_strong(expectedCancel, 0, std::memory_order_acq_rel);
     changed_.notify_all();
 }
 
@@ -475,7 +483,6 @@ void Session::setFailure(uint64_t operationId, uint32_t code, const std::string&
         std::lock_guard<std::mutex> lock(mutex_);
         auto found = operations_.find(operationId);
         if (found != operations_.end()) {
-            found->second.status = wasCancelled ? T7NB_OPERATION_CANCELLED : T7NB_OPERATION_FAILED;
             found->second.errorCode = cleanupError.empty()
                 ? (wasCancelled ? T7NB_ERROR_CANCELLED : code) : T7NB_ERROR_CLEANUP;
             found->second.error = message;
@@ -496,6 +503,8 @@ void Session::setFailure(uint64_t operationId, uint32_t code, const std::string&
             snapshot_.errorCode = T7NB_ERROR_CLEANUP;
             snapshot_.phase = "failed-cleaning";
         }
+        if (found != operations_.end())
+            finishOperationLocked(operationId, wasCancelled ? T7NB_OPERATION_CANCELLED : T7NB_OPERATION_FAILED);
     }
 }
 
