@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 from unittest.mock import patch
+from urllib.parse import quote
 
 import pytest
 
@@ -70,7 +71,7 @@ def release_fixture(tmp_path, version="v1.2.3"):
     directory = tmp_path / version
     directory.mkdir(exist_ok=True)
     assets = {}
-    for name in ("T7-Rekindle-Setup.exe", "T7-Rekindle-windows-x64.zip"):
+    for name in (f"T7-Rekindle-{version}-Setup.exe", f"T7-Rekindle-windows-x64-{version}.zip"):
         path = directory / name
         path.write_bytes((version + name).encode())
         assets[name] = path
@@ -104,6 +105,8 @@ def test_assets_verified_before_manifest_and_retry_is_idempotent(tmp_path):
     manifest = json.loads(content)
     assert manifest["schemaVersion"] == 1 and manifest["version"] == "v1.2.3"
     assert manifest["summary"] == "发布说明" and options["cache_control"] == "no-store"
+    assert manifest["installer"]["url"].endswith("/v1.2.3/T7-Rekindle-v1.2.3-Setup.exe")
+    assert manifest["portable"]["url"].endswith("/v1.2.3/T7-Rekindle-windows-x64-v1.2.3.zip")
     assert "immutable" in store.objects[store.writes[0]][1]["cache_control"]
     store.writes.clear()
     assert publish(tmp_path, store)
@@ -114,7 +117,7 @@ def test_failed_upload_or_public_verification_preserves_previous_feed(tmp_path):
     store = MemoryStore()
     publish(tmp_path, store, "v1.0.0")
     previous = store.objects["updates/stable.json"]
-    store.fail_key = "releases/v1.2.3/T7-Rekindle-windows-x64.zip"
+    store.fail_key = "releases/v1.2.3/T7-Rekindle-windows-x64-v1.2.3.zip"
     with pytest.raises(RuntimeError, match="upload failed"):
         publish(tmp_path, store)
     assert store.objects["updates/stable.json"] == previous
@@ -136,7 +139,7 @@ def test_backfill_does_not_downgrade_and_changed_assets_are_rejected(tmp_path):
     assert store.objects["updates/stable.json"] == previous
     mirror = load_module("mirror_release")
     release, assets = release_fixture(tmp_path, "v2.0.0")
-    assets["T7-Rekindle-Setup.exe"].write_bytes(b"changed")
+    assets["T7-Rekindle-v2.0.0-Setup.exe"].write_bytes(b"changed")
     release["assets"][0]["size"] = 7
     with pytest.raises(ValueError, match="immutable"):
         mirror.publish_release(release, assets, store, "https://downloads.example.com",
@@ -158,6 +161,38 @@ def test_draft_prerelease_and_unverified_github_assets_are_not_published(tmp_pat
     with pytest.raises(ValueError, match="GitHub"):
         mirror.publish_release(release, assets, MemoryStore(), "https://downloads.example.com",
                                tmp_path, lambda url, asset: None)
+
+
+@pytest.mark.parametrize("tag", ["v1.2.3", "1.2.3", "V1.2.3.4+build.1"])
+def test_mirror_preserves_full_tag_in_asset_names(tmp_path, tag):
+    store = MemoryStore()
+    assert publish(tmp_path, store, tag)
+    manifest = json.loads(store.objects["updates/stable.json"][0])
+    for kind, name in {"installer": f"T7-Rekindle-{tag}-Setup.exe",
+                       "portable": f"T7-Rekindle-windows-x64-{tag}.zip"}.items():
+        assert f"releases/{tag}/{name}" in store.objects
+        assert manifest[kind]["url"] == (
+            f"https://downloads.example.com/releases/{quote(tag, safe='')}/{quote(name, safe='')}"
+        )
+
+
+def test_mirror_downloads_tagged_release_assets(tmp_path, monkeypatch):
+    mirror = load_module("mirror_release")
+    tag = "V1.2.3.4+build.1"
+    release, assets = release_fixture(tmp_path, tag)
+    monkeypatch.setattr(sys, "argv", ["mirror_release.py", "--tag", tag])
+    for name, value in {"GITHUB_REPOSITORY": "example/project", "R2_ACCOUNT_ID": "0" * 32,
+                        "R2_BUCKET": "release-fixture", "R2_PUBLIC_BASE_URL": "https://downloads.example.com",
+                        "AWS_ACCESS_KEY_ID": "TOKEN", "AWS_SECRET_ACCESS_KEY": "TOKEN", "GH_TOKEN": "TOKEN"}.items():
+        monkeypatch.setenv(name, value)
+    with patch.object(mirror, "run_command", side_effect=[json.dumps(release), ""]) as command, \
+            patch.object(mirror, "publish_release") as publish_mock:
+        mirror.main()
+        arguments = command.call_args.args[0]
+        patterns = [arguments[index + 1] for index, value in enumerate(arguments) if value == "--pattern"]
+        assert patterns == list(assets)
+        assert arguments[-2:] == ["--", tag]
+        assert set(publish_mock.call_args.args[1]) == set(assets)
 
 
 def test_r2_workflow_is_reusable_manual_and_follows_release():

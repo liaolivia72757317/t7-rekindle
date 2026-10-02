@@ -25,6 +25,7 @@ namespace T7.Rekindle.Desktop.Services
 
     internal sealed class UpdateDownloadService
     {
+        private const string INSTALLER_FILENAME = "T7-Rekindle-Setup.exe";
         private readonly HttpClient _client;
         private readonly string _directory;
         private readonly TimeSpan _networkTimeout;
@@ -43,7 +44,7 @@ namespace T7.Rekindle.Desktop.Services
             cancellation.ThrowIfCancellationRequested();
             var directory = Path.Combine(_directory, Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
-            var partial = Path.Combine(directory, ReleaseMetadata.InstallerName + ".part");
+            var partial = Path.Combine(directory, INSTALLER_FILENAME + ".part");
             var completed = false;
             try
             {
@@ -59,7 +60,7 @@ namespace T7.Rekindle.Desktop.Services
                         asset, partial, progress, cancellation).ConfigureAwait(false);
                 }
                 cancellation.ThrowIfCancellationRequested();
-                var destination = Path.Combine(directory, ReleaseMetadata.InstallerName);
+                var destination = Path.Combine(directory, INSTALLER_FILENAME);
                 File.Move(partial, destination);
                 completed = true;
                 return destination;

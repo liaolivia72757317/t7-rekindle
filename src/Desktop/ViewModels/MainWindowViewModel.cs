@@ -56,8 +56,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             _playerName = loaded.PlayerName;
             _savedDirectory = loaded.ClientDirectory;
             _savedName = loaded.PlayerName;
-            _windowWidth = Math.Max(720, loaded.WindowWidth);
-            _windowHeight = Math.Max(560, loaded.WindowHeight);
+            _windowWidth = Math.Max(856, loaded.WindowWidth);
+            _windowHeight = Math.Max(659, loaded.WindowHeight);
             _darkTheme = loaded.DarkTheme;
             _settingsFeedback = "完成目录与名称配置后即可启动";
             _noticeText = settingsWarning ?? string.Empty;
@@ -66,6 +66,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             CheckCommand = new AsyncRelayCommand(CheckAsync, () => !IsBusy && !_isValidating
                 && NativeBridgeContract.IsUtf8PathAcceptable(ClientDirectory));
             StartCommand = new AsyncRelayCommand(StartAsync, () => CanStart);
+            MainActionCommand = new AsyncRelayCommand(ExecuteMainActionAsync,
+                () => !IsBusy && !_isValidating && (!_directoryResult.IsValid || !HasPlayerNameError));
             CancelCommand = new RelayCommand(Cancel, () => CanCancel);
             StopCommand = new AsyncRelayCommand(StopAsync, () => CanStop);
             ShowHomeCommand = new RelayCommand(() => SelectedPage = 0);
@@ -148,7 +150,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public bool AreSessionFieldsLocked => _operationActive ? _activeKind != OperationKind.Check
             : IsBusy && _snapshot.State != SessionState.Checking;
         public bool CanClose => !IsBusy;
-        public bool CanStart => !IsBusy && !_isValidating && _directoryResult.IsValid && !HasPlayerNameError;
+        public bool CanStart => !IsBusy && !_isValidating && _directoryResult.IsValid && !HasPlayerNameError && !_hasSaveError;
         public bool CanCancel => _operationCancellation != null && !_operationCancellation.IsCancellationRequested
             && (_snapshot.State == SessionState.StartingRuntime || _snapshot.State == SessionState.Checking);
         public bool CanStop => !_operationActive && (_snapshot.State == SessionState.Running || _snapshot.State == SessionState.FailedCleaning);
@@ -159,6 +161,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public RelayCommand BrowseCommand { get; }
         public IAsyncRelayCommand CheckCommand { get; }
         public IAsyncRelayCommand StartCommand { get; }
+        public IAsyncRelayCommand MainActionCommand { get; }
         public RelayCommand CancelCommand { get; }
         public IAsyncRelayCommand StopCommand { get; }
         public RelayCommand ShowHomeCommand { get; }
@@ -166,6 +169,22 @@ namespace T7.Rekindle.Desktop.ViewModels
         public RelayCommand ToggleLogsCommand { get; }
         public RelayCommand OpenLogsCommand { get; }
         public RelayCommand CopyLogsCommand { get; }
+
+        private Task ExecuteMainActionAsync()
+        {
+            if (!_directoryResult.IsValid)
+            {
+                ShowSettingsCommand.Execute(null);
+                return Task.CompletedTask;
+            }
+            if (_hasSaveError)
+            {
+                if (SaveValidatedFields()) _failureMessage = string.Empty;
+                UpdatePresentation();
+                return Task.CompletedTask;
+            }
+            return StartCommand.ExecuteAsync(null);
+        }
 
         private void Browse()
         {
@@ -193,9 +212,9 @@ namespace T7.Rekindle.Desktop.ViewModels
         public void SaveSettings(double windowWidth = 0, double windowHeight = 0)
         {
             if (!double.IsNaN(windowWidth) && !double.IsInfinity(windowWidth) && windowWidth > 0)
-                _windowWidth = Math.Max(720, Math.Min(4096, windowWidth));
+                _windowWidth = Math.Max(856, Math.Min(4096, windowWidth));
             if (!double.IsNaN(windowHeight) && !double.IsInfinity(windowHeight) && windowHeight > 0)
-                _windowHeight = Math.Max(560, Math.Min(4096, windowHeight));
+                _windowHeight = Math.Max(659, Math.Min(4096, windowHeight));
             _settings.Save(CreateSettings(_savedDirectory, _savedName));
         }
 

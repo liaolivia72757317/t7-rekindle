@@ -51,10 +51,15 @@ namespace T7.Rekindle.Desktop
             var viewModel = new MainWindowViewModel(_bridge, _settings, settings, _settings.LastWarning);
             var window = new MainWindow
             {
-                Width = Math.Max(720, settings.WindowWidth),
-                Height = Math.Max(560, settings.WindowHeight),
+                Width = Math.Max(856, settings.WindowWidth),
+                Height = Math.Max(659, settings.WindowHeight),
                 DataContext = viewModel
             };
+            var workArea = SystemParameters.WorkArea;
+            window.MinWidth = Math.Min(window.MinWidth, workArea.Width);
+            window.MinHeight = Math.Min(window.MinHeight, workArea.Height);
+            window.Width = Math.Min(window.Width, workArea.Width);
+            window.Height = Math.Min(window.Height, workArea.Height);
             MainWindow = window;
             window.Show();
         }

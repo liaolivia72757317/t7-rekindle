@@ -28,7 +28,7 @@ namespace T7.Rekindle.Desktop.Services
 
     internal static class ReleaseMetadata
     {
-        internal const string InstallerName = "T7-Rekindle-Setup.exe";
+        internal static string InstallerName(string tag) => "T7-Rekindle-" + tag + "-Setup.exe";
 
         internal static Version ParseVersion(string value)
         {
@@ -70,7 +70,8 @@ namespace T7.Rekindle.Desktop.Services
         }
 
         internal static string GitHubAsset(Uri repository, string version) =>
-            repository.AbsoluteUri.TrimEnd('/') + "/releases/download/" + Uri.EscapeDataString(version) + "/" + InstallerName;
+            repository.AbsoluteUri.TrimEnd('/') + "/releases/download/" + Uri.EscapeDataString(version)
+            + "/" + Uri.EscapeDataString(InstallerName(version));
 
         internal static bool IsSameObject(string actual, string expected)
         {

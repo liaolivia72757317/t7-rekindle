@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="启动器更新" Width="560" Height="420" MinWidth="480" MinHeight="360"
-        Icon="/T7-Rekindle;component/Resources/Assets/brand/app-icon-derived.ico"
+        Icon="/T7-Rekindle;component/Resources/Assets/brand/launcher.ico"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" FontFamily="{StaticResource UiFontFamily}" FontSize="13"
         Language="zh-CN" TextOptions.TextFormattingMode="Display"
         Background="{DynamicResource PanelBackgroundBrush}" Foreground="{DynamicResource TextBrush}"

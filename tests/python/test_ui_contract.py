@@ -16,10 +16,10 @@ def _find(root, tag):
 def test_main_window_has_accessible_lifecycle_contract():
     root = _xaml(ROOT / "src/Desktop" / "MainWindow.xaml")
     assert root.attrib["{" + XAML + "}Class"] == "T7.Rekindle.Desktop.MainWindow"
-    assert root.attrib["Width"] == "800"
-    assert root.attrib["Height"] == "600"
-    assert root.attrib["MinWidth"] == "720"
-    assert root.attrib["MinHeight"] == "560"
+    assert root.attrib["Width"] == "1000"
+    assert root.attrib["Height"] == "743"
+    assert root.attrib["MinWidth"] == "856"
+    assert root.attrib["MinHeight"] == "659"
     assert root.attrib["Closing"] == "OnClosing"
     assert root.attrib["Closed"] == "OnClosed"
     assert root.attrib["AutomationProperties.Name"] == "T7-Rekindle 本地客户端启动器"
@@ -32,7 +32,7 @@ def test_main_window_has_accessible_lifecycle_contract():
     assert scroll.attrib["Grid.Row"] == "2"
     footer = _find(root, "Border")[-1]
     assert footer.attrib["Grid.Row"] == "3"
-    assert any(button.attrib.get("Command") == "{Binding StartCommand}" for button in _find(footer, "Button"))
+    assert any(button.attrib.get("Command") == "{Binding MainActionCommand}" for button in _find(footer, "Button"))
 
     home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
     settings = _xaml(ROOT / "src/Desktop/Views/GameSettingsPage.xaml")
@@ -41,6 +41,35 @@ def test_main_window_has_accessible_lifecycle_contract():
         for button in _find(page, "Button"):
             assert button.attrib.get("AutomationProperties.Name")
             assert button.attrib.get("TabIndex") is not None
+
+
+def test_launcher_uses_light_artwork_and_real_controls():
+    root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
+    named = {item.attrib.get("{" + XAML + "}Name"): item for item in root.iter()}
+    logo = named["BrandLogo"]
+    assert logo.attrib["Width"] == "368" and logo.attrib["Height"] == "118"
+    assert logo.attrib["Source"].endswith("/brand/logo-ui-light-cutout.png")
+    scene = named["SceneArtwork"]
+    assert scene.attrib["Source"].endswith("/art/scene-complete.png")
+    assert scene.attrib["IsHitTestVisible"] == "False"
+    assert scene.attrib["ImageFailed"] == "OnSceneArtworkFailed"
+    launch = named["LaunchButton"]
+    assert launch.attrib["Width"] == "208" and launch.attrib["Height"] == "56"
+    assert launch.attrib.get("IsDefault", "False") == "False"
+    assert launch.attrib["AutomationProperties.Name"] == "{Binding MainActionText}"
+    assert named["BuildMetadata"].attrib["TextTrimming"] == "CharacterEllipsis"
+    assert not any(run.attrib.get("Text") == "提交 " for run in _find(root, "Run"))
+
+
+def test_launcher_light_palette_matches_the_design():
+    root = _xaml(ROOT / "src/Desktop/App.xaml")
+    colors = {item.attrib["{" + XAML + "}Key"]: item.attrib["Color"]
+              for item in _find(root, "SolidColorBrush")}
+    assert {key: colors[key] for key in ("WindowBackgroundBrush", "TextBrush", "MutedTextBrush",
+                                       "PrimaryBrush", "GoldBrush", "FocusBrush")} == {
+        "WindowBackgroundBrush": "#F6F5F2", "TextBrush": "#162732", "MutedTextBrush": "#566976",
+        "PrimaryBrush": "#3F5868", "GoldBrush": "#B58B3B", "FocusBrush": "#8F6928",
+    }
 
 
 def test_directory_configuration_lives_only_on_game_settings_page():
@@ -89,20 +118,36 @@ def test_about_page_starts_with_information_card_without_heading():
     card = content[0]
     assert card.tag == "{" + WPF + "}Border"
     assert card.attrib["Style"] == "{StaticResource Card}"
-    assert {"启动器版本", "Git 提交", "GitHub"} <= {
+    assert {"启动器版本", "Git 提交", "GitHub", "下载入口", "问题反馈"} <= {
         block.attrib.get("Text") for block in _find(card, "TextBlock")
     }
 
 
 def test_project_information_uses_the_public_repository():
     project = ET.parse(ROOT / "src/Desktop/T7.Desktop.csproj").getroot()
+    assert project.findtext("PropertyGroup/Product") == "铁骑·重燃（T7-Rekindle）"
     assert project.findtext("PropertyGroup/RepositoryUrl") == "https://github.com/liaolivia72757317/t7-rekindle"
     metadata = {item.attrib["Include"]: item.attrib["Value"]
                 for item in project.findall("ItemGroup/AssemblyMetadata")}
     assert set(metadata) == {"RepositoryUrl", "DownloadUrl", "BuildsUrl", "IssuesUrl", "UpdateBaseUrl"}
     assert metadata["RepositoryUrl"] == "$(RepositoryUrl)"
     assert metadata["DownloadUrl"] == "$(RepositoryUrl)/releases"
+    assert metadata["BuildsUrl"] == "$(RepositoryUrl)/actions/workflows/ci.yml"
+    assert metadata["IssuesUrl"] == "$(RepositoryUrl)/issues"
     assert metadata["UpdateBaseUrl"] == "$(T7_UPDATE_BASE_URL)"
+
+
+def test_about_page_exposes_release_build_and_feedback_links():
+    about = _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml")
+    commands = {button.attrib.get("Command") for button in _find(about, "Button")}
+    assert commands == {
+        "{Binding ShowChangelogCommand}", "{Binding CopyHashCommand}",
+        "{Binding CopyRepositoryCommand}", "{Binding ShowRepositoryCommand}",
+        "{Binding ShowDownloadCommand}", "{Binding ShowBuildsCommand}",
+        "{Binding ShowIssuesCommand}", "{Binding ShowLicensesCommand}", "{Binding ShowThanksCommand}",
+    }
+    texts = {block.attrib.get("Text") for block in _find(about, "TextBlock")}
+    assert {"{Binding ProjectName}", "{Binding ProjectDescription}", "{Binding ProjectStatus}"} <= texts
 
 
 def test_update_dialog_keeps_heading_and_actions_outside_scrollable_content():

@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 LEGACY_BRAND = re.compile(r"t7[. _-]*public", re.IGNORECASE)
 GENERATED_DIRECTORIES = {
-    ".git", ".pytest_cache", ".vs", "__pycache__", "artifacts", "dist",
+    ".git", ".pytest_cache", ".vs", ".idea", "__pycache__", "artifacts", "dist",
     "packages", "local", ".local", ".claude", "client", "work", "extracted",
 }
 RUNTIME_DIRECTORIES = {"src/Business/data", "src/Business/cache", "src/Runtime/data"}
@@ -65,6 +65,10 @@ def test_release_publishes_the_current_installer_filename():
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     assert '"installer/T7-Rekindle.iss"' in workflow
     assert "path: dist/T7-Rekindle-Setup.exe\n" in workflow
-    assert '"dist/T7-Rekindle-Setup.exe"' in workflow
     assert "path: dist/T7-Rekindle-windows-x64.zip\n" in workflow
-    assert '"dist/T7-Rekindle-windows-x64.zip"' in workflow
+    release = workflow.split("\n  release:\n", 1)[1].split("\n  mirror:\n", 1)[0]
+    assert "RELEASE_TAG: ${{ github.ref_name }}" in release
+    assert 'Rename-Item -LiteralPath "dist/T7-Rekindle-Setup.exe"' in release
+    assert '-NewName "T7-Rekindle-${env:RELEASE_TAG}-Setup.exe"' in release
+    assert '"dist/T7-Rekindle-${env:RELEASE_TAG}-Setup.exe"' in release
+    assert release.count('"dist/T7-Rekindle-windows-x64-${env:RELEASE_TAG}.zip"') == 2

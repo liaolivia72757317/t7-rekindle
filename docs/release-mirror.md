@@ -43,8 +43,8 @@
 对象布局：
 
 ```text
-releases/<tag>/T7-Rekindle-Setup.exe
-releases/<tag>/T7-Rekindle-windows-x64.zip
+releases/<tag>/T7-Rekindle-<tag>-Setup.exe
+releases/<tag>/T7-Rekindle-windows-x64-<tag>.zip
 updates/stable.json
 ```
 

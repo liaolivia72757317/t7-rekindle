@@ -19,6 +19,7 @@ namespace T7.ManagedHarness
 
         private static async Task RunAsync()
         {
+            await VerifyTaggedInstallersAsync();
             var requests = new List<string>();
             using (var handler = new UpdateResponseHandler((request, token) =>
             {
@@ -47,6 +48,7 @@ namespace T7.ManagedHarness
                 json => json["version"] = "v1.2.3-rc.1",
                 json => json["installer"]["url"] = "https://foreign.example/Setup.exe",
                 json => json["installer"]["url"] = UpdateFixtures.Mirror + "/other/Setup.exe",
+                json => json["installer"]["url"] = UpdateFixtures.Mirror + "/releases/v1.2.3/T7-Rekindle-v9.9.9-Setup.exe",
                 json => json["installer"]["sha256"] = "bad",
                 json => json["installer"]["size"] = 0,
                 json => json.Remove("installer"),
@@ -99,13 +101,46 @@ namespace T7.ManagedHarness
                 }
             }
         }
+
+        private static async Task VerifyTaggedInstallersAsync()
+        {
+            foreach (var tag in new[] { "v1.2.3", "1.2.3", "V1.2.3.4+build.1" })
+            {
+                var name = "T7-Rekindle-" + tag + "-Setup.exe";
+                var suffix = Uri.EscapeDataString(tag) + "/" + Uri.EscapeDataString(name);
+                var githubAddress = UpdateFixtures.Repository + "/releases/download/" + suffix;
+                var mirrorAddress = UpdateFixtures.Mirror + "/releases/" + suffix;
+                var release = UpdateFixtures.Release();
+                release["tag_name"] = tag;
+                release["html_url"] = UpdateFixtures.Repository + "/releases/tag/" + Uri.EscapeDataString(tag);
+                release["assets"][0]["name"] = name;
+                release["assets"][0]["browser_download_url"] = githubAddress;
+                var manifest = UpdateFixtures.Manifest();
+                manifest["version"] = tag;
+                manifest["installer"]["url"] = mirrorAddress;
+                foreach (var useMirror in new[] { true, false })
+                {
+                    using (var handler = new UpdateResponseHandler((request, token) =>
+                        Task.FromResult(UpdateFixtures.Json(useMirror ? manifest : release))))
+                    using (var client = new HttpClient(handler))
+                    {
+                        var info = await new ReleaseUpdateService(client, UpdateFixtures.Repository,
+                            useMirror ? UpdateFixtures.Mirror : "").CheckAsync("v1.0.0");
+                        Assert(handler.RequestCount == 1 && info.TargetVersion == tag && info.Installer != null
+                            && info.Installer.DownloadAddress == (useMirror ? mirrorAddress : githubAddress)
+                            && info.Installer.FallbackAddress == (useMirror ? githubAddress : null),
+                            "release installer filename or download address did not preserve the full tag");
+                    }
+                }
+            }
+        }
     }
 
     internal static class UpdateFixtures
     {
         internal const string Repository = "https://github.com/example/project";
         internal const string Mirror = "https://updates.example.com";
-        internal const string AssetName = "T7-Rekindle-Setup.exe";
+        internal const string AssetName = "T7-Rekindle-v1.2.3-Setup.exe";
         internal const string GitHubAsset = Repository + "/releases/download/v1.2.3/" + AssetName;
         internal static readonly byte[] Payload = Encoding.UTF8.GetBytes("installer payload fixture");
         internal static string Digest
@@ -130,7 +165,7 @@ namespace T7.ManagedHarness
             },
             ["portable"] = new JObject
             {
-                ["url"] = Mirror + "/releases/v1.2.3/T7-Rekindle-windows-x64.zip",
+                ["url"] = Mirror + "/releases/v1.2.3/T7-Rekindle-windows-x64-v1.2.3.zip",
                 ["size"] = Payload.Length, ["sha256"] = Digest
             }
         };

@@ -53,13 +53,21 @@
 
 **游戏运行时请保持启动器开启。** 本地服务运行在启动器内，关闭启动器或确认“结束游戏”都会结束本次游戏。建议先在游戏内正常退出，避免丢失未保存的进度。
 
-“检查启动器更新”优先查询 R2 镜像，网络失败时尝试 GitHub 最新正式版本。点击下载后，更新弹窗显示进度并支持取消；校验完成后再由你点击“立即安装”，确认退出当前会话后启动安装向导。预发布版和 CI 开发构建不参与更新比较。镜像配置见 [R2 发布镜像](docs/release-mirror.md)，更多操作说明见 [产品需求](docs/requirements.md)。
+“检查启动器更新”优先查询 R2 镜像，网络失败时尝试 GitHub 最新正式版本。点击下载后，更新弹窗显示进度并支持取消；校验完成后再由你点击“立即安装”，确认退出当前会话后启动安装向导。预发布版和 CI 开发构建不参与更新比较。项目、发布与 CI 构建、问题反馈入口位于“关于”页。镜像配置见 [R2 发布镜像](docs/release-mirror.md)，更多操作说明见 [产品需求](docs/requirements.md)。
 
 ### 本地构建与测试
 
 请先准备 Windows x64、VS 2022 C++ v143 / Windows SDK、CPython 3.14.4 AMD64、.NET SDK 和 net48 Targeting Pack。环境准备步骤见 [开发与交付](docs/development.md)；构建脚本只检查所需组件，不会自动安装。
 
-在仓库根目录打开 PowerShell，依次执行以下命令。每条命令成功后，再执行下一条。
+在仓库根目录打开 PowerShell。如果使用便携托管工具链，请先按[便携工具链说明](docs/development.md#附可选的便携托管工具链)准备 `.local/toolchains/`，再加载：
+
+```powershell
+. .\scripts\Use-ManagedTools.ps1
+```
+
+首个点号后有空格。**新开终端后需重新加载**。系统安装的 .NET SDK 和 net48 Targeting Pack 已可用时，无需此步骤。
+
+在同一个 PowerShell 会话中依次执行以下命令。每条命令成功后，再执行下一条。
 
 ```powershell
 python -m pip install pytest==9.1.1
@@ -70,6 +78,25 @@ python scripts/integration_test.py --report artifacts/test-results/integration.j
 ```
 
 完整构建会自动运行原生测试，其余测试需单独执行。合成集成报告中的 `realClient=false` 表示测试未启动真实游戏客户端。
+
+### 本地构建后运行
+
+`build.py` 只生成编译产物，`T7.ManagedHarness.exe` 是测试程序，不是启动器。运行前需打包，将启动器、NativeBridge、嵌入式 Python 和 Business 业务脚本组装到同一产品目录。不要直接运行 `artifacts/bin/` 中的启动器，也不要单独复制 EXE，否则可能因缺少依赖而出现“加载 NativeBridge 失败”。
+
+完成上述构建与测试后，下载官方 [CPython 3.14.4 AMD64 embeddable ZIP](https://www.python.org/ftp/python/3.14.4/python-3.14.4-embed-amd64.zip)，保持 ZIP 格式；它与构建时使用的 Python 开发安装不同。
+
+在仓库根目录的 PowerShell 中依次执行，每条命令成功后再执行下一条：
+
+```powershell
+$pythonArchive = Read-Host '请输入 CPython 3.14.4 AMD64 embeddable ZIP 的完整路径'
+python scripts/package.py --output artifacts/package --python-archive "$pythonArchive" --release
+python scripts/package.py --output artifacts/package --verify --release
+& .\artifacts\package\T7-Rekindle.exe
+```
+
+打包要求输出目录尚未存在。如果 `artifacts/package/` 已存在，请先保留旧产物，或改用新的输出目录，并同步修改校验和启动命令中的路径。**重新执行 `build.py` 不会更新已有产品包；要运行最新构建，需重新打包。**
+
+本地运行无需制作安装器。启动后按上方[使用启动器](#使用启动器)选择客户端目录、填写玩家名称并启动游戏，游戏运行期间保持启动器开启。更多打包说明见[开发与交付](docs/development.md#3-生成并运行完整产品包)。
 
 ## 参与开发与反馈
 

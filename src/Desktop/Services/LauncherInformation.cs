@@ -36,12 +36,16 @@ namespace T7.Rekindle.Desktop.Services
             { Timeout = TimeSpan.FromSeconds(10) };
         private static readonly HttpClient DownloadClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
             { Timeout = Timeout.InfiniteTimeSpan };
+        public static string ProjectName => Assembly.GetCustomAttribute<AssemblyProductAttribute>()?.Product ?? "T7-Rekindle";
+        public static string ProjectDescription => Assembly.GetCustomAttribute<AssemblyDescriptionAttribute>()?.Description ?? string.Empty;
         public static string Version => FormatVersion(Assembly.GetName().Version);
         public static string CommitHash => Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(attribute => attribute.Key == "CommitHash")?.Value ?? string.Empty;
         public static string ShortHash => CommitHash.Length >= 7 ? CommitHash.Substring(0, Math.Min(10, CommitHash.Length)) : "提交未记录";
         public static string RepositoryAddress => ReadMetadata("RepositoryUrl");
         public static string DownloadAddress => ReadMetadata("DownloadUrl");
+        public static string BuildsAddress => ReadMetadata("BuildsUrl");
+        public static string IssuesAddress => ReadMetadata("IssuesUrl");
         public static string UpdateBaseAddress => ReadMetadata("UpdateBaseUrl");
 
         public static Task<LauncherUpdateInfo> CheckUpdateAsync() =>

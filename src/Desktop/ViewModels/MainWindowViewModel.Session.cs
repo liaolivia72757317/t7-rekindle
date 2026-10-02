@@ -190,12 +190,14 @@ namespace T7.Rekindle.Desktop.ViewModels
                     : state == SessionState.StartingRuntime ? "正在准备本地服务…" : "正在检查启动配置…", "Working", "…", "启动中…");
             else if (_isValidating || state == SessionState.Checking || _activeKind == OperationKind.Check)
                 Present("正在检查客户端…", "正在核对目录与启动条件，请稍候。", "Working", "…", "检查中…");
+            else if (!_directoryResult.IsValid || HasPlayerNameError)
+                Present(!_directoryResult.IsValid ? "未找到游戏客户端" : "请检查玩家名称",
+                    !_directoryResult.IsValid ? "请在“游戏设置”页选择有效目录，并填写玩家名称。 " + _directoryResult.Message : PlayerNameError,
+                    !_directoryResult.IsValid ? "Warning" : "Danger", "!", !_directoryResult.IsValid ? "前往游戏设置" : "启动游戏");
+            else if (_hasSaveError)
+                Present("配置保存失败", "目录与名称尚未保存，请检查写入权限后重试。", "Danger", "!", "重试保存");
             else if (_failureMessage.Length != 0)
                 Present(_lastAction == "运行" ? "游戏异常退出" : _lastAction + "失败", SummarizeError(_failureMessage) + " 请查看日志，排查后重试。", "Danger", "!", "重试启动");
-            else if (!_directoryResult.IsValid || HasPlayerNameError)
-                Present(!_directoryResult.IsValid ? "尚未完成配置" : "请完善启动配置",
-                    !_directoryResult.IsValid ? "请在“游戏设置”页选择有效目录，并填写玩家名称。 " + _directoryResult.Message : PlayerNameError,
-                    "Warning", "!", "启动游戏");
             else if (_completedMessage.Length != 0)
                 Present(_completedMessage, "目录与名称已验证，可以启动游戏。", "Success", "✓",
                     _completedMessage.Contains("退出") || _completedMessage.Contains("结束") ? "再次启动" : "启动游戏");
@@ -208,6 +210,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             BrowseCommand?.NotifyCanExecuteChanged();
             CheckCommand?.NotifyCanExecuteChanged();
             StartCommand?.NotifyCanExecuteChanged();
+            MainActionCommand?.NotifyCanExecuteChanged();
             CancelCommand?.NotifyCanExecuteChanged();
             StopCommand?.NotifyCanExecuteChanged();
         }

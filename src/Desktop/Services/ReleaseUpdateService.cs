@@ -66,7 +66,7 @@ namespace T7.Rekindle.Desktop.Services
                             throw new InvalidDataException("更新清单缺少安装包或版本格式不受支持。");
                         var target = ReleaseMetadata.ParseVersion(manifest.Version);
                         var expected = new Uri(origin, "releases/" + Uri.EscapeDataString(manifest.Version)
-                            + "/" + ReleaseMetadata.InstallerName).AbsoluteUri;
+                            + "/" + Uri.EscapeDataString(ReleaseMetadata.InstallerName(manifest.Version))).AbsoluteUri;
                         if (!ReleaseMetadata.IsSameObject(manifest.Installer.Url, expected))
                             throw new InvalidDataException("R2 安装包地址与当前镜像或版本不一致。");
                         return new LauncherUpdateInfo

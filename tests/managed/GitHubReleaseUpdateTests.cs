@@ -16,7 +16,10 @@ namespace T7.ManagedHarness
 
         internal static void Run()
         {
-            foreach (var address in new[] { LauncherInformation.RepositoryAddress, LauncherInformation.DownloadAddress })
+            Assert(LauncherInformation.ProjectName == "铁骑·重燃（T7-Rekindle）", "project name metadata is missing");
+            Assert(LauncherInformation.ProjectDescription.Contains("刀锋铁骑"), "project description metadata is missing");
+            foreach (var address in new[] { LauncherInformation.RepositoryAddress,
+                LauncherInformation.DownloadAddress, LauncherInformation.BuildsAddress, LauncherInformation.IssuesAddress })
                 Assert(Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps,
                     "public project link metadata is missing");
             RunAsync().GetAwaiter().GetResult();

@@ -6,30 +6,32 @@
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary>
-          <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F7F7F5" />
+          <Visibility x:Key="LauncherArtworkVisibility">Visible</Visibility>
+          <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F6F5F2" />
           <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="PrimaryBrush" Color="#465E73" />
-          <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#3D5367" />
-          <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#34495C" />
-          <SolidColorBrush x:Key="TextBrush" Color="#1F2832" />
-          <SolidColorBrush x:Key="MutedTextBrush" Color="#5F6B78" />
+          <SolidColorBrush x:Key="PrimaryBrush" Color="#3F5868" />
+          <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#4A6575" />
+          <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#324958" />
+          <SolidColorBrush x:Key="TextBrush" Color="#162732" />
+          <SolidColorBrush x:Key="MutedTextBrush" Color="#566976" />
           <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="ControlBorderBrush" Color="#ADA89F" />
-          <SolidColorBrush x:Key="DividerBrush" Color="#D9D4CB" />
+          <SolidColorBrush x:Key="ControlBorderBrush" Color="#B8B0A2" />
+          <SolidColorBrush x:Key="DividerBrush" Color="#D6CFC2" />
           <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#FFFFFF" />
           <SolidColorBrush x:Key="HoverBrush" Color="#F0EDE7" />
           <SolidColorBrush x:Key="DisabledBrush" Color="#E2E0DB" />
           <SolidColorBrush x:Key="DisabledTextBrush" Color="#777C80" />
-          <SolidColorBrush x:Key="SuccessBrush" Color="#38664F" />
-          <SolidColorBrush x:Key="DangerBrush" Color="#A14943" />
-          <SolidColorBrush x:Key="ErrorBrush" Color="#A14943" />
-          <SolidColorBrush x:Key="WarningBrush" Color="#806124" />
-          <SolidColorBrush x:Key="GoldBrush" Color="#B08A45" />
-          <SolidColorBrush x:Key="GoldHoverBrush" Color="#9C7A3D" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#216448" />
+          <SolidColorBrush x:Key="SuccessTintBrush" Color="#EDF3ED" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#A93D36" />
+          <SolidColorBrush x:Key="ErrorBrush" Color="#A93D36" />
+          <SolidColorBrush x:Key="WarningBrush" Color="#926226" />
+          <SolidColorBrush x:Key="GoldBrush" Color="#B58B3B" />
+          <SolidColorBrush x:Key="GoldHoverBrush" Color="#94702F" />
           <SolidColorBrush x:Key="GoldSoftBrush" Color="#F3EBDD" />
           <SolidColorBrush x:Key="AccentSoftBrush" Color="#F3EBDD" />
-          <SolidColorBrush x:Key="FocusBrush" Color="#465E73" />
-          <SolidColorBrush x:Key="LinkBrush" Color="#465E73" />
+          <SolidColorBrush x:Key="FocusBrush" Color="#8F6928" />
+          <SolidColorBrush x:Key="LinkBrush" Color="#3F5868" />
           <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#7C8996" />
           <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#526779" />
         </ResourceDictionary>

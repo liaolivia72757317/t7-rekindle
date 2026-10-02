@@ -162,6 +162,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
 
     steps:
       - name: Download verified application package
@@ -176,20 +178,24 @@ jobs:
           name: T7-Rekindle-setup-windows-x64
           path: dist
 
+      - name: Name release installer
+        run: >-
+          Rename-Item -LiteralPath "dist/T7-Rekindle-Setup.exe"
+          -NewName "T7-Rekindle-${env:RELEASE_TAG}-Setup.exe"
+
       - name: Create release archive
         run: >-
           Compress-Archive -Path "artifacts/package/*"
-          -DestinationPath "dist/T7-Rekindle-windows-x64.zip"
+          -DestinationPath "dist/T7-Rekindle-windows-x64-${env:RELEASE_TAG}.zip"
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: >-
           gh release create --repo "$env:GITHUB_REPOSITORY"
           --verify-tag --generate-notes --title "$env:RELEASE_TAG"
-          -- "$env:RELEASE_TAG" "dist/T7-Rekindle-windows-x64.zip"
-          "dist/T7-Rekindle-Setup.exe"
+          -- "$env:RELEASE_TAG" "dist/T7-Rekindle-windows-x64-${env:RELEASE_TAG}.zip"
+          "dist/T7-Rekindle-${env:RELEASE_TAG}-Setup.exe"
 
   mirror:
     name: Mirror published release to R2

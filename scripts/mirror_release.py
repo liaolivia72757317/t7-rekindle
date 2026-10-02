@@ -14,7 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from release_metadata import ASSET_NAMES, build_manifest, file_digest, normalize_base_url, parse_version
+from release_metadata import asset_names, build_manifest, file_digest, normalize_base_url, parse_version
 
 
 STABLE_KEY = "updates/stable.json"
@@ -99,7 +99,8 @@ def publish_release(release: dict, assets: dict[str, Path], store, base_url: str
         raise ValueError("GitHub Release publication state is missing.")
     manifest = build_manifest(release, assets, base_url)
     version = manifest["version"]
-    for kind, name in ASSET_NAMES.items():
+    names = asset_names(version)
+    for kind, name in names.items():
         key, asset = f"releases/{version}/{name}", manifest[kind]
         existing = store.head(key)
         if existing is not None:
@@ -127,7 +128,7 @@ def publish_release(release: dict, assets: dict[str, Path], store, base_url: str
             print("Backfill complete; the newer stable feed is unchanged.")
             return False
         if comparison[0] == comparison[1]:
-            for kind in ASSET_NAMES:
+            for kind in names:
                 old = previous.get(kind) or {}
                 if any(old.get(field) != manifest[kind][field] for field in ("size", "sha256")):
                     raise ValueError("Equivalent stable versions have different immutable assets.")
@@ -163,13 +164,14 @@ def main() -> None:
             print("Draft and prerelease versions are excluded from the stable channel.")
             return
         parse_version(arguments.tag)
+        names = asset_names(arguments.tag)
         with tempfile.TemporaryDirectory(prefix="t7-r2-release-") as temporary:
             directory = Path(temporary)
             command = ["gh", "release", "download", "--repo", repository, "--dir", str(directory)]
-            for name in ASSET_NAMES.values():
+            for name in names.values():
                 command.extend(["--pattern", name])
             run_command([*command, "--", arguments.tag])
-            assets = {name: directory / name for name in ASSET_NAMES.values()}
+            assets = {name: directory / name for name in names.values()}
             publish_release(release, assets, store, base_url, directory)
     except (OSError, RuntimeError, ValueError) as error:
         parser.exit(1, f"release mirror error: {error}\n")

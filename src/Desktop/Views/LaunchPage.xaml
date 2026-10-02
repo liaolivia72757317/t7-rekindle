@@ -4,42 +4,48 @@
   <StackPanel>
     <TextBlock x:Name="NoticeBanner" Text="{Binding NoticeText}" TextWrapping="Wrap" Margin="0,0,0,12" Style="{StaticResource InlineNotice}"
                Visibility="{Binding HasNotice, Converter={StaticResource BoolVisibility}}" AutomationProperties.LiveSetting="Polite" />
-    <Label Content="玩家名称" Target="{Binding ElementName=NameInput}" />
-    <Grid>
-      <Grid.ColumnDefinitions><ColumnDefinition Width="288" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+    <Label x:Name="NameLabel" Content="玩家名称" Target="{Binding ElementName=NameInput}" Width="200" Height="26" HorizontalAlignment="Left" Margin="0,0,0,3" VerticalContentAlignment="Center" />
+    <Grid SizeChanged="OnNameRowSizeChanged">
+      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="358" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
       <TextBox x:Name="NameInput" Text="{Binding PlayerName, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding AreSessionFieldsLocked}" HorizontalScrollBarVisibility="Auto"
-               AutomationProperties.Name="玩家名称" TabIndex="4">
+               MinHeight="44" AutomationProperties.Name="玩家名称" AutomationProperties.HelpText="启动游戏时使用的名称" TabIndex="4">
         <TextBox.Style><Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Style.Triggers>
           <DataTrigger Binding="{Binding ShowPlayerNameError}" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" /></DataTrigger>
         </Style.Triggers></Style></TextBox.Style>
       </TextBox>
-      <TextBlock Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Text="启动游戏时使用的名称" Style="{StaticResource MutedText}" />
+      <TextBlock x:Name="NameHint" Grid.Column="1" Margin="20,0,0,0" Width="340" Height="24" HorizontalAlignment="Left" VerticalAlignment="Center" Text="启动游戏时使用的名称" Style="{StaticResource MutedText}" LineHeight="24" />
     </Grid>
-    <TextBlock Text="{Binding PlayerNameError}" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,5,0,0"
+    <TextBlock Text="{Binding PlayerNameError}" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" FontSize="14" Margin="0,6,0,0"
                Visibility="{Binding ShowPlayerNameError, Converter={StaticResource BoolVisibility}}" AutomationProperties.LiveSetting="Polite" />
 
-    <Border Margin="0,22,0,0" MinHeight="112" Padding="16,14,16,14">
+    <Border x:Name="StatusCard" Margin="0,21,0,0" MinHeight="140" Padding="22,18,22,20">
       <Border.Style><Style TargetType="Border" BasedOn="{StaticResource Card}"><Style.Triggers>
         <DataTrigger Binding="{Binding StatusTone}" Value="Danger"><Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" /></DataTrigger>
         <DataTrigger Binding="{Binding StatusTone}" Value="Warning"><Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" /></DataTrigger>
       </Style.Triggers></Style></Border.Style>
       <StackPanel>
         <Grid>
-          <TextBlock Text="启动状态" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock Text="启动状态" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
           <Button Content="打开日志目录" Command="{Binding OpenLogsCommand}" HorizontalAlignment="Right" Style="{StaticResource LinkButton}"
-                  AutomationProperties.Name="打开日志目录" TabIndex="5">
-            <Button.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Margin="0,0,6,0" Source="/T7-Rekindle;component/Resources/Assets/icons/folder-16.png" Stretch="None" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></Button.ContentTemplate>
+                  FontSize="16" AutomationProperties.Name="打开日志目录" TabIndex="5">
+            <Button.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal">
+              <Viewbox Width="20" Height="20" Margin="0,0,8,0"><Canvas Width="24" Height="24"><Path Data="{StaticResource FolderGeometry}" Style="{StaticResource ButtonGlyph}" /></Canvas></Viewbox>
+              <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+            </StackPanel></DataTemplate></Button.ContentTemplate>
           </Button>
         </Grid>
-        <Grid Margin="0,13,0,0">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="30" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-          <Border Height="30" Width="30" VerticalAlignment="Top" BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}"
-                  Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="15">
-            <TextBlock Text="{Binding StatusSymbol}" Style="{StaticResource StatusIcon}" FontSize="17" VerticalAlignment="Center" HorizontalAlignment="Center" />
+        <Grid Margin="0,14,0,0">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <Border Height="42" Width="42" VerticalAlignment="Center" BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}" CornerRadius="21">
+            <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" /><Style.Triggers>
+              <DataTrigger Binding="{Binding StatusTone}" Value="Success"><Setter Property="Background" Value="{DynamicResource SuccessTintBrush}" /></DataTrigger>
+            </Style.Triggers></Style></Border.Style>
+            <Viewbox Width="26" Height="26"><Canvas Width="24" Height="24"><Path x:Name="StatusGraphic" Style="{StaticResource StatusGlyph}" /></Canvas></Viewbox>
           </Border>
-          <StackPanel Grid.Column="1" Margin="12,0,0,0">
-            <TextBlock Text="{Binding StatusText}" FontSize="18" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
-            <TextBlock Text="{Binding DiagnosticText}" Style="{StaticResource MutedText}" LineHeight="20" Margin="0,3,0,0" />
+          <StackPanel Grid.Column="1" Margin="14,0,0,0">
+            <TextBlock Text="{Binding StatusText}" FontSize="23" LineHeight="29" FontWeight="Bold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock Text="{Binding DiagnosticText}" Style="{StaticResource MutedText}" LineHeight="22" Margin="0,2,0,0" />
             <Button Content="前往游戏设置" Command="{Binding ShowSettingsCommand}" HorizontalAlignment="Left" Margin="0,7,0,0"
                     AutomationProperties.Name="前往游戏设置" TabIndex="6">
               <Button.Style><Style TargetType="Button" BasedOn="{StaticResource LinkButton}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers>
@@ -52,7 +58,7 @@
                          Visibility="{Binding ShowProgress, Converter={StaticResource BoolVisibility}}" AutomationProperties.Name="正在处理当前阶段" />
           </StackPanel>
         </Grid>
-        <StackPanel Margin="42,12,0,0">
+        <StackPanel Margin="56,12,0,0">
           <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers>
             <DataTrigger Binding="{Binding HasSessionLog}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
           </Style.Triggers></Style></StackPanel.Style>

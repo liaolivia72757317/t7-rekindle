@@ -12,6 +12,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         private int _validationVersion;
         private bool _isValidating;
         private bool _isScanningDirectory;
+        private bool _hasSaveError;
         public string DirectoryMessage => _isScanningDirectory ? "正在自动定位游戏目录，可重新选择或修改路径…"
             : _isValidating ? "正在检查游戏目录…" : _directoryResult.Message;
         public bool IsDirectoryValid => !_isValidating && _directoryResult.IsValid;
@@ -69,6 +70,7 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private bool SaveValidatedFields()
         {
+            _hasSaveError = false;
             if (_isValidating || !_directoryResult.IsValid || HasPlayerNameError)
             {
                 SettingsFeedback = "完成目录与名称配置后即可启动";
@@ -90,8 +92,9 @@ namespace T7.Rekindle.Desktop.ViewModels
             }
             catch (Exception error)
             {
+                _hasSaveError = true;
                 _log.Error("保存设置失败", error);
-                SettingsFeedback = "保存设置失败：" + error.Message;
+                SettingsFeedback = "保存设置失败，请检查写入权限后重试";
                 return false;
             }
         }

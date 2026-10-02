@@ -31,16 +31,26 @@ namespace T7.Rekindle.Desktop.ViewModels
                 + LauncherInformation.ReadDocument("THIRD-PARTY.txt") + "\n\n"
                 + LauncherInformation.ReadDocument("THIRD-PARTY-NOTICES.txt"))));
             ShowThanksCommand = new RelayCommand(() => ShowDocument("特别感谢", "THANKS.md"));
-            ShowRepositoryCommand = new RelayCommand(() => ShowAddress("GitHub", RepositoryAddress));
+            ShowRepositoryCommand = new RelayCommand(() => OpenAddress(RepositoryAddress));
+            ShowDownloadCommand = new RelayCommand(() => OpenAddress(LauncherInformation.DownloadAddress));
+            ShowBuildsCommand = new RelayCommand(() => OpenAddress(LauncherInformation.BuildsAddress));
+            ShowIssuesCommand = new RelayCommand(() => OpenAddress(LauncherInformation.IssuesAddress));
             CopyRepositoryCommand = new RelayCommand(() => Copy(RepositoryAddress, "仓库地址已复制。"));
         }
 
+        public string ProjectName => LauncherInformation.ProjectName;
+        public string ProjectDescription => LauncherInformation.ProjectDescription;
+        public string ProjectStatus => "当前处于开发阶段，完整人机对战与局域网联机尚未完成。";
         public string Version => LauncherInformation.Version;
         public string ShortHash => LauncherInformation.ShortHash;
+        public string BuildDescription => LauncherInformation.CommitHash.Length == 0 ? "构建信息未提供" : "提交 " + ShortHash;
         public string HashDescription => LauncherInformation.CommitHash.Length == 0 ? "构建未记录 Git 提交" : LauncherInformation.CommitHash;
         public string RepositoryAddress => LauncherInformation.RepositoryAddress;
         public string RepositoryAddressDisplay => string.IsNullOrWhiteSpace(RepositoryAddress) ? "项目仓库地址待配置" : RepositoryAddress;
         public bool HasRepositoryAddress => !string.IsNullOrWhiteSpace(RepositoryAddress);
+        public string DownloadAddress => LauncherInformation.DownloadAddress;
+        public string BuildsAddress => LauncherInformation.BuildsAddress;
+        public string IssuesAddress => LauncherInformation.IssuesAddress;
         public string Feedback
         {
             get => _feedback;
@@ -66,6 +76,9 @@ namespace T7.Rekindle.Desktop.ViewModels
         public RelayCommand ShowLicensesCommand { get; }
         public RelayCommand ShowThanksCommand { get; }
         public RelayCommand ShowRepositoryCommand { get; }
+        public RelayCommand ShowDownloadCommand { get; }
+        public RelayCommand ShowBuildsCommand { get; }
+        public RelayCommand ShowIssuesCommand { get; }
         public RelayCommand CopyRepositoryCommand { get; }
 
         private async Task CheckUpdateAsync()
@@ -93,7 +106,7 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private void Copy(string text, string confirmation) => Run(() => { _interaction.CopyText(text); Feedback = confirmation; });
         private void ShowDocument(string title, string resource) => Run(() => _interaction.ShowMarkdown(title, LauncherInformation.ReadDocument(resource)));
-        private void ShowAddress(string title, string address) => Run(() => _interaction.ShowText(title, address));
+        private void OpenAddress(string address) => Run(() => _interaction.OpenAddress(address));
         private void Run(Action action)
         {
             try { action(); }

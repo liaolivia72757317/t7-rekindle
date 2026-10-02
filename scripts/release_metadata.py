@@ -9,11 +9,12 @@ import re
 from urllib.parse import quote, urlsplit
 
 
-ASSET_NAMES = {
-    "installer": "T7-Rekindle-Setup.exe",
-    "portable": "T7-Rekindle-windows-x64.zip",
-}
 VERSION_PATTERN = re.compile(r"[vV]?([0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?")
+
+
+def asset_names(tag: str) -> dict[str, str]:
+    return {"installer": f"T7-Rekindle-{tag}-Setup.exe",
+            "portable": f"T7-Rekindle-windows-x64-{tag}.zip"}
 
 
 def parse_version(value: str) -> tuple[int, int, int, int]:
@@ -48,7 +49,7 @@ def build_manifest(release: dict, assets: dict[str, Path], base_url: str) -> dic
     parse_version(version)
     base_url = normalize_base_url(base_url)
     manifest = {"schemaVersion": 1, "version": version, "summary": release.get("body") or ""}
-    for kind, name in ASSET_NAMES.items():
+    for kind, name in asset_names(version).items():
         matches = [asset for asset in release.get("assets", []) if asset.get("name") == name]
         if len(matches) != 1 or matches[0].get("state") != "uploaded":
             raise ValueError(f"GitHub Release must contain exactly one uploaded {name}.")
@@ -59,7 +60,7 @@ def build_manifest(release: dict, assets: dict[str, Path], base_url: str) -> dic
             raise ValueError(f"GitHub asset size mismatch: {name}.")
         if remote.get("digest") and remote["digest"].lower() != "sha256:" + digest:
             raise ValueError(f"GitHub asset digest mismatch: {name}.")
-        manifest[kind] = {"url": f"{base_url}/releases/{quote(version, safe='')}/{name}",
+        manifest[kind] = {"url": f"{base_url}/releases/{quote(version, safe='')}/{quote(name, safe='')}",
                           "size": size, "sha256": digest}
     return manifest
 

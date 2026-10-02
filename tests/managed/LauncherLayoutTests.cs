@@ -41,14 +41,14 @@ namespace T7.ManagedHarness
                     var settings = (GameSettingsPage)pages.Children[1];
                     var directoryInput = (TextBox)settings.FindName("DirectoryInput");
                     foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                        Render(root, window, outputDirectory, "home-" + (int)(scale * 100), 884, 621, scale);
+                        Render(root, window, outputDirectory, "home-" + (int)(scale * 100), 984, 704, scale);
                     LauncherTests.Assert(home.Visibility == Visibility.Visible && settings.Visibility == Visibility.Collapsed,
                         "game settings appeared on the launch page");
                     model.IsSettingsSelected = true;
                     foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
                     {
-                        Render(root, window, outputDirectory, "settings-" + (int)(scale * 100), 884, 621, scale);
-                        Render(root, window, outputDirectory, "settings-compact-" + (int)(scale * 100), 784, 561, scale);
+                        Render(root, window, outputDirectory, "settings-" + (int)(scale * 100), 984, 704, scale);
+                        Render(root, window, outputDirectory, "settings-compact-" + (int)(scale * 100), 840, 620, scale);
                     }
                     LauncherTests.Assert(settings.Visibility == Visibility.Visible && home.Visibility == Visibility.Collapsed
                         && directoryInput.Text == model.ClientDirectory && !directoryInput.IsReadOnly, "settings page binding or visibility is invalid");
@@ -56,7 +56,7 @@ namespace T7.ManagedHarness
                     AssertBrush(directorySymbol, "SuccessBrush");
                     model.ClientDirectory = @"C:\Games\Missing";
                     LauncherTests.RunTask(model.ValidationTask);
-                    Render(root, window, outputDirectory, "settings-invalid", 784, 561);
+                    Render(root, window, outputDirectory, "settings-invalid", 840, 620);
                     AssertBrush(directorySymbol, "DangerBrush");
                     LauncherTests.Assert(directorySymbol.Text == "!" && !model.CanStart, "invalid directory lost its text indicator");
                     directoryInput.SetCurrentValue(TextBox.TextProperty, @"C:\Games\T7");
@@ -65,53 +65,61 @@ namespace T7.ManagedHarness
                     model.SelectedPage = 1;
                     foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
                     {
-                        Render(root, window, outputDirectory, "about-" + (int)(scale * 100), 884, 621, scale);
-                        Render(root, window, outputDirectory, "about-compact-" + (int)(scale * 100), 784, 561, scale);
+                        Render(root, window, outputDirectory, "about-" + (int)(scale * 100), 984, 704, scale);
+                        Render(root, window, outputDirectory, "about-compact-" + (int)(scale * 100), 840, 620, scale);
                     }
+                    var pageScroll = (ScrollViewer)window.FindName("PageScroll");
+                    pageScroll.ScrollToBottom();
+                    Render(root, window, outputDirectory, "about-links", 840, 620);
+                    var aboutPage = (AboutPage)pages.Children[2];
+                    foreach (var link in new[] { "ReleasePageLink", "BuildsPageLink", "IssuesPageLink" })
+                        AssertWithin((Button)aboutPage.FindName(link), root, 840, 528);
+                    pageScroll.ScrollToTop();
                     model.About.CopyRepositoryCommand.Execute(null);
-                    Render(root, window, outputDirectory, "about-copy-feedback", 784, 561);
+                    Render(root, window, outputDirectory, "about-copy-feedback", 840, 620);
                     var footerFeedback = (TextBlock)window.FindName("FooterFeedback");
                     LauncherTests.Assert(footerFeedback.Text == model.About.Feedback, "copy feedback is outside the fixed footer");
-                    AssertWithin(footerFeedback, root, 784, 561);
+                    AssertWithin(footerFeedback, root, 840, 620);
                     model.SelectedPage = 0;
                     LauncherTests.Pump();
                     LauncherTests.Assert(footerFeedback.Text == model.SettingsFeedback, "about feedback leaked into the launch page");
                     bridge.Snapshot = new SessionSnapshot { State = SessionState.StartingRuntime };
                     model.Refresh();
-                    Render(root, window, outputDirectory, "starting", 884, 621);
+                    Render(root, window, outputDirectory, "starting", 984, 704);
                     bridge.Snapshot = new SessionSnapshot { State = SessionState.Running };
                     model.Refresh();
-                    Render(root, window, outputDirectory, "running", 884, 621);
+                    Render(root, window, outputDirectory, "running", 984, 704);
                     model.IsSettingsSelected = true;
-                    Render(root, window, outputDirectory, "settings-running", 884, 621);
+                    Render(root, window, outputDirectory, "settings-running", 984, 704);
                     LauncherTests.Assert(directoryInput.IsReadOnly, "running game directory remained editable in settings");
                     model.ShowHomeCommand.Execute(null);
                     bridge.Snapshot = new SessionSnapshot { State = SessionState.Failed, ErrorCode = 1003, CleanupComplete = true };
                     model.Refresh();
-                    Render(root, window, outputDirectory, "failed", 884, 621);
+                    Render(root, window, outputDirectory, "failed", 984, 704);
                     foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                        Render(root, window, outputDirectory, "compact-" + (int)(scale * 100), 784, 561, scale);
+                        Render(root, window, outputDirectory, "compact-" + (int)(scale * 100), 840, 620, scale);
                     bridge.Snapshot = new SessionSnapshot { State = SessionState.Idle, CleanupComplete = true };
                     model.Refresh();
                     model.ClientDirectory = "";
                     model.PlayerName = "";
                     model.LogsExpanded = false;
                     LauncherTests.RunTask(model.ValidationTask);
-                    Render(root, window, outputDirectory, "first-run", 884, 621);
+                    Render(root, window, outputDirectory, "first-run", 984, 704);
                     model.IsSettingsSelected = true;
-                    Render(root, window, outputDirectory, "settings-first-run", 884, 621);
+                    Render(root, window, outputDirectory, "settings-first-run", 984, 704);
                     AssertBrush(directorySymbol, "MutedTextBrush");
                     interaction.DirectoryError = new IOException("目录选择器暂不可用。");
                     model.BrowseCommand.Execute(null);
-                    Render(root, window, outputDirectory, "settings-dialog-error", 784, 561);
+                    Render(root, window, outputDirectory, "settings-dialog-error", 840, 620);
                     AssertBrush((TextBlock)settings.FindName("NoticeBanner"), "DangerBrush");
                     model.CopyLogsCommand.Execute(null);
                     model.ShowHomeCommand.Execute(null);
-                    Render(root, window, outputDirectory, "log-copy-feedback", 784, 561);
+                    Render(root, window, outputDirectory, "log-copy-feedback", 840, 620);
                     AssertBrush((TextBlock)home.FindName("NoticeBanner"), "PrimaryBrush");
                     window.DataContext = null;
                 }
                 TestFirstRunLayout(settingsDirectory, outputDirectory);
+                LauncherDesignTests.Run(settingsDirectory, outputDirectory);
                 TestDirectorySearchLayout(settingsDirectory, outputDirectory);
                 TestUpdateLayout(outputDirectory);
                 TestUpdateProgressLayout(outputDirectory);
@@ -138,11 +146,11 @@ namespace T7.ManagedHarness
                 var pages = (Grid)((ScrollViewer)window.FindName("PageScroll")).Content;
                 var input = (TextBox)((LaunchPage)pages.Children[0]).FindName("NameInput");
                 foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                    Render(root, window, outputDirectory, "first-run-fresh-" + (int)(scale * 100), 884, 621, scale);
+                    Render(root, window, outputDirectory, "first-run-fresh-" + (int)(scale * 100), 984, 704, scale);
                 LauncherTests.Assert(!model.CanStart && Equals(input.BorderBrush, Application.Current.Resources["ControlBorderBrush"]),
                     "fresh empty name must remain neutral while launch is disabled");
                 model.PlayerName = " ";
-                Render(root, window, outputDirectory, "first-run-edited", 784, 561);
+                Render(root, window, outputDirectory, "first-run-edited", 840, 620);
                 LauncherTests.Assert(!model.CanStart && Equals(input.BorderBrush, Application.Current.Resources["DangerBrush"]),
                     "edited empty name must show an error without enabling launch");
                 window.DataContext = null;
@@ -165,13 +173,13 @@ namespace T7.ManagedHarness
                 var pages = (Grid)((ScrollViewer)window.FindName("PageScroll")).Content;
                 var input = (TextBox)((GameSettingsPage)pages.Children[1]).FindName("DirectoryInput");
                 model.BrowseCommand.Execute(null);
-                Render(root, window, outputDirectory, "settings-searching", 784, 561);
+                Render(root, window, outputDirectory, "settings-searching", 840, 620);
                 LauncherTests.Assert(input.Text == @"C:\Games" && !input.IsReadOnly && !model.CanStart,
                     "search progress locked manual input or displayed the previous path");
                 pending.SetResult(new ClientDirectoryResult(@"C:\Games\T7", @"C:\Games\T7\Bin", "已自动定位游戏目录。已找到 Bin\\TieJiClient.exe"));
                 LauncherTests.RunTask(model.ValidationTask);
                 foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                    Render(root, window, outputDirectory, "settings-located-" + (int)(scale * 100), 784, 561, scale);
+                    Render(root, window, outputDirectory, "settings-located-" + (int)(scale * 100), 840, 620, scale);
                 LauncherTests.Assert(input.Text == @"C:\Games\T7" && model.CanStart, "located root was not echoed into the directory input");
                 window.DataContext = null;
             }
@@ -215,7 +223,7 @@ namespace T7.ManagedHarness
             var unpublished = new UpdateDialog(new LauncherUpdateInfo
             {
                 CurrentVersion = info.CurrentVersion, TargetVersion = "未发布", HasPublishedRelease = false,
-                Summary = "GitHub Releases 暂无正式版本。\n开发构建请查看项目仓库的 Actions 页面。", DownloadAddress = info.DownloadAddress
+                Summary = "GitHub Releases 暂无正式版本。\n开发构建请查看关于页的 CI 构建入口。", DownloadAddress = info.DownloadAddress
             });
             foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
             {
@@ -373,7 +381,7 @@ namespace T7.ManagedHarness
                 "element escaped the client viewport: " + element.Name);
         }
 
-        private static void Render(FrameworkElement root, MainWindow window, string outputDirectory,
+        internal static void Render(FrameworkElement root, MainWindow window, string outputDirectory,
             string name, double width, double height, double scale = 1)
         {
             VisualTreeHelper.SetRootDpi(root, new DpiScale(scale, scale));

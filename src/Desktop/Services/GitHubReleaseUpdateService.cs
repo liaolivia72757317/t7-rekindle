@@ -40,11 +40,11 @@ namespace T7.Rekindle.Desktop.Services
                                 TargetVersion = "未发布",
                                 HasPublishedRelease = false,
                                 UpdateSource = "GitHub",
-                                Summary = "GitHub Releases 暂无正式版本。\n开发构建可从项目仓库的 Actions 页面获取。",
+                                Summary = "GitHub Releases 暂无正式版本。\n开发构建可从关于页的 CI 构建入口获取。",
                                 DownloadAddress = _repository.AbsoluteUri.TrimEnd('/') + "/releases"
                             };
                         if (response.StatusCode == HttpStatusCode.Forbidden || (int)response.StatusCode == 429)
-                            throw new IOException("GitHub 请求受限，请稍后重试；也可在浏览器中查看项目发布页。");
+                            throw new IOException("GitHub 请求受限，请稍后重试；也可从关于页查看发布页。");
                         if (!response.IsSuccessStatusCode)
                             throw new IOException("GitHub 更新服务返回 HTTP " + (int)response.StatusCode + "，请稍后重试。");
                         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -93,7 +93,7 @@ namespace T7.Rekindle.Desktop.Services
         private LauncherUpdateAsset ReadInstaller(Release release)
         {
             var matches = (release.Assets ?? new Asset[0]).Where(asset => asset != null
-                && asset.Name == ReleaseMetadata.InstallerName).ToArray();
+                && asset.Name == ReleaseMetadata.InstallerName(release.TagName)).ToArray();
             if (matches.Length == 0) return null;
             if (matches.Length != 1) throw new InvalidDataException("GitHub 安装包名称重复。");
             var installer = matches[0];

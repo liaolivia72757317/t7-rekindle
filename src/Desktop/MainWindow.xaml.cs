@@ -36,6 +36,11 @@ namespace T7.Rekindle.Desktop
             BrandFallback.Visibility = Visibility.Visible;
         }
 
+        private void OnSceneArtworkFailed(object sender, ExceptionRoutedEventArgs e)
+        {
+            SceneArtwork.Visibility = Visibility.Collapsed;
+        }
+
         private async void OnClosing(object sender, CancelEventArgs e)
         {
             if (_closeAfterCleanup)

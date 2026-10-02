@@ -78,6 +78,7 @@ namespace T7.ManagedHarness
         public bool IsMarkdown { get; private set; }
         public string DirectorySelection { get; set; }
         public Exception DirectoryError { get; set; }
+        public Exception LogDirectoryError { get; set; }
         public LauncherUpdateInfo Update { get; private set; }
         public Action OnShowUpdate { get; set; }
         public string SelectDirectory(string initialDirectory)
@@ -89,7 +90,11 @@ namespace T7.ManagedHarness
         public void ShowText(string title, string text) { Text = text; IsMarkdown = false; }
         public void ShowMarkdown(string title, string markdown) { Text = markdown; IsMarkdown = true; }
         public void CopyText(string text) { Text = text; }
-        public void OpenDirectory(string path) { Text = path; }
+        public void OpenDirectory(string path)
+        {
+            if (LogDirectoryError != null) throw LogDirectoryError;
+            Text = path;
+        }
         public void OpenAddress(string address) { Text = address; }
         public void ShowUpdate(LauncherUpdateInfo info) { Update = info; OnShowUpdate?.Invoke(); }
     }

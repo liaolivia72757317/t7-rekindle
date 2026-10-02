@@ -20,11 +20,13 @@ namespace T7.ManagedHarness
             Assert(Text(blocks[0]).Trim() == "启动器版本日志" && Text(blocks[1]).Trim() == "0.1.0"
                 && blocks[0].FontSize > blocks[1].FontSize && blocks[1].FontSize > changelog.FontSize,
                 "Markdown heading markers or typography are incorrect");
-            Assert(((List)blocks[2]).ListItems.Count == 7 && !Text(changelog).Contains("`"),
+            Assert(((List)blocks[2]).ListItems.Count == 8 && !Text(changelog).Contains("`")
+                && Text(changelog).Contains("GitHub Releases"),
                 "changelog bullets or inline code still contain Markdown syntax");
             var thanks = MarkdownDocument.Render(LauncherInformation.ReadDocument("THANKS.md"));
-            Assert(thanks.Blocks.Count == 2 && Text(thanks.Blocks.FirstBlock).Trim() == "特别感谢"
-                && Text(thanks).Contains("社区支持的贡献者"), "thanks document lost its heading or paragraph");
+            Assert(thanks.Blocks.Count == 4 && Text(thanks.Blocks.FirstBlock).Trim() == "特别感谢"
+                && Text(thanks).Contains("社区支持的贡献者") && Text(thanks).Contains("公开署名由本人确认"),
+                "thanks document lost its heading, contributors, or attribution guidance");
 
             var formatting = MarkdownDocument.Render("# Heading\r\n\r\n**strong** and *emphasis* and `**literal**` and \\*plain\\*\r\ncontinued\r\n\r\n3. Third\r\n4. Fourth\r\n\r\n## Next\r\n\r\n+ Item");
             blocks = formatting.Blocks.ToArray();

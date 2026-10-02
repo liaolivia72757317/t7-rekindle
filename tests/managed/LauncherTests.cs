@@ -240,15 +240,24 @@ namespace T7.ManagedHarness
         {
             var blocked = Path.Combine(directory, "not-a-directory");
             File.WriteAllText(blocked, "fixture");
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(blocked), new UserSettings(), null,
+            var bridge = new FakeLauncherBridge();
+            using (var model = new MainWindowViewModel(bridge, new SettingsService(blocked), new UserSettings(), null,
                 path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
             {
                 model.ClientDirectory = @"C:\Game";
                 model.PlayerName = "玩家";
                 RunTask(model.ValidationTask);
                 Assert(model.SettingsFeedback.StartsWith("保存设置失败"), "save failure was reported as success");
+                Assert(!model.CanStart && model.StatusText == "配置保存失败" && model.MainActionText == "重试保存"
+                    && model.MainActionCommand.CanExecute(null), "save failure did not offer a separate save retry");
                 RunTask(model.StartCommand.ExecuteAsync(null));
                 Assert(model.StatusTone == "Danger" && !model.IsBusy, "save failure was ignored before launch");
+                RunTask(model.MainActionCommand.ExecuteAsync(null));
+                Assert(bridge.StartCount == 0 && !model.CanStart, "failed save retry launched a game");
+                File.Delete(blocked);
+                RunTask(model.MainActionCommand.ExecuteAsync(null));
+                Assert(model.CanStart && model.StatusText == "准备就绪" && bridge.StartCount == 0
+                    && new SettingsService(blocked).Load().PlayerName == "玩家", "save retry did not persist without launching");
             }
         }
 
@@ -312,6 +321,12 @@ namespace T7.ManagedHarness
             Assert(interaction.Text == about.RepositoryAddress, "repository address contains presentation annotations");
             about.CopyRepositoryCommand.Execute(null);
             Assert(about.Feedback == "仓库地址已复制。", "repository copy feedback is invalid");
+            about.ShowDownloadCommand.Execute(null);
+            Assert(interaction.Text == LauncherInformation.DownloadAddress, "release page link is invalid");
+            about.ShowBuildsCommand.Execute(null);
+            Assert(interaction.Text == LauncherInformation.BuildsAddress, "CI build link is invalid");
+            about.ShowIssuesCommand.Execute(null);
+            Assert(interaction.Text == LauncherInformation.IssuesAddress, "issue tracker link is invalid");
             about.ShowChangelogCommand.Execute(null);
             Assert(interaction.Text.Contains("0.1.0") && interaction.IsMarkdown, "offline changelog missing or not rendered as Markdown");
             about.ShowLicensesCommand.Execute(null);
