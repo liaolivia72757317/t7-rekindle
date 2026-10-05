@@ -17,7 +17,10 @@ namespace T7.ManagedHarness
         internal static void Run()
         {
             Assert(LauncherInformation.ProjectName == "铁骑·重燃（T7-Rekindle）", "project name metadata is missing");
-            Assert(LauncherInformation.ProjectDescription.Contains("刀锋铁骑"), "project description metadata is missing");
+            Assert(LauncherInformation.ProjectDescription ==
+                "铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。"
+                + "我们希望先完成本地人机对战，再逐步支持局域网联机。\n"
+                + "项目不以营利为目的，欢迎开发者和玩家一起参与。", "project description metadata or paragraph break is incorrect");
             foreach (var address in new[] { LauncherInformation.RepositoryAddress,
                 LauncherInformation.DownloadAddress, LauncherInformation.BuildsAddress, LauncherInformation.IssuesAddress })
                 Assert(Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps,
@@ -66,12 +69,13 @@ namespace T7.ManagedHarness
             Assert(!missing.HasPublishedRelease && !missing.IsNewVersion && missing.TargetVersion == "未发布"
                 && missing.StatusText == "暂无正式发布版本" && missing.DownloadAddress == REPOSITORY + "/releases",
                 "an absent release was reported as up to date");
+            Assert(missing.Summary == "GitHub Releases 暂无正式版本。", "no-release summary still refers to removed entry points");
             var noNotes = Release("v0.2.0");
             noNotes["body"] = null;
             Assert((await CheckAsync(HttpStatusCode.OK, noNotes.ToString())).Summary.Contains("未填写"), "empty release notes have no fallback");
 
             foreach (var status in new[] { HttpStatusCode.Forbidden, (HttpStatusCode)429, HttpStatusCode.ServiceUnavailable })
-                await ExpectFailure(() => CheckAsync(status, "{}"), status == HttpStatusCode.ServiceUnavailable ? "503" : "受限");
+                await ExpectFailure(() => CheckAsync(status, "{}"), status == HttpStatusCode.ServiceUnavailable ? "503" : "GitHub 请求受限，请稍后重试。");
             foreach (var json in new[] { "invalid-json", "[]", "null", "{}" })
                 await ExpectFailure(() => CheckAsync(HttpStatusCode.OK, json), "GitHub");
             foreach (var field in new[] { "draft", "prerelease" })

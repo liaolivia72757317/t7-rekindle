@@ -21,8 +21,8 @@ def make_flow(name, role="instance"):
     return app.Flow({"connection": 1}, state, {"nowMs": 1000})
 
 
-def test_name_reaches_login_and_all_local_actor_messages():
-    name = "重燃测试员"
+@pytest.mark.parametrize("name", ["新玩家", "重燃测试员"])
+def test_name_reaches_login_and_all_local_actor_messages(name):
     encoded = name.encode("gbk")
     flow = make_flow(name, "logic")
     app.handleTimer(flow, "login")
@@ -49,9 +49,9 @@ def test_names_are_session_local_and_survive_state_migration():
     assert second.playerName == "玩家乙".encode("gbk")
     assert first.playerName != second.playerName
     assert app.migrateState(app.STATE_VERSION, first.state)["playerName"] == "玩家甲"
-    assert wire.USER_NAME == "吃我一记流星锤".encode("gbk")
+    assert wire.USER_NAME == "新玩家".encode("gbk")
 
 
-def test_old_context_keeps_existing_default_name():
+def test_context_without_name_uses_new_player():
     state = app.createState({})
-    assert state["playerName"].encode("gbk") == wire.USER_NAME
+    assert state["playerName"] == "新玩家"

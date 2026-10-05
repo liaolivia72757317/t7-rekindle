@@ -14,11 +14,14 @@ namespace T7.Rekindle.Desktop.ViewModels
         private string _completedMessage = string.Empty;
         private string _lastAction = "启动";
         private string _statusText = "首次使用";
-        private string _diagnosticText = "在“游戏设置”页选择游戏根目录，再在“启动”页填写玩家名称。";
+        private string _diagnosticText = "请在设置中填写玩家名称与游戏目录。";
         private string _statusTone = "Neutral";
         private string _statusSymbol = "·";
         private string _mainActionText = "启动游戏";
         private DateTime _operationStartedAt;
+        private bool _hasRunningSession;
+
+        internal event Action GameSessionEnded;
 
         public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
         public string DiagnosticText { get => _diagnosticText; private set => SetProperty(ref _diagnosticText, value); }
@@ -26,7 +29,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public string StatusSymbol { get => _statusSymbol; private set => SetProperty(ref _statusSymbol, value); }
         public string MainActionText { get => _mainActionText; private set => SetProperty(ref _mainActionText, value); }
         public bool ShowProgress => StatusTone == "Working";
-        public string EndpointText => _snapshot.LoginPort == 0 ? "尚未分配本地服务端口。"
+        public string EndpointText => _snapshot.LoginPort == 0 ? "本地服务未运行。"
             : string.Format("login={0}  logic={1}  instance={2}", _snapshot.LoginPort, _snapshot.LogicPort, _snapshot.InstancePort);
         public string StageText => _operationActive && DateTime.UtcNow - _operationStartedAt > TimeSpan.FromSeconds(30)
             ? "等待时间较长，可展开日志查看进展" : StatusText;
@@ -56,6 +59,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             SelectedPage = 0;
             var directory = ClientDirectory;
             var name = PlayerName.Trim();
+            var skipStartupAnimation = SkipStartupAnimation;
             return ExecuteAsync(async token =>
             {
                 var result = await _inspectDirectory(directory);
@@ -68,13 +72,13 @@ namespace T7.Rekindle.Desktop.ViewModels
                 var check = await _bridge.CheckAsync(result.Directory, token);
                 if (check.Status != OperationStatus.Succeeded) return check;
                 token.ThrowIfCancellationRequested();
-                return await _bridge.StartAsync(result.Directory, name, token);
+                return await _bridge.StartAsync(result.Directory, name, skipStartupAnimation, token);
             }, OperationKind.Start, "启动");
         }
 
         private async Task StopAsync()
         {
-            if (!_interaction.Confirm("结束游戏会停止本地服务，并强制结束本次启动的游戏进程，未保存的进度可能丢失。\n请优先在游戏内退出。仍要结束吗？")) return;
+            if (!_interaction.Confirm("将关闭本次启动的游戏进程。\n尚未保存的游戏进度可能丢失。")) return;
             await StopSessionAsync();
         }
 
@@ -161,7 +165,15 @@ namespace T7.Rekindle.Desktop.ViewModels
                     LogsExpanded = true;
                 if (_snapshot.State == SessionState.Idle && _snapshot.Phase == "client-exited")
                     _completedMessage = "游戏已正常退出";
+                if (_snapshot.State == SessionState.Running) _hasRunningSession = true;
+                var gameEnded = _hasRunningSession && (_snapshot.State == SessionState.Idle || _snapshot.State == SessionState.Failed);
+                if (gameEnded)
+                {
+                    _hasRunningSession = false;
+                    IsHomeSelected = true;
+                }
                 UpdatePresentation();
+                if (gameEnded) GameSessionEnded?.Invoke();
             }
             catch (Exception error)
             {
@@ -190,23 +202,25 @@ namespace T7.Rekindle.Desktop.ViewModels
                     : state == SessionState.StartingRuntime ? "正在准备本地服务…" : "正在检查启动配置…", "Working", "…", "启动中…");
             else if (_isValidating || state == SessionState.Checking || _activeKind == OperationKind.Check)
                 Present("正在检查客户端…", "正在核对目录与启动条件，请稍候。", "Working", "…", "检查中…");
+            else if (_directoryHasDraft)
+                Present("请完成目录编辑", "在设置中按 Enter 或移出输入框后检查目录。", "Neutral", "", "前往设置");
             else if (!_directoryResult.IsValid || HasPlayerNameError)
                 Present(!_directoryResult.IsValid ? "未找到游戏客户端" : "请检查玩家名称",
-                    !_directoryResult.IsValid ? "请在“游戏设置”页选择有效目录，并填写玩家名称。 " + _directoryResult.Message : PlayerNameError,
-                    !_directoryResult.IsValid ? "Warning" : "Danger", "!", !_directoryResult.IsValid ? "前往游戏设置" : "启动游戏");
+                    !_directoryResult.IsValid ? "请在设置中选择有效目录，并填写玩家名称。 " + _directoryResult.Message : PlayerNameError,
+                    !_directoryResult.IsValid ? "Warning" : "Danger", "!", "前往设置");
             else if (_hasSaveError)
                 Present("配置保存失败", "目录与名称尚未保存，请检查写入权限后重试。", "Danger", "!", "重试保存");
             else if (_failureMessage.Length != 0)
                 Present(_lastAction == "运行" ? "游戏异常退出" : _lastAction + "失败", SummarizeError(_failureMessage) + " 请查看日志，排查后重试。", "Danger", "!", "重试启动");
             else if (_completedMessage.Length != 0)
-                Present(_completedMessage, "目录与名称已验证，可以启动游戏。", "Success", "✓",
-                    _completedMessage.Contains("退出") || _completedMessage.Contains("结束") ? "再次启动" : "启动游戏");
-            else Present("准备就绪", "目录与名称已验证，启动时会再次检查客户端。", "Success", "✓", "启动游戏");
+                Present("准备就绪", string.Empty, "Success", "✓", "启动游戏");
+            else Present("准备就绪", string.Empty, "Success", "✓", "启动游戏");
 
             foreach (var property in new[] { nameof(IsBusy), nameof(CanClose), nameof(AreSessionFieldsLocked), nameof(CanStart),
                 nameof(CanCancel), nameof(CanStop), nameof(StopButtonText), nameof(CancelButtonText), nameof(ShowProgress),
                 nameof(EndpointText), nameof(StageText), nameof(DirectoryMessage), nameof(IsDirectoryValid),
-                nameof(HasDirectoryError), nameof(DirectorySymbol), nameof(HasSessionLog) }) OnPropertyChanged(property);
+                nameof(HasDirectoryError), nameof(DirectorySymbol), nameof(HasSessionLog), nameof(MainActionIcon),
+                nameof(HomeStatusDetail), nameof(DirectoryFieldError), nameof(DirectoryProgressText), nameof(NameFieldError), nameof(IsManagedGameRunning) }) OnPropertyChanged(property);
             BrowseCommand?.NotifyCanExecuteChanged();
             CheckCommand?.NotifyCanExecuteChanged();
             StartCommand?.NotifyCanExecuteChanged();

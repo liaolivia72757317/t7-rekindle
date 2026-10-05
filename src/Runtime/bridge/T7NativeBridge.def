@@ -6,6 +6,7 @@ EXPORTS
     t7_native_submit_check
     t7_native_submit_start
     t7_native_submit_start_named
+    t7_native_submit_start_options
     t7_native_submit_stop
     t7_native_cancel
     t7_native_get_snapshot

@@ -107,7 +107,8 @@ def handleTimer(flow, name):
     if name == "version":
         flow.send(1, protocol.encode_version_check_response(0), "version-response")
     elif name == "login":
-        identity = protocol.MinimalLoginIdentity(wire.USER_ID, flow.playerName, user_image_id=7, level=7)
+        identity = protocol.MinimalLoginIdentity(
+            wire.USER_ID, flow.playerName, user_image_id=7, level=wire.USER_LEVEL)
         flow.send(1, protocol.encode_minimal_login_success(identity), "fixed-local-login")
         flow.later("sync", 20000)
     elif name == "sync":

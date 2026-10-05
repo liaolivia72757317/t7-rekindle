@@ -1,10 +1,11 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 WPF = "http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 XAML = "http://schemas.microsoft.com/winfx/2006/xaml"
+
+
 def _xaml(path):
     return ET.parse(path).getroot()
 
@@ -14,118 +15,180 @@ def _find(root, tag):
 
 
 def test_main_window_has_accessible_lifecycle_contract():
-    root = _xaml(ROOT / "src/Desktop" / "MainWindow.xaml")
-    assert root.attrib["{" + XAML + "}Class"] == "T7.Rekindle.Desktop.MainWindow"
-    assert root.attrib["Width"] == "1000"
-    assert root.attrib["Height"] == "743"
-    assert root.attrib["MinWidth"] == "856"
-    assert root.attrib["MinHeight"] == "659"
+    root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
     assert root.attrib["Closing"] == "OnClosing"
     assert root.attrib["Closed"] == "OnClosed"
+    assert root.attrib["ResizeMode"] == "CanMinimize"
     assert root.attrib["AutomationProperties.Name"] == "T7-Rekindle 本地客户端启动器"
     tabs = _find(root, "RadioButton")
-    assert [tab.attrib["Content"] for tab in tabs] == ["启动", "游戏设置", "关于"]
-    assert tabs[1].attrib["IsChecked"] == "{Binding IsSettingsSelected}"
-    settings_page = root.find(".//{clr-namespace:T7.Rekindle.Desktop.Views}GameSettingsPage")
-    assert settings_page.attrib["Visibility"] == "{Binding IsSettingsSelected, Converter={StaticResource BoolVisibility}}"
-    scroll = _find(root, "ScrollViewer")[0]
-    assert scroll.attrib["Grid.Row"] == "2"
-    footer = _find(root, "Border")[-1]
-    assert footer.attrib["Grid.Row"] == "3"
-    assert any(button.attrib.get("Command") == "{Binding MainActionCommand}" for button in _find(footer, "Button"))
-
-    home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
-    settings = _xaml(ROOT / "src/Desktop/Views/GameSettingsPage.xaml")
-    for page in (root, home, settings, _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml"),
-                 _xaml(ROOT / "src/Desktop/Views/UpdateDialog.xaml"), _xaml(ROOT / "src/Desktop/Views/TextDialog.xaml")):
-        for button in _find(page, "Button"):
-            assert button.attrib.get("AutomationProperties.Name")
-            assert button.attrib.get("TabIndex") is not None
+    assert [tab.attrib["Content"] for tab in tabs] == ["首页", "对战", "更新", "设置", "关于"]
+    assert tabs[1].attrib["AutomationProperties.Name"] == "对战"
+    assert tabs[2].attrib["AutomationProperties.Name"] == "更新"
+    for path in (ROOT / "src/Desktop").rglob("*.xaml"):
+        if path.parent.name == "Resources":
+            continue
+        for button in _find(_xaml(path), "Button"):
+            assert button.attrib.get("AutomationProperties.Name"), path
+            assert button.attrib.get("TabIndex") is not None, path
 
 
-def test_launcher_uses_light_artwork_and_real_controls():
+def test_launcher_uses_full_artwork_and_real_controls():
     root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
     named = {item.attrib.get("{" + XAML + "}Name"): item for item in root.iter()}
-    logo = named["BrandLogo"]
-    assert logo.attrib["Width"] == "368" and logo.attrib["Height"] == "118"
-    assert logo.attrib["Source"].endswith("/brand/logo-ui-light-cutout.png")
+    assert named["BrandLogo"].attrib["Source"].endswith("/brand/logo-stacked-tagline-sidebar.png")
     scene = named["SceneArtwork"]
-    assert scene.attrib["Source"].endswith("/art/scene-complete.png")
-    assert scene.attrib["IsHitTestVisible"] == "False"
+    assert scene.attrib["Source"].endswith("/art/launcher-full-2560x1920.png")
     assert scene.attrib["ImageFailed"] == "OnSceneArtworkFailed"
-    launch = named["LaunchButton"]
-    assert launch.attrib["Width"] == "208" and launch.attrib["Height"] == "56"
-    assert launch.attrib.get("IsDefault", "False") == "False"
-    assert launch.attrib["AutomationProperties.Name"] == "{Binding MainActionText}"
-    assert named["BuildMetadata"].attrib["TextTrimming"] == "CharacterEllipsis"
-    assert not any(run.attrib.get("Text") == "提交 " for run in _find(root, "Run"))
+    assert scene.attrib["IsHitTestVisible"] == "False"
+    home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
+    action = next(item for item in _find(home, "Button") if item.attrib.get("{" + XAML + "}Name") == "LaunchButton")
+    assert action.attrib["Command"] == "{Binding MainActionCommand}"
+    assert action.attrib.get("IsDefault", "False") == "False"
 
 
-def test_launcher_light_palette_matches_the_design():
+def test_launcher_light_palette_matches_v11_design_tokens():
     root = _xaml(ROOT / "src/Desktop/App.xaml")
-    colors = {item.attrib["{" + XAML + "}Key"]: item.attrib["Color"]
-              for item in _find(root, "SolidColorBrush")}
-    assert {key: colors[key] for key in ("WindowBackgroundBrush", "TextBrush", "MutedTextBrush",
-                                       "PrimaryBrush", "GoldBrush", "FocusBrush")} == {
-        "WindowBackgroundBrush": "#F6F5F2", "TextBrush": "#162732", "MutedTextBrush": "#566976",
-        "PrimaryBrush": "#3F5868", "GoldBrush": "#B58B3B", "FocusBrush": "#8F6928",
+    colors = {item.attrib["{" + XAML + "}Key"]: item.attrib["Color"] for item in _find(root, "SolidColorBrush")}
+    assert {key: colors[key] for key in ("WindowBackgroundBrush", "TextBrush", "MutedTextBrush", "PrimaryBrush", "GoldBrush", "FocusBrush")} == {
+        "WindowBackgroundBrush": "#F4F7F8", "TextBrush": "#234759", "MutedTextBrush": "#536E81",
+        "PrimaryBrush": "#324F60", "GoldBrush": "#B48A46", "FocusBrush": "#90621E",
     }
 
 
-def test_directory_configuration_lives_only_on_game_settings_page():
-    home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
-    settings = _xaml(ROOT / "src/Desktop/Views/GameSettingsPage.xaml")
-    home_inputs = _find(home, "TextBox")
-    assert [item.attrib["AutomationProperties.Name"] for item in home_inputs] == ["玩家名称"]
-    assert home_inputs[0].attrib["Text"] == "{Binding PlayerName, UpdateSourceTrigger=PropertyChanged}"
-    settings_inputs = _find(settings, "TextBox")
-    assert len(settings_inputs) == 1
-    directory = settings_inputs[0]
-    assert directory.attrib["AutomationProperties.Name"] == "游戏根目录"
-    assert directory.attrib["Text"] == "{Binding ClientDirectory, UpdateSourceTrigger=PropertyChanged}"
-    for item in (home_inputs[0], directory):
-        assert item.attrib["IsReadOnly"] == "{Binding AreSessionFieldsLocked}"
-    assert {button.attrib["Command"] for button in _find(settings, "Button")} == {
-        "{Binding BrowseCommand}", "{Binding CheckCommand}",
-    }
-    assert {"{Binding DirectoryMessage}", "{Binding NoticeText}"} <= {
-        block.attrib.get("Text") for block in _find(settings, "TextBlock")
-    }
-    assert any("上级目录" in block.attrib.get("Text", "") for block in _find(settings, "TextBlock"))
+def test_launcher_starts_update_checks_after_showing_main_window():
+    source = (ROOT / "src/Desktop/App.xaml.cs").read_text(encoding="utf-8-sig")
+    assert source.index("window.Show();") < source.index("viewModel.StartUpdateChecks(DateTime.UtcNow);")
 
 
-def test_launch_page_keeps_status_and_log_directory_without_inline_logs():
-    home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
-    buttons = _find(home, "Button")
-    assert [button.attrib["Command"] for button in buttons] == [
-        "{Binding OpenLogsCommand}", "{Binding ShowSettingsCommand}", "{Binding CopyLogsCommand}",
+def test_version_is_centered_in_sidebar_and_update_is_a_page():
+    root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
+    named = {item.attrib.get("{" + XAML + "}Name"): item for item in root.iter()}
+    capsule = named["VersionCapsule"]
+    assert capsule.tag == "{" + WPF + "}Button"
+    assert capsule.attrib["HorizontalAlignment"] == "Center"
+    assert capsule.attrib["Command"] == "{Binding ShowUpdatePageCommand}"
+    assert capsule.attrib["AutomationProperties.Name"] == "{Binding About.VersionCapsuleHint}"
+    assert capsule.attrib["ToolTip"] == "{Binding About.VersionCapsuleHint}"
+    assert named["CapsuleVersion"].attrib["Text"] == "{Binding About.Version}"
+    assert named["CapsuleVersion"].attrib["TextTrimming"] == "CharacterEllipsis"
+    assert named["VersionUpdateReminder"].attrib["Visibility"] == "{Binding About.HasUpdateReminder, Converter={StaticResource BoolVisibility}}"
+    assert named["VersionUpdateIcon"].attrib["Kind"] == "refresh"
+    assert named["VersionUpdateLabel"].attrib["Text"] == "有更新"
+    assert "UpdateButton" not in named
+    update = _xaml(ROOT / "src/Desktop/Views/LauncherUpdatePage.xaml")
+    assert _find(update, "FlowDocumentScrollViewer")[0].attrib["VerticalScrollBarVisibility"] == "Auto"
+    assert not any(item.attrib.get("Command") in ("{Binding ShowChangelogCommand}", "{Binding ShowDownloadCommand}") for item in _find(update, "Button"))
+
+
+def test_battle_page_uses_construction_design_and_existing_navigation():
+    root = _xaml(ROOT / "src/Desktop/Views/MultiplayerPage.xaml")
+    named = {item.attrib.get("{" + XAML + "}Name"): item for item in root.iter()}
+    title = named["ConstructionTitle"]
+    assert title.attrib["Text"] == "对战 · 功能建设中"
+    assert title.attrib["ToolTip"] == title.attrib["Text"]
+    assert title.attrib["TextTrimming"] == "CharacterEllipsis"
+    assert title.attrib["Focusable"] == "True"
+    scroll = named["ConstructionScroll"]
+    assert scroll.attrib["VerticalScrollBarVisibility"] == "Auto"
+    assert scroll.attrib["HorizontalScrollBarVisibility"] == "Disabled"
+    assert title not in scroll.iter()
+    assert _find(root, "DataGrid") == []
+    assert _find(root, "ProgressBar") == []
+    assert _find(root, "ImageBrush")[0].attrib["ImageSource"].endswith("/art/launcher-full-2560x1920.png")
+    assert [button.attrib["Command"] for button in _find(root, "Button")] == [
+        "{Binding ShowHomeCommand}", "{Binding About.ShowIssuesCommand}", "{Binding ShowAboutCommand}",
     ]
-    assert buttons[0].attrib["Content"] == "打开日志目录"
-    assert buttons[1].attrib["Content"] == "前往游戏设置"
-    assert buttons[2].attrib["Content"] == "复制诊断信息"
-    texts = {block.attrib.get("Text") for block in _find(home, "TextBlock")}
-    assert {"启动状态", "{Binding StatusText}", "{Binding DiagnosticText}"} <= texts
-    attributes = " ".join(value for element in home.iter() for value in element.attrib.values())
-    for binding in ("ToggleLogsCommand", "LogToggleText", "LogsExpanded", "NativeLogText", "EndpointText", "StageText"):
-        assert binding not in attributes
+    assert [button.attrib["TabIndex"] for button in _find(root, "Button")] == ["8", "9", "10"]
+    assert named["ConstructionFeedbackButton"].attrib["IsEnabled"] == "{Binding About.HasIssuesAddress}"
+    texts = {block.attrib.get("Text") for block in _find(root, "TextBlock")}
+    assert {"该功能正在建设中", "当前模块尚未完成开发，敬请期待。", "开发中",
+            "功能开放后，此处将显示正式页面。"} <= texts
+    assert any(item.attrib.get("Property") == "Text" and item.attrib.get("Value") == "反馈入口暂不可用"
+               for item in _find(root, "Setter"))
 
 
-def test_about_page_starts_with_information_card_without_heading():
+def test_configuration_is_edited_only_in_settings_and_error_is_inline():
+    home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
+    assert _find(home, "TextBox") == []
+    settings = _xaml(ROOT / "src/Desktop/Views/GameSettingsPage.xaml")
+    fields = _find(settings, "TextBox")
+    assert [item.attrib["AutomationProperties.Name"] for item in fields] == ["玩家名称", "游戏根目录"]
+    assert all("UpdateSourceTrigger=Explicit" in item.attrib["Text"] for item in fields)
+    assert all(item.attrib["IsReadOnly"] == "{Binding AreSessionFieldsLocked}" for item in fields)
+    assert {"{Binding NameFieldError}", "{Binding DirectoryFieldError}"} <= {item.attrib.get("Text") for item in _find(settings, "TextBlock")}
+    assert not any("保存" in item.attrib.get("Content", "") for item in _find(settings, "Button"))
+
+
+def test_notices_are_interactive_overlays_at_top_of_content():
+    root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
+    host = root.find(".//{clr-namespace:T7.Rekindle.Desktop.Views}ToastHost")
+    assert host.attrib["VerticalAlignment"] == "Top"
+    assert int(host.attrib["Panel.ZIndex"]) > 0
+    toast = _xaml(ROOT / "src/Desktop/Views/ToastHost.xaml")
+    assert _find(toast, "ItemsControl")[0].attrib["ItemsSource"] == "{Binding Notices.Visible}"
+    assert any(item.attrib.get("Command") == "{Binding CloseCommand}" for item in _find(toast, "Button"))
+    assert any(item.attrib.get("IsKeyboardFocusWithinChanged") for item in _find(toast, "Border"))
+
+
+def test_launch_page_keeps_status_local_and_diagnostics_in_a_dialog():
+    home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
+    commands = {item.attrib.get("Command") for item in _find(home, "Button")}
+    assert {"{Binding ShowDiagnosticsCommand}", "{Binding MainActionCommand}", "{Binding StopCommand}"} <= commands
+    assert not any(item.attrib.get("Text") == "{Binding NativeLogText}" for item in _find(home, "TextBlock"))
+    root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
+    assert not any(item.attrib.get("Text") == "{Binding StatusText}" for item in _find(root, "TextBlock"))
+
+
+def test_about_page_has_real_metadata_and_project_entry_points():
     about = _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml")
-    content = about.find("{" + WPF + "}StackPanel")
-    assert content is not None
-    assert content.findall("{" + WPF + "}TextBlock") == []
-    card = content[0]
-    assert card.tag == "{" + WPF + "}Border"
-    assert card.attrib["Style"] == "{StaticResource Card}"
-    assert {"启动器版本", "Git 提交", "GitHub", "下载入口", "问题反馈"} <= {
-        block.attrib.get("Text") for block in _find(card, "TextBlock")
+    commands = {button.attrib.get("Command") for button in _find(about, "Button")}
+    assert commands == {
+        "{Binding CopyHashCommand}", "{Binding ShowRepositoryCommand}", "{Binding ShowIssuesCommand}",
+        "{Binding ShowLicensesCommand}", "{Binding ShowThanksCommand}",
+        "{Binding ShowEnvironmentInfoCommand}",
     }
+    entry_grid = _find(about, "UniformGrid")[0]
+    assert entry_grid.attrib["Columns"] == "3"
+    assert entry_grid.attrib["Margin"] == "0,24,0,0"
+    assert [button.attrib["Command"] for button in _find(entry_grid, "Button")] == [
+        "{Binding ShowRepositoryCommand}", "{Binding ShowIssuesCommand}",
+        "{Binding ShowEnvironmentInfoCommand}",
+    ]
+    repository_button = _find(entry_grid, "Button")[0]
+    assert repository_button.attrib["AutomationProperties.Name"] == "项目源代码仓库"
+    assert _find(repository_button, "TextBlock")[0].attrib["Text"] == "项目源代码仓库"
+    texts = {block.attrib.get("Text") for block in _find(about, "TextBlock")}
+    assert {"关于", "{Binding ProjectName}", "{Binding ProjectDescription}", "{Binding ShortHash}"} <= texts
+    assert "常用入口" not in texts
+
+
+def test_environment_information_has_a_local_dialog_and_copy_action():
+    about = _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml")
+    entry = next(button for button in _find(about, "Button")
+                 if button.attrib.get("Command") == "{Binding ShowEnvironmentInfoCommand}")
+    assert entry.attrib["AutomationProperties.Name"] == "环境信息"
+    assert entry.attrib["TabIndex"] == "11"
+    root = _xaml(ROOT / "src/Desktop/Views/EnvironmentInfoDialog.xaml")
+    report = _find(root, "TextBox")[0]
+    assert report.attrib["IsReadOnly"] == "True"
+    assert report.attrib["Text"] == "{Binding Report, Mode=OneWay}"
+    assert report.attrib["VerticalScrollBarVisibility"] == "Auto"
+    assert report.attrib["TextWrapping"] == "Wrap"
+    buttons = _find(root, "Button")
+    assert {button.attrib.get("Command") for button in buttons} >= {
+        "{Binding CopyCommand}", "{Binding RefreshCommand}",
+    }
+    assert any(button.attrib.get("IsCancel") == "True" for button in buttons)
 
 
 def test_project_information_uses_the_public_repository():
     project = ET.parse(ROOT / "src/Desktop/T7.Desktop.csproj").getroot()
     assert project.findtext("PropertyGroup/Product") == "铁骑·重燃（T7-Rekindle）"
+    assert project.findtext("PropertyGroup/Description") == (
+        "铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。"
+        "我们希望先完成本地人机对战，再逐步支持局域网联机。\n"
+        "项目不以营利为目的，欢迎开发者和玩家一起参与。"
+    )
     assert project.findtext("PropertyGroup/RepositoryUrl") == "https://github.com/liaolivia72757317/t7-rekindle"
     metadata = {item.attrib["Include"]: item.attrib["Value"]
                 for item in project.findall("ItemGroup/AssemblyMetadata")}
@@ -137,39 +200,31 @@ def test_project_information_uses_the_public_repository():
     assert metadata["UpdateBaseUrl"] == "$(T7_UPDATE_BASE_URL)"
 
 
-def test_about_page_exposes_release_build_and_feedback_links():
-    about = _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml")
-    commands = {button.attrib.get("Command") for button in _find(about, "Button")}
-    assert commands == {
-        "{Binding ShowChangelogCommand}", "{Binding CopyHashCommand}",
-        "{Binding CopyRepositoryCommand}", "{Binding ShowRepositoryCommand}",
-        "{Binding ShowDownloadCommand}", "{Binding ShowBuildsCommand}",
-        "{Binding ShowIssuesCommand}", "{Binding ShowLicensesCommand}", "{Binding ShowThanksCommand}",
-    }
-    texts = {block.attrib.get("Text") for block in _find(about, "TextBlock")}
-    assert {"{Binding ProjectName}", "{Binding ProjectDescription}", "{Binding ProjectStatus}"} <= texts
-
-
-def test_update_dialog_keeps_heading_and_actions_outside_scrollable_content():
-    root = _xaml(ROOT / "src/Desktop/Views/UpdateDialog.xaml")
-    scroll = _find(root, "ScrollViewer")[0]
-    assert scroll.attrib["Grid.Row"] == "1"
-    assert scroll.attrib["VerticalScrollBarVisibility"] == "Auto"
-    assert not _find(scroll, "Button")
-    footer = _find(root, "Border")[-1]
-    assert footer.attrib["Grid.Row"] == "2"
-    assert [button.attrib["{" + XAML + "}Name"] for button in _find(footer, "Button")] == [
-        "LaterButton", "CancelDownloadButton", "DownloadButton"]
-    assert _find(footer, "Button")[0].attrib["IsCancel"] == "True"
-    assert _find(root, "ProgressBar")[0].attrib["Value"] == "{Binding Percent, Mode=OneWay}"
-    assert _find(footer, "Button")[1].attrib["Command"] == "{Binding CancelDownloadCommand}"
+def test_update_page_reuses_header_actions_without_a_result_dialog():
+    root = _xaml(ROOT / "src/Desktop/Views/LauncherUpdatePage.xaml")
+    buttons = {button.attrib.get("{" + XAML + "}Name"): button for button in _find(root, "Button")}
+    assert set(buttons) == {"UpdateButton", "CancelDownloadButton"}
+    assert buttons["UpdateButton"].attrib["Command"] == "{Binding UpdateActionCommand}"
+    assert buttons["UpdateButton"].attrib["Style"] == "{StaticResource PrimaryButton}"
+    assert buttons["UpdateButton"].attrib["AutomationProperties.Name"] == "{Binding UpdateButtonText}"
+    assert buttons["CancelDownloadButton"].attrib["Command"] == "{Binding UpdateDownload.CancelDownloadCommand}"
+    assert buttons["CancelDownloadButton"].attrib["Style"] == "{StaticResource {x:Type Button}}"
+    parents = {child: parent for parent in root.iter() for child in parent}
+    assert parents[buttons["UpdateButton"]] is parents[buttons["CancelDownloadButton"]]
+    body = _find(root, "ScrollViewer")[0]
+    assert not _find(body, "Button")
+    progress = next(item for item in _find(root, "ProgressBar")
+                    if item.attrib.get("{" + XAML + "}Name") == "DownloadProgress")
+    assert progress.attrib["Value"] == "{Binding Percent, Mode=OneWay}"
+    assert not (ROOT / "src/Desktop/Views/UpdateDialog.xaml").exists()
+    assert not (ROOT / "src/Desktop/Views/UpdateDialog.xaml.cs").exists()
 
 
 def test_interface_copy_has_no_prototype_annotations():
     files = list((ROOT / "src/Desktop").rglob("*.xaml"))
     files += [ROOT / "src/Desktop" / name for name in (
         "ViewModels/AboutViewModel.cs", "Services/LauncherInformation.cs",
-        "Views/UpdateDialog.xaml.cs", "Resources/CHANGELOG.md", "Resources/THANKS.md",
+        "ViewModels/UpdateDownloadViewModel.cs", "Resources/CHANGELOG.md", "Resources/THANKS.md",
     )]
     for path in files:
         text = path.read_text(encoding="utf-8-sig")
@@ -188,7 +243,8 @@ def test_text_dialog_keeps_markdown_and_plain_text_views_separate():
     assert host.attrib["Visibility"] == "Collapsed"
     assert host.attrib["Grid.Row"] == "1"
     assert _find(root, "TextBox")[0].attrib["IsReadOnly"] == "True"
-    assert _find(root, "Button")[0].attrib["Grid.Row"] == "2"
+    close = next(item for item in _find(root, "Button") if item.attrib.get("{" + XAML + "}Name") == "CloseButton")
+    assert close.attrib["IsCancel"] == "True"
 
 
 def test_windows_share_font_fallback_and_pixel_aligned_text():
@@ -196,7 +252,7 @@ def test_windows_share_font_fallback_and_pixel_aligned_text():
     fonts = {font.attrib["{" + XAML + "}Key"]: font.text for font in _find(resources, "FontFamily")}
     assert fonts["UiFontFamily"] == "Microsoft YaHei UI, Microsoft YaHei, Segoe UI"
     assert fonts["CodeFontFamily"] == "Consolas, Microsoft YaHei UI, Microsoft YaHei"
-    for name in ("MainWindow.xaml", "Views/UpdateDialog.xaml", "Views/TextDialog.xaml"):
+    for name in ("MainWindow.xaml", "Views/TextDialog.xaml"):
         window = _xaml(ROOT / "src/Desktop" / name)
         assert window.attrib["FontFamily"] == "{StaticResource UiFontFamily}"
         assert window.attrib["Language"] == "zh-CN"
@@ -264,6 +320,18 @@ def test_inno_contract_is_x64_per_user_and_does_not_ship_client_assets():
         assert forbidden not in lowered
 
 
+def test_inno_relaunches_after_silent_install_and_keeps_the_manual_checkbox():
+    text = (ROOT / "installer/T7-Rekindle.iss").read_text(encoding="utf-8")
+    entries = text.split("[Run]", 1)[1].split("[Code]", 1)[0].splitlines()
+    launch_entries = [entry for entry in entries if 'Filename: "{app}\\{#MyAppExeName}"' in entry]
+    assert len(launch_entries) == 1
+    flags = set(launch_entries[0].split("Flags:", 1)[1].split(";", 1)[0].split())
+    assert {"postinstall", "nowait"} <= flags
+    assert not {"skipifsilent", "unchecked"} & flags
+    folder_entry = next(entry for entry in entries if 'Filename: "{app}";' in entry)
+    assert "skipifsilent" in folder_entry
+
+
 def test_inno_version_accepts_a_release_override_with_a_local_default():
     text = (ROOT / "installer" / "T7-Rekindle.iss").read_text(encoding="utf-8")
     assert '#ifndef MyAppVersion\n#define MyAppVersion "0.1.0"\n#endif' in text
@@ -272,6 +340,20 @@ def test_inno_version_accepts_a_release_override_with_a_local_default():
     project = ET.parse(ROOT / "src/Desktop/T7.Desktop.csproj").getroot()
     assert project.findtext("PropertyGroup/AssemblyVersion") == "$(T7_RELEASE_VERSION)"
     assert project.findtext("PropertyGroup/FileVersion") == "$(T7_RELEASE_VERSION)"
+
+
+def test_in_app_update_installs_in_place_after_launcher_exit():
+    service = (ROOT / "src/Desktop/Services/UpdateInstallationService.cs").read_text(encoding="utf-8")
+    window = (ROOT / "src/Desktop/MainWindow.xaml.cs").read_text(encoding="utf-8")
+    installer = (ROOT / "installer/T7-Rekindle.iss").read_text(encoding="utf-8")
+    for argument in ("/SILENT", "/SP-", "/NORESTART", "/DIR=", "/LAUNCHERPID="):
+        assert argument in service
+    assert "UpdateInstallationService.CreateStartInfo(path, AppContext.BaseDirectory" in window
+    assert "Process.GetCurrentProcess()" in window
+    assert "{param:LAUNCHERPID|}" in installer
+    assert "WaitForSingleObject" in installer
+    assert "Result := WaitForLauncherExit();" in installer
+    assert "[InstallDelete]" not in installer
 
 
 def test_app_reacts_to_high_contrast_changes():
@@ -301,6 +383,7 @@ def test_native_bridge_exports_are_explicit_and_versioned():
         "t7_native_submit_check",
         "t7_native_submit_start",
         "t7_native_submit_start_named",
+        "t7_native_submit_start_options",
         "t7_native_submit_stop",
         "t7_native_cancel",
         "t7_native_get_snapshot",

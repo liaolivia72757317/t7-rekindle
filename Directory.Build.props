@@ -15,4 +15,9 @@
     <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
   </PropertyGroup>
+  <Import Project="$(RepositoryRoot).local\Build.props" Condition="Exists('$(RepositoryRoot).local\Build.props')" />
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <TargetFrameworkRootPath Condition="'$(TargetFrameworkRootPath)' == '' and Exists('$(RepositoryRoot).local\toolchains\net48-reference-assemblies\build\.NETFramework\v4.8\PresentationFramework.dll')">$(RepositoryRoot).local\toolchains\net48-reference-assemblies\build\</TargetFrameworkRootPath>
+    <RestorePackagesPath Condition="'$(RestorePackagesPath)' == '' and '$(NUGET_PACKAGES)' == '' and '$(_T7UsePortableSdk)' == 'true'">$(RepositoryRoot).local\toolchains\nuget-packages</RestorePackagesPath>
+  </PropertyGroup>
 </Project>

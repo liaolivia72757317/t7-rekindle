@@ -56,7 +56,7 @@ public:
     void requestClose() noexcept;
 
     int32_t submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId,
-                   std::string playerName = u8"吃我一记流星锤");
+                   std::string playerName = u8"新玩家", bool skipStartupAnimation = false);
     int32_t cancel(uint64_t operationId);
     int32_t snapshot(Snapshot& result) const;
     int32_t operation(uint64_t operationId, Operation& result) const;
@@ -65,7 +65,13 @@ public:
                      uint32_t& required, uint32_t& flags);
 
 private:
-    struct Command { uint64_t id; uint32_t kind; std::string clientDirectory; std::string playerName; };
+    struct Command {
+        uint64_t id;
+        uint32_t kind;
+        std::string clientDirectory;
+        std::string playerName;
+        bool skipStartupAnimation;
+    };
 
     explicit Session(std::string packageRoot, Bootstrap::TestAdapter adapter = {});
     void startWorker();

@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +22,17 @@ namespace T7.Rekindle.Desktop.Services
             _saveSettings = saveSettings ?? throw new ArgumentNullException(nameof(saveSettings));
             _startInstaller = startInstaller ?? throw new ArgumentNullException(nameof(startInstaller));
             _closeApplication = closeApplication ?? throw new ArgumentNullException(nameof(closeApplication));
+        }
+
+        internal static ProcessStartInfo CreateStartInfo(string installerPath, string launcherDirectory, int launcherProcessId)
+        {
+            if (launcherProcessId <= 0) throw new ArgumentOutOfRangeException(nameof(launcherProcessId));
+            return new ProcessStartInfo(installerPath)
+            {
+                UseShellExecute = true,
+                Arguments = "/SILENT /SP- /NORESTART /NORESTARTAPPLICATIONS /DIR=\"" + Path.GetFullPath(launcherDirectory)
+                    + "\" /LAUNCHERPID=" + launcherProcessId.ToString(CultureInfo.InvariantCulture)
+            };
         }
 
         internal async Task<bool> InstallAsync(string path)

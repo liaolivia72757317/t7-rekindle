@@ -19,7 +19,7 @@ using Bytes = std::vector<unsigned char>;
 namespace fs = std::filesystem;
 struct Config {
     std::string bindAddress = "127.0.0.1", advertisedAddress = "127.0.0.1";
-    std::string playerName = u8"吃我一记流星锤";
+    std::string playerName = u8"新玩家";
     // All three ports are zero before listener binding.  Server replaces them
     // with the actual loopback ports returned by getsockname().
     unsigned short ports[3] = {0, 0, 0};
@@ -28,6 +28,7 @@ struct Config {
     // The embedded business layer accepts local movement reports only after
     // the launcher has installed the memory-only client overlay.
     bool runtimeMovement = true;
+    bool skipStartupAnimation = false;
     // Raw socket bytes are diagnostic-sensitive and stay disabled unless a
     // local fixture explicitly opts in. Journal metadata is always kept.
     bool captureWire = false;

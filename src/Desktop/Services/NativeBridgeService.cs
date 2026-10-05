@@ -15,6 +15,7 @@ namespace T7.Rekindle.Desktop.Services
         Task<OperationSnapshot> CheckAsync(string clientDirectory, CancellationToken cancellationToken);
         Task<OperationSnapshot> StartAsync(string clientDirectory, CancellationToken cancellationToken);
         Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, CancellationToken cancellationToken);
+        Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, bool skipStartupAnimation, CancellationToken cancellationToken);
         Task<OperationSnapshot> StopAsync(CancellationToken cancellationToken);
         SessionSnapshot GetSnapshot();
         LogReadResult ReadLogRecords(ref ulong cursor);
@@ -121,6 +122,14 @@ namespace T7.Rekindle.Desktop.Services
             return SubmitAndWaitAsync(OperationKind.Stop, null, cancellationToken);
         }
 
+        public Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, bool skipStartupAnimation,
+            CancellationToken cancellationToken)
+        {
+            var error = PlayerNameRules.Validate(playerName);
+            if (error.Length != 0) throw new ArgumentException(error, nameof(playerName));
+            return SubmitAndWaitAsync(OperationKind.Start, clientDirectory, cancellationToken, playerName.Trim(), skipStartupAnimation);
+        }
+
         public SessionSnapshot GetSnapshot()
         {
             var native = new NativeSnapshot
@@ -215,7 +224,7 @@ namespace T7.Rekindle.Desktop.Services
         }
 
         private async Task<OperationSnapshot> SubmitAndWaitAsync(OperationKind kind, string clientDirectory, CancellationToken cancellationToken,
-            string playerName = null)
+            string playerName = null, bool? skipStartupAnimation = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ulong operationId = 0;
@@ -250,7 +259,17 @@ namespace T7.Rekindle.Desktop.Services
                         PlayerName = name.Pointer,
                         PlayerNameLength = (uint)name.Length
                     };
-                    status = InvokeNative(handle => _native.SubmitStartNamed(handle, ref args, out operationId));
+                    if (skipStartupAnimation.HasValue)
+                    {
+                        args.StructSize = (uint)Marshal.SizeOf(typeof(NativeStartOptions));
+                        var options = new NativeStartOptions
+                        {
+                            Start = args,
+                            Flags = skipStartupAnimation.Value ? NativeStartFlags.SkipStartupAnimation : NativeStartFlags.None
+                        };
+                        status = InvokeNative(handle => _native.SubmitStartOptions(handle, ref options, out operationId));
+                    }
+                    else status = InvokeNative(handle => _native.SubmitStartNamed(handle, ref args, out operationId));
                 }
                 else if (kind == OperationKind.Start)
                 {
@@ -597,6 +616,8 @@ namespace T7.Rekindle.Desktop.Services
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate NativeStatus SubmitStartNamedDelegate(IntPtr session, ref NativeStartArgs args, out ulong operationId);
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            internal delegate NativeStatus SubmitStartOptionsDelegate(IntPtr session, ref NativeStartOptions args, out ulong operationId);
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate NativeStatus SubmitStopDelegate(IntPtr session, out ulong operationId);
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate NativeStatus CancelDelegate(IntPtr session, ulong operationId);
@@ -617,6 +638,7 @@ namespace T7.Rekindle.Desktop.Services
             internal readonly SubmitPathDelegate SubmitCheck;
             internal readonly SubmitPathDelegate SubmitStart;
             internal readonly SubmitStartNamedDelegate SubmitStartNamed;
+            internal readonly SubmitStartOptionsDelegate SubmitStartOptions;
             internal readonly SubmitStopDelegate SubmitStop;
             internal readonly CancelDelegate Cancel;
             internal readonly GetSnapshotDelegate GetSnapshot;
@@ -632,6 +654,7 @@ namespace T7.Rekindle.Desktop.Services
                 SubmitCheck = Resolve<SubmitPathDelegate>(module, "t7_native_submit_check");
                 SubmitStart = Resolve<SubmitPathDelegate>(module, "t7_native_submit_start");
                 SubmitStartNamed = Resolve<SubmitStartNamedDelegate>(module, "t7_native_submit_start_named");
+                SubmitStartOptions = Resolve<SubmitStartOptionsDelegate>(module, "t7_native_submit_start_options");
                 SubmitStop = Resolve<SubmitStopDelegate>(module, "t7_native_submit_stop");
                 Cancel = Resolve<CancelDelegate>(module, "t7_native_cancel");
                 GetSnapshot = Resolve<GetSnapshotDelegate>(module, "t7_native_get_snapshot");

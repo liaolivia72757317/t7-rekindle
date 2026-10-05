@@ -25,104 +25,12 @@ namespace T7.ManagedHarness
             var settingsDirectory = Path.Combine(Path.GetTempPath(), "T7-layout-" + Guid.NewGuid().ToString("N"));
             try
             {
-                var bridge = new FakeLauncherBridge();
-                var interaction = new FakeDesktopInteraction();
-                using (var model = new MainWindowViewModel(bridge, new SettingsService(settingsDirectory),
-                    new UserSettings { ClientDirectory = @"C:\Games\刀锋铁骑", PlayerName = "Rekindler" }, null,
-                    path => System.Threading.Tasks.Task.FromResult(path.Length == 0 || path.Contains("Missing")
-                        ? new ClientDirectoryResult("", "", "请选择游戏根目录，目录中应包含 Bin、Data 和 vfs。")
-                        : LauncherTests.ValidDirectory(path)), interaction))
-                {
-                    LauncherTests.RunTask(model.ValidationTask);
-                    var window = new MainWindow { DataContext = model };
-                    var root = (FrameworkElement)window.Content;
-                    var pages = (Grid)((ScrollViewer)window.FindName("PageScroll")).Content;
-                    var home = (LaunchPage)pages.Children[0];
-                    var settings = (GameSettingsPage)pages.Children[1];
-                    var directoryInput = (TextBox)settings.FindName("DirectoryInput");
-                    foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                        Render(root, window, outputDirectory, "home-" + (int)(scale * 100), 984, 704, scale);
-                    LauncherTests.Assert(home.Visibility == Visibility.Visible && settings.Visibility == Visibility.Collapsed,
-                        "game settings appeared on the launch page");
-                    model.IsSettingsSelected = true;
-                    foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                    {
-                        Render(root, window, outputDirectory, "settings-" + (int)(scale * 100), 984, 704, scale);
-                        Render(root, window, outputDirectory, "settings-compact-" + (int)(scale * 100), 840, 620, scale);
-                    }
-                    LauncherTests.Assert(settings.Visibility == Visibility.Visible && home.Visibility == Visibility.Collapsed
-                        && directoryInput.Text == model.ClientDirectory && !directoryInput.IsReadOnly, "settings page binding or visibility is invalid");
-                    var directorySymbol = (TextBlock)settings.FindName("DirectoryStatusSymbol");
-                    AssertBrush(directorySymbol, "SuccessBrush");
-                    model.ClientDirectory = @"C:\Games\Missing";
-                    LauncherTests.RunTask(model.ValidationTask);
-                    Render(root, window, outputDirectory, "settings-invalid", 840, 620);
-                    AssertBrush(directorySymbol, "DangerBrush");
-                    LauncherTests.Assert(directorySymbol.Text == "!" && !model.CanStart, "invalid directory lost its text indicator");
-                    directoryInput.SetCurrentValue(TextBox.TextProperty, @"C:\Games\T7");
-                    LauncherTests.RunTask(model.ValidationTask);
-                    LauncherTests.Assert(model.ClientDirectory == @"C:\Games\T7" && model.CanStart, "settings input did not update shared configuration");
-                    model.SelectedPage = 1;
-                    foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                    {
-                        Render(root, window, outputDirectory, "about-" + (int)(scale * 100), 984, 704, scale);
-                        Render(root, window, outputDirectory, "about-compact-" + (int)(scale * 100), 840, 620, scale);
-                    }
-                    var pageScroll = (ScrollViewer)window.FindName("PageScroll");
-                    pageScroll.ScrollToBottom();
-                    Render(root, window, outputDirectory, "about-links", 840, 620);
-                    var aboutPage = (AboutPage)pages.Children[2];
-                    foreach (var link in new[] { "ReleasePageLink", "BuildsPageLink", "IssuesPageLink" })
-                        AssertWithin((Button)aboutPage.FindName(link), root, 840, 528);
-                    pageScroll.ScrollToTop();
-                    model.About.CopyRepositoryCommand.Execute(null);
-                    Render(root, window, outputDirectory, "about-copy-feedback", 840, 620);
-                    var footerFeedback = (TextBlock)window.FindName("FooterFeedback");
-                    LauncherTests.Assert(footerFeedback.Text == model.About.Feedback, "copy feedback is outside the fixed footer");
-                    AssertWithin(footerFeedback, root, 840, 620);
-                    model.SelectedPage = 0;
-                    LauncherTests.Pump();
-                    LauncherTests.Assert(footerFeedback.Text == model.SettingsFeedback, "about feedback leaked into the launch page");
-                    bridge.Snapshot = new SessionSnapshot { State = SessionState.StartingRuntime };
-                    model.Refresh();
-                    Render(root, window, outputDirectory, "starting", 984, 704);
-                    bridge.Snapshot = new SessionSnapshot { State = SessionState.Running };
-                    model.Refresh();
-                    Render(root, window, outputDirectory, "running", 984, 704);
-                    model.IsSettingsSelected = true;
-                    Render(root, window, outputDirectory, "settings-running", 984, 704);
-                    LauncherTests.Assert(directoryInput.IsReadOnly, "running game directory remained editable in settings");
-                    model.ShowHomeCommand.Execute(null);
-                    bridge.Snapshot = new SessionSnapshot { State = SessionState.Failed, ErrorCode = 1003, CleanupComplete = true };
-                    model.Refresh();
-                    Render(root, window, outputDirectory, "failed", 984, 704);
-                    foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                        Render(root, window, outputDirectory, "compact-" + (int)(scale * 100), 840, 620, scale);
-                    bridge.Snapshot = new SessionSnapshot { State = SessionState.Idle, CleanupComplete = true };
-                    model.Refresh();
-                    model.ClientDirectory = "";
-                    model.PlayerName = "";
-                    model.LogsExpanded = false;
-                    LauncherTests.RunTask(model.ValidationTask);
-                    Render(root, window, outputDirectory, "first-run", 984, 704);
-                    model.IsSettingsSelected = true;
-                    Render(root, window, outputDirectory, "settings-first-run", 984, 704);
-                    AssertBrush(directorySymbol, "MutedTextBrush");
-                    interaction.DirectoryError = new IOException("目录选择器暂不可用。");
-                    model.BrowseCommand.Execute(null);
-                    Render(root, window, outputDirectory, "settings-dialog-error", 840, 620);
-                    AssertBrush((TextBlock)settings.FindName("NoticeBanner"), "DangerBrush");
-                    model.CopyLogsCommand.Execute(null);
-                    model.ShowHomeCommand.Execute(null);
-                    Render(root, window, outputDirectory, "log-copy-feedback", 840, 620);
-                    AssertBrush((TextBlock)home.FindName("NoticeBanner"), "PrimaryBrush");
-                    window.DataContext = null;
-                }
-                TestFirstRunLayout(settingsDirectory, outputDirectory);
+                LauncherUpdatePageTests.Run(settingsDirectory, outputDirectory);
+                UpdateReminderTests.Run(settingsDirectory, outputDirectory);
+                EnvironmentInformationTests.Run(outputDirectory);
                 LauncherDesignTests.Run(settingsDirectory, outputDirectory);
-                TestDirectorySearchLayout(settingsDirectory, outputDirectory);
-                TestUpdateLayout(outputDirectory);
-                TestUpdateProgressLayout(outputDirectory);
+                LauncherToastTests.Run(settingsDirectory, outputDirectory);
+                UiInteractionTests.Run(settingsDirectory, outputDirectory);
                 TestTextDialogLayout(outputDirectory);
                 TestMarkdownDialogLayout(outputDirectory);
                 LauncherTests.Assert(bindingErrors.Messages.Length == 0, "WPF binding error: " + bindingErrors.Messages);
@@ -132,166 +40,6 @@ namespace T7.ManagedHarness
                 PresentationTraceSources.DataBindingSource.Listeners.Remove(bindingErrors);
                 System.Threading.SynchronizationContext.SetSynchronizationContext(context);
                 if (Directory.Exists(settingsDirectory)) Directory.Delete(settingsDirectory, true);
-            }
-        }
-
-        private static void TestFirstRunLayout(string settingsDirectory, string outputDirectory)
-        {
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(settingsDirectory), new UserSettings(), null,
-                path => System.Threading.Tasks.Task.FromResult(new ClientDirectoryResult("", "", "请选择游戏根目录。")), new FakeDesktopInteraction()))
-            {
-                LauncherTests.RunTask(model.ValidationTask);
-                var window = new MainWindow { DataContext = model };
-                var root = (FrameworkElement)window.Content;
-                var pages = (Grid)((ScrollViewer)window.FindName("PageScroll")).Content;
-                var input = (TextBox)((LaunchPage)pages.Children[0]).FindName("NameInput");
-                foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                    Render(root, window, outputDirectory, "first-run-fresh-" + (int)(scale * 100), 984, 704, scale);
-                LauncherTests.Assert(!model.CanStart && Equals(input.BorderBrush, Application.Current.Resources["ControlBorderBrush"]),
-                    "fresh empty name must remain neutral while launch is disabled");
-                model.PlayerName = " ";
-                Render(root, window, outputDirectory, "first-run-edited", 840, 620);
-                LauncherTests.Assert(!model.CanStart && Equals(input.BorderBrush, Application.Current.Resources["DangerBrush"]),
-                    "edited empty name must show an error without enabling launch");
-                window.DataContext = null;
-            }
-        }
-
-        private static void TestDirectorySearchLayout(string settingsDirectory, string outputDirectory)
-        {
-            var pending = new System.Threading.Tasks.TaskCompletionSource<ClientDirectoryResult>();
-            var interaction = new FakeDesktopInteraction { DirectorySelection = @"C:\Games" };
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(settingsDirectory),
-                new UserSettings { ClientDirectory = @"C:\Games\Selected", PlayerName = "Player" }, null,
-                path => System.Threading.Tasks.Task.FromResult(LauncherTests.ValidDirectory(path)), interaction,
-                (path, token) => pending.Task))
-            {
-                LauncherTests.RunTask(model.ValidationTask);
-                model.IsSettingsSelected = true;
-                var window = new MainWindow { DataContext = model };
-                var root = (FrameworkElement)window.Content;
-                var pages = (Grid)((ScrollViewer)window.FindName("PageScroll")).Content;
-                var input = (TextBox)((GameSettingsPage)pages.Children[1]).FindName("DirectoryInput");
-                model.BrowseCommand.Execute(null);
-                Render(root, window, outputDirectory, "settings-searching", 840, 620);
-                LauncherTests.Assert(input.Text == @"C:\Games" && !input.IsReadOnly && !model.CanStart,
-                    "search progress locked manual input or displayed the previous path");
-                pending.SetResult(new ClientDirectoryResult(@"C:\Games\T7", @"C:\Games\T7\Bin", "已自动定位游戏目录。已找到 Bin\\TieJiClient.exe"));
-                LauncherTests.RunTask(model.ValidationTask);
-                foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                    Render(root, window, outputDirectory, "settings-located-" + (int)(scale * 100), 840, 620, scale);
-                LauncherTests.Assert(input.Text == @"C:\Games\T7" && model.CanStart, "located root was not echoed into the directory input");
-                window.DataContext = null;
-            }
-        }
-
-        private static void TestUpdateLayout(string outputDirectory)
-        {
-            var info = new LauncherUpdateInfo
-            {
-                CurrentVersion = "v0.1.0", TargetVersion = "v0.2.0", IsNewVersion = true,
-                Summary = "• 改进启动流程。\n• 完善诊断信息。", DownloadAddress = LauncherInformation.DownloadAddress
-            };
-            var update = new UpdateDialog(info);
-            var root = (FrameworkElement)update.Content;
-            foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-            {
-                Render(root, null, outputDirectory, "update-dialog-" + (int)(scale * 100), 544, 381, scale);
-                AssertWithin((Button)update.FindName("LaterButton"), root, 544, 381);
-                AssertWithin((Button)update.FindName("DownloadButton"), root, 544, 381);
-            }
-            AssertLineSpacing((TextBox)update.FindName("SummaryText"));
-            var longUpdate = new UpdateDialog(new LauncherUpdateInfo
-            {
-                CurrentVersion = info.CurrentVersion,
-                TargetVersion = info.TargetVersion,
-                IsNewVersion = true,
-                DownloadAddress = info.DownloadAddress,
-                Summary = string.Join("\n", new string[80]).Replace("\n", "更新条目：长内容应滚动阅读。\n")
-            });
-            root = (FrameworkElement)longUpdate.Content;
-            Render(root, null, outputDirectory, "update-dialog-long", 464, 361);
-            var scroll = (ScrollViewer)longUpdate.FindName("UpdateScroll");
-            LauncherTests.Assert(scroll.ScrollableHeight > 0, "long update summary is not scrollable");
-            AssertWithin((Button)longUpdate.FindName("LaterButton"), root, 464, 361);
-            AssertWithin((Button)longUpdate.FindName("DownloadButton"), root, 464, 361);
-            var current = new UpdateDialog(new LauncherUpdateInfo { CurrentVersion = info.CurrentVersion, TargetVersion = info.CurrentVersion,
-                Summary = "当前已是最新版本。", IsNewVersion = false });
-            Render((FrameworkElement)current.Content, null, outputDirectory, "update-dialog-current", 464, 361);
-            LauncherTests.Assert(((Button)current.FindName("DownloadButton")).Visibility == Visibility.Collapsed
-                && ((TextBlock)current.FindName("Heading")).Text.Contains("最新"), "up-to-date dialog still offers a new version");
-            var unpublished = new UpdateDialog(new LauncherUpdateInfo
-            {
-                CurrentVersion = info.CurrentVersion, TargetVersion = "未发布", HasPublishedRelease = false,
-                Summary = "GitHub Releases 暂无正式版本。\n开发构建请查看关于页的 CI 构建入口。", DownloadAddress = info.DownloadAddress
-            });
-            foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-            {
-                Render((FrameworkElement)unpublished.Content, null, outputDirectory, "update-dialog-unpublished-" + (int)(scale * 100), 464, 361, scale);
-                AssertWithin((Button)unpublished.FindName("DownloadButton"), (FrameworkElement)unpublished.Content, 464, 361);
-            }
-            LauncherTests.Assert(((TextBlock)unpublished.FindName("Heading")).Text == "暂无正式发布版本"
-                && ((Button)unpublished.FindName("DownloadButton")).Visibility == Visibility.Visible,
-                "unpublished release dialog reported an up-to-date version or lost the release page link");
-        }
-
-        private static void TestUpdateProgressLayout(string outputDirectory)
-        {
-            var attempt = 0;
-            var info = UpdateDialogTests.Info();
-            info.Installer = new LauncherUpdateAsset(info.Installer.DownloadAddress, info.Installer.FallbackAddress,
-                16 * 1024 * 1024, info.Installer.Sha256, "R2");
-            using (var model = new UpdateDialogViewModel(info, (asset, progress, token) =>
-            {
-                attempt++;
-                if (attempt == 2) return System.Threading.Tasks.Task.FromException<string>(new IOException("磁盘写入失败，请检查剩余空间。"));
-                if (attempt == 3) return System.Threading.Tasks.Task.FromResult("verified-installer.exe");
-                var pending = new System.Threading.Tasks.TaskCompletionSource<string>();
-                token.Register(() => pending.TrySetCanceled());
-                progress.Report(new UpdateDownloadProgress(asset.Size / 2, asset.Size, "GitHub", "R2 下载失败，已切换到 GitHub。"));
-                return pending.Task;
-            }, path => System.Threading.Tasks.Task.FromResult(false), address => { }))
-            {
-                var dialog = new UpdateDialog(info, model);
-                var root = (FrameworkElement)dialog.Content;
-                var operation = model.PrimaryCommand.ExecuteAsync(null);
-                LauncherTests.Pump();
-                foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                {
-                    Render(root, null, outputDirectory, "update-downloading-" + (int)(scale * 100), 464, 381, scale);
-                    AssertWithin((Button)dialog.FindName("CancelDownloadButton"), root, 464, 381);
-                    AssertWithin((Button)dialog.FindName("DownloadButton"), root, 464, 381);
-                }
-                LauncherTests.Assert(((ProgressBar)dialog.FindName("DownloadProgress")).Value > 0
-                    && ((Button)dialog.FindName("CancelDownloadButton")).IsEnabled, "download controls were not bound");
-                LauncherTests.RunTask(model.CancelAndWaitAsync());
-                LauncherTests.RunTask(operation);
-                foreach (var state in new[] { "cancelled", "failed", "completed" })
-                {
-                    if (state != "cancelled") LauncherTests.RunTask(model.PrimaryCommand.ExecuteAsync(null));
-                    foreach (var scale in new[] { 1.0, 1.25, 1.5, 2.0 })
-                        Render(root, null, outputDirectory, "update-" + state + "-" + (int)(scale * 100), 464, 381, scale);
-                }
-                LauncherTests.Assert(((Button)dialog.FindName("DownloadButton")).Content.ToString() == "立即安装",
-                    "completed download lost its explicit installation action");
-                dialog.Close();
-            }
-            using (var model = new UpdateDialogViewModel(info, (asset, progress, token) =>
-            {
-                var pending = new System.Threading.Tasks.TaskCompletionSource<string>();
-                token.Register(() => pending.TrySetCanceled());
-                return pending.Task;
-            }, path => System.Threading.Tasks.Task.FromResult(false), address => { }))
-            {
-                var dialog = new UpdateDialog(info, model);
-                var closed = false;
-                dialog.Closed += (_, __) => closed = true;
-                var operation = model.PrimaryCommand.ExecuteAsync(null);
-                dialog.Close();
-                LauncherTests.RunTask(operation);
-                LauncherTests.Pump();
-                LauncherTests.Assert(closed && !model.IsDownloading && !model.HasDownloadedInstaller,
-                    "closing the update window did not cancel and await the active download");
             }
         }
 
@@ -373,7 +121,7 @@ namespace T7.ManagedHarness
         private static void AssertBrush(TextBlock text, string key) =>
             LauncherTests.Assert(Equals(text.Foreground, Application.Current.Resources[key]), "semantic foreground mismatch: " + text.Name + " / " + key);
 
-        private static void AssertWithin(FrameworkElement element, FrameworkElement root, double width, double height)
+        internal static void AssertWithin(FrameworkElement element, FrameworkElement root, double width, double height)
         {
             var position = element.TranslatePoint(new Point(), root);
             LauncherTests.Assert(element.ActualHeight > 0 && position.X >= 0 && position.Y >= 0
@@ -392,13 +140,15 @@ namespace T7.ManagedHarness
             AssertTypography(root);
             if (window != null)
             {
-                var button = (Button)window.FindName("LaunchButton");
-                var position = button.TranslatePoint(new Point(), root);
-                LauncherTests.Assert(button.ActualHeight >= 42 && position.Y + button.ActualHeight <= height + 1,
-                    "fixed launch action escaped viewport: " + name);
-                LauncherTests.Assert(((ScrollViewer)window.FindName("PageScroll")).ActualHeight > 0, "content viewport collapsed");
-                var caption = FindText(button);
-                LauncherTests.Assert(caption != null && Equals(caption.Foreground, button.Foreground), "button caption lost semantic foreground");
+                var home = (LaunchPage)window.FindName("HomePage");
+                if (home.Visibility == Visibility.Visible)
+                {
+                    var button = (Button)home.FindName("LaunchButton");
+                    AssertWithin(button, root, width, height);
+                    LauncherTests.Assert(button.ActualHeight >= 42, "launch action collapsed");
+                }
+                var viewport = (Grid)window.FindName("ContentViewport");
+                LauncherTests.Assert(viewport.ActualHeight > 0 && viewport.ActualWidth > 0, "content viewport collapsed");
             }
             if (outputDirectory == null) return;
             Directory.CreateDirectory(outputDirectory);

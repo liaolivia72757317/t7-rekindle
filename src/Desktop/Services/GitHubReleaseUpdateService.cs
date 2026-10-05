@@ -40,11 +40,11 @@ namespace T7.Rekindle.Desktop.Services
                                 TargetVersion = "未发布",
                                 HasPublishedRelease = false,
                                 UpdateSource = "GitHub",
-                                Summary = "GitHub Releases 暂无正式版本。\n开发构建可从关于页的 CI 构建入口获取。",
+                                Summary = "GitHub Releases 暂无正式版本。",
                                 DownloadAddress = _repository.AbsoluteUri.TrimEnd('/') + "/releases"
                             };
                         if (response.StatusCode == HttpStatusCode.Forbidden || (int)response.StatusCode == 429)
-                            throw new IOException("GitHub 请求受限，请稍后重试；也可从关于页查看发布页。");
+                            throw new IOException("GitHub 请求受限，请稍后重试。");
                         if (!response.IsSuccessStatusCode)
                             throw new IOException("GitHub 更新服务返回 HTTP " + (int)response.StatusCode + "，请稍后重试。");
                         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);

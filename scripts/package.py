@@ -260,13 +260,16 @@ def copy_product_output(source: Path, destination: Path) -> None:
             parts = validate_windows_parts(path.relative_to(destination).as_posix())
             existing[canonical_package_path(parts)] = path
     for path in paths:
+        relative = path.relative_to(source)
+        if relative.parts[0].casefold() == "business" and len(relative.parts) > 1:
+            continue
         if not path.is_file() or path.suffix.lower() == ".pdb":
             continue
         if path.name.casefold() in RESERVED_PACKAGE_NAMES:
             raise ValueError(f"managed output contains package-owned file: {path.name}")
-        target = destination / path.relative_to(source)
+        target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        canonical = canonical_package_path(validate_windows_parts(path.relative_to(source).as_posix()))
+        canonical = canonical_package_path(validate_windows_parts(relative.as_posix()))
         previous = existing.get(canonical)
         if previous is not None:
             if canonical == "t7.nativebridge.dll" and sha256_file(path) == sha256_file(previous):

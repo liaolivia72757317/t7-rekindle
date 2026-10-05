@@ -14,6 +14,21 @@ namespace T7.Rekindle.Core
         public uint PlayerNameLength;
     }
 
+    [Flags]
+    public enum NativeStartFlags : uint
+    {
+        None = 0,
+        SkipStartupAnimation = 1
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    public struct NativeStartOptions
+    {
+        public NativeStartArgs Start;
+        public NativeStartFlags Flags;
+        public uint Reserved;
+    }
+
     [StructLayout(LayoutKind.Sequential, Pack = 8)]
     public struct NativePath
     {
@@ -71,6 +86,8 @@ namespace T7.Rekindle.Core
         {
             if (Marshal.SizeOf(typeof(NativePath)) != 24
                 || Marshal.SizeOf(typeof(NativeStartArgs)) != 40
+                || Marshal.SizeOf(typeof(NativeStartOptions)) != 48
+                || (int)Marshal.OffsetOf(typeof(NativeStartOptions), nameof(NativeStartOptions.Flags)) != 40
                 || Marshal.SizeOf(typeof(NativeCreateArgs)) != 24
                 || Marshal.SizeOf(typeof(NativeSnapshot)) != 120
                 || Marshal.SizeOf(typeof(NativeOperation)) != 32

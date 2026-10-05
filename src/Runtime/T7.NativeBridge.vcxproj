@@ -36,7 +36,18 @@
     <ClCompile Include="core\Common.cpp" />
     <ClCompile Include="core\Protocol.cpp" />
     <ClCompile Include="launcher\Bootstrap.cpp" />
+    <ClCompile Include="launcher\EndpointStorage.cpp" />
+    <ClCompile Include="launcher\Ap32.cpp" />
+    <ClCompile Include="launcher\ClientCode.cpp" />
+    <ClCompile Include="launcher\ClientImports.cpp" />
+    <ClCompile Include="launcher\ClientImage.cpp" />
+    <ClCompile Include="launcher\ClientAdaptation.cpp" />
+    <ClCompile Include="launcher\RemoteImage.cpp" />
+    <ClCompile Include="launcher\DebugClient.cpp" />
     <ClCompile Include="launcher\MovementOverlay.cpp" />
+    <ClCompile Include="launcher\MovementResources.cpp" />
+    <ClCompile Include="launcher\StartupAnimation.cpp" />
+    <ClCompile Include="launcher\MovementHookCode.cpp" />
     <ClCompile Include="server\Journal.cpp" />
     <ClCompile Include="server\RunDirectory.cpp" />
     <ClCompile Include="server\PythonHost.cpp" />
@@ -49,10 +60,21 @@
     <ClInclude Include="core\PlayerName.h" />
     <ClInclude Include="core\Protocol.h" />
     <ClInclude Include="launcher\Bootstrap.h" />
+    <ClInclude Include="launcher\Ap32.h" />
+    <ClInclude Include="launcher\ClientCode.h" />
+    <ClInclude Include="launcher\ClientImports.h" />
+    <ClInclude Include="launcher\ClientImage.h" />
+    <ClInclude Include="launcher\ClientAdaptation.h" />
+    <ClInclude Include="launcher\RemoteImage.h" />
+    <ClInclude Include="launcher\DebugClient.h" />
     <ClInclude Include="launcher\ClientPath.h" />
     <ClInclude Include="launcher\EndpointLayout.h" />
     <ClInclude Include="launcher\ModuleLookup.h" />
     <ClInclude Include="launcher\MovementOverlay.h" />
+    <ClInclude Include="launcher\MovementResources.h" />
+    <ClInclude Include="launcher\ClientResourceXml.h" />
+    <ClInclude Include="launcher\StartupAnimation.h" />
+    <ClInclude Include="launcher\MovementHookCode.h" />
     <ClInclude Include="launcher\ProcessCleanup.h" />
     <ClInclude Include="server\Journal.h" />
     <ClInclude Include="server\RunDirectory.h" />
@@ -61,6 +83,6 @@
     <ClInclude Include="server\Server.h" />
     <ClInclude Include="server\ServerTiming.h" />
   </ItemGroup>
-  <ItemGroup><None Include="bridge\T7NativeBridge.def" /></ItemGroup>
+  <ItemGroup><None Include="bridge\T7NativeBridge.def" /><None Include="launcher\ClientImportTable.inc" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

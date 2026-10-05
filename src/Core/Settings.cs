@@ -8,10 +8,13 @@ namespace T7.Rekindle.Core
     {
         public int SchemaVersion { get; set; } = 1;
         public string ClientDirectory { get; set; } = string.Empty;
-        public string PlayerName { get; set; } = string.Empty;
-        public double WindowWidth { get; set; } = 1000;
-        public double WindowHeight { get; set; } = 743;
+        public string PlayerName { get; set; } = PlayerNameRules.DefaultName;
+        public double WindowWidth { get; set; } = 1200;
+        public double WindowHeight { get; set; } = 900;
         public bool DarkTheme { get; set; }
+        public bool MinimizeToTray { get; set; }
+        public bool StartWithWindows { get; set; }
+        public bool SkipStartupAnimation { get; set; }
     }
 
     public static class SettingsSchema

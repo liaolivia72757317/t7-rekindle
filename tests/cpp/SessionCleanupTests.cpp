@@ -7,10 +7,11 @@
 bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, bool normalExit) {
     auto alive = std::make_shared<std::atomic<bool>>(false);
     auto namePassed = std::make_shared<std::atomic<bool>>(false);
+    const bool skipStartupAnimation = !normalExit;
     t7::Bootstrap::TestAdapter adapter;
-    adapter.launch = [namePassed, alive](const t7::fs::path&, const t7::Config& config,
+    adapter.launch = [namePassed, alive, skipStartupAnimation](const t7::fs::path&, const t7::Config& config,
         const std::function<void(std::string)>&, const std::function<bool()>&, const std::function<void()>&) {
-        *namePassed = config.playerName == u8"重燃玩家";
+        *namePassed = config.playerName == u8"重燃玩家" && config.skipStartupAnimation == skipStartupAnimation;
         *alive = true;
     };
     adapter.running = [alive] { return alive->load(); };
@@ -18,7 +19,7 @@ bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, boo
     auto session = t7::bridge::Session::createForTest(t7::utf8(packageRoot.wstring()), std::move(adapter));
     uint64_t operationId = 0;
     bool valid = session->submit(T7NB_OPERATION_START, t7::utf8((packageRoot / "synthetic-client").wstring()),
-        operationId, u8"重燃玩家") == T7NB_OK;
+        operationId, u8"重燃玩家", skipStartupAnimation) == T7NB_OK;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     t7::bridge::Snapshot snapshot;
     do {

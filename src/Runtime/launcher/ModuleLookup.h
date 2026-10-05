@@ -1,6 +1,6 @@
 #pragma once
 #include "../core/Common.h"
-#include <tlhelp32.h>
+#include <psapi.h>
 
 namespace t7 {
 struct ModuleLocation {
@@ -8,20 +8,50 @@ struct ModuleLocation {
     DWORD error = ERROR_SUCCESS;
 };
 
-inline ModuleLocation findImageBase(DWORD pid, const fs::path& image) {
+inline ModuleLocation findMappedImageBase(HANDLE process, const fs::path& image) {
     auto normalized = fs::absolute(image).lexically_normal().make_preferred();
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
-    if (snapshot == INVALID_HANDLE_VALUE) return {0, GetLastError()};
-    MODULEENTRY32W entry{}; entry.dwSize = sizeof(entry);
-    if (!Module32FirstW(snapshot, &entry)) {
-        auto error = GetLastError(); CloseHandle(snapshot); return {0, error};
-    }
-    ModuleLocation result{0, ERROR_MOD_NOT_FOUND};
-    do {
-        if (!_wcsicmp(entry.szExePath, normalized.c_str())) {
-            result = {reinterpret_cast<uintptr_t>(entry.modBaseAddr), ERROR_SUCCESS}; break;
+    std::wstring processImage(32768, L'\0');
+    DWORD length = static_cast<DWORD>(processImage.size());
+    if (!QueryFullProcessImageNameW(process, 0, processImage.data(), &length)) return {0, GetLastError()};
+    if (_wcsicmp(processImage.c_str(), normalized.c_str())) return {0, ERROR_MOD_NOT_FOUND};
+    length = static_cast<DWORD>(processImage.size());
+    if (!QueryFullProcessImageNameW(process, PROCESS_NAME_NATIVE, processImage.data(), &length))
+        return {0, GetLastError()};
+
+    // Image mappings exist before the suspended primary thread initializes
+    // the loader lists used by Toolhelp module snapshots.
+    std::wstring mappedImage(32768, L'\0');
+    uintptr_t address = 0;
+    for (;;) {
+        MEMORY_BASIC_INFORMATION region{};
+        if (!VirtualQueryEx(process, reinterpret_cast<void*>(address), &region, sizeof(region))) {
+            const auto error = GetLastError();
+            return {0, error == ERROR_INVALID_PARAMETER ? ERROR_MOD_NOT_FOUND : error};
         }
-    } while (Module32NextW(snapshot, &entry));
-    CloseHandle(snapshot); return result;
+        if (region.Type == MEM_IMAGE && region.BaseAddress == region.AllocationBase) {
+            const auto mappedLength = GetMappedFileNameW(process, region.AllocationBase, mappedImage.data(),
+                                                        static_cast<DWORD>(mappedImage.size()));
+            if (!mappedLength) return {0, GetLastError()};
+            if (mappedLength >= mappedImage.size()) return {0, ERROR_INSUFFICIENT_BUFFER};
+            if (!_wcsicmp(mappedImage.c_str(), processImage.c_str()))
+                return {reinterpret_cast<uintptr_t>(region.AllocationBase), ERROR_SUCCESS};
+        }
+        const auto next = reinterpret_cast<uintptr_t>(region.BaseAddress) + region.RegionSize;
+        if (next <= address) return {0, ERROR_MOD_NOT_FOUND};
+        address = next;
+    }
+}
+
+inline ModuleLocation findImageBase(DWORD pid, const fs::path& image) {
+    HANDLE process = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid ? pid : GetCurrentProcessId());
+    if (!process) return {0, GetLastError()};
+    try {
+        const auto result = findMappedImageBase(process, image);
+        CloseHandle(process);
+        return result;
+    } catch (...) {
+        CloseHandle(process);
+        throw;
+    }
 }
 }

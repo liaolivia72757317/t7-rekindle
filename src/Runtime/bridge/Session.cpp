@@ -93,7 +93,8 @@ void Session::startWorker() {
     std::thread([self] { self->workerLoop(); }).detach();
 }
 
-int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId, std::string playerName) {
+int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId,
+                        std::string playerName, bool skipStartupAnimation) {
     if (kind != T7NB_OPERATION_CHECK && kind != T7NB_OPERATION_START && kind != T7NB_OPERATION_STOP)
         return T7NB_INVALID_ARGUMENT;
     if (kind == T7NB_OPERATION_START && !validPlayerName(playerName)) return T7NB_INVALID_ARGUMENT;
@@ -133,7 +134,7 @@ int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& op
         snapshot_.phase = "cancelling-before-stop";
     }
     operations_[operationId] = {operationId, kind, T7NB_OPERATION_QUEUED, 0, {}};
-    commands_.push_back({operationId, kind, std::move(clientDirectory), std::move(playerName)});
+    commands_.push_back({operationId, kind, std::move(clientDirectory), std::move(playerName), skipStartupAnimation});
     if (!active) {
         snapshot_.operation = kind;
         snapshot_.operationId = operationId;
@@ -404,6 +405,7 @@ void Session::executeStart(const Command& command) {
     config.bindAddress = "127.0.0.1";
     config.advertisedAddress = "127.0.0.1";
     config.playerName = command.playerName;
+    config.skipStartupAnimation = command.skipStartupAnimation;
     config.ports[0] = config.ports[1] = config.ports[2] = 0;
     {
         std::lock_guard<std::mutex> lock(mutex_);

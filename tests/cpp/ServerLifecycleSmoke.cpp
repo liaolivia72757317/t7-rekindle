@@ -14,6 +14,8 @@ bool verifyJournalContracts(const t7::fs::path& fixtureRoot);
 bool verifyFailureCleanup(const t7::fs::path& packageRoot, bool cancel);
 bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, bool normalExit);
 bool verifyOperationPublication(const t7::fs::path& packageRoot, uint32_t expectedStatus);
+bool verifyMovementOverlay();
+bool verifyMovementHookExecution();
 
 namespace {
 bool verifyJobAssignmentOrder() {
@@ -284,6 +286,8 @@ bool verifySessionAssembly(const t7::fs::path& packageRoot) {
 }
 
 int wmain(int argc, wchar_t** argv) {
+    if (argc == 2 && std::wstring(argv[1]) == L"--movement")
+        return verifyMovementOverlay() && verifyMovementHookExecution() ? 0 : 1;
     if (argc != 2) {
         std::wcerr << L"usage: T7.RuntimeTests.exe PACKAGE_ROOT\n";
         return 2;
@@ -411,6 +415,8 @@ int wmain(int argc, wchar_t** argv) {
         if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_SUCCEEDED)) result = 32;
         if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_FAILED)) result = 33;
         if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_CANCELLED)) result = 34;
+        if (!verifyMovementOverlay()) result = 35;
+        if (!verifyMovementHookExecution()) result = 36;
 
         // Journal writes are bounded and flushed on destruction without
         // exposing a second product process.  This is the disk-side contract

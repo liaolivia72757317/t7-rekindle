@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project>
+  <Import Project="..\..\Managed.Common.props" />
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
@@ -9,13 +10,14 @@
     <AssemblyVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</AssemblyVersion>
     <FileVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</FileVersion>
     <Product>铁骑·重燃（T7-Rekindle）</Product>
-    <Description>独立开源的《刀锋铁骑》服务端与本地启动器，先完善本地人机对战，再逐步支持局域网联机。</Description>
+    <Description>铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。我们希望先完成本地人机对战，再逐步支持局域网联机。&#xA;项目不以营利为目的，欢迎开发者和玩家一起参与。</Description>
     <RepositoryUrl>https://github.com/liaolivia72757317/t7-rekindle</RepositoryUrl>
     <SourceRevisionId Condition="'$(GITHUB_SHA)' != ''">$(GITHUB_SHA)</SourceRevisionId>
     <RootNamespace>T7.Rekindle.Desktop</RootNamespace>
     <AssemblyName>T7-Rekindle</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\Assets\brand\launcher.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <LangVersion>7.3</LangVersion>
@@ -28,7 +30,7 @@
     <AssemblyMetadata Include="BuildsUrl" Value="$(RepositoryUrl)/actions/workflows/ci.yml" />
     <AssemblyMetadata Include="IssuesUrl" Value="$(RepositoryUrl)/issues" />
     <AssemblyMetadata Include="UpdateBaseUrl" Value="$(T7_UPDATE_BASE_URL)" />
-    <Resource Include="Resources\Assets\**\*" />
+    <Resource Include="Resources\Assets\**\*" Exclude="Resources\Assets\icons\**\*;Resources\Assets\art\scene-complete.png" />
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute" Condition="'$(SourceRevisionId)' != ''">
       <_Parameter1>CommitHash</_Parameter1>
       <_Parameter2>$(SourceRevisionId)</_Parameter2>
@@ -55,4 +57,6 @@
           SkipUnchangedFiles="true"
           Condition="Exists('$(RepositoryRoot)artifacts\native\bin\$(PlatformTarget)\$(Configuration)\T7.NativeBridge.dll')" />
   </Target>
+  <Import Project="BusinessScripts.targets" />
+  <Import Project="..\..\Managed.Common.targets" />
 </Project>

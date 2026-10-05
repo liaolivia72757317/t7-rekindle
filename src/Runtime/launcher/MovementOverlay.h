@@ -43,12 +43,12 @@ public:
     MovementOverlay& operator=(const MovementOverlay&) = delete;
     ~MovementOverlay();
 
-    // Installs an in-memory detour in the x86 client. The detour changes only
-    // the next exact online EntSheet request to the original offline EntSheet
-    // path; both files are still read by the client's own VFS.
+    // Install before first resume under the owned debugger. Resource edits use
+    // the client's XML memory pool; its VFS, collision assets and disk stay intact.
     void install(HANDLE process, uintptr_t imageBase,
-                 const std::function<void(std::string)>& log = {});
+                 const std::function<void(std::string)>& log = {}, bool skipStartupAnimation = false);
     void rollback();
+    bool handleBreakpoint(DWORD threadId, uintptr_t address);
 
     bool installed() const noexcept { return process_ != nullptr && remoteBase_ != 0; }
     uint32_t features() const noexcept { return features_; }
@@ -58,10 +58,11 @@ private:
     HANDLE process_ = nullptr;
     uintptr_t imageBase_ = 0;
     uintptr_t remoteBase_ = 0;
-    uintptr_t target_ = 0;
+    uintptr_t breakpoint_ = 0;
     uint32_t features_ = 0;
-    unsigned char original_[5]{};
-    bool targetPatched_ = false;
+    size_t patchedCount_ = 0;
+    bool skipStartupAnimation_ = false;
+    std::function<void(std::string)> log_;
 
     void clear() noexcept;
 };

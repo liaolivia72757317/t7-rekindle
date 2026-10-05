@@ -40,10 +40,11 @@ def battleEntry(flow):
                                     runtimeMovement=controls.runtimeMovement(flow)),
               "actor-vision-add-after-battle-confirm")
     flow.send(0x36, wire.actorState(flow.now, 8), "actor-ready-play-after-battle-confirm")
-    if flow.session.get("controlBaseline") == wire.BASELINE_ID and not controls.runtimeMovement(flow):
-        ground = controls.groundState(flow)
-        controls.broadcast(flow, wire.POSITION, ground["heading"], 1, 0, 0,
-                           "instance-ground-initial-stop")
+    if flow.session.get("controlBaseline") == wire.BASELINE_ID:
+        if not controls.runtimeMovement(flow):
+            ground = controls.groundState(flow)
+            controls.broadcast(flow, wire.POSITION, ground["heading"], 1, 0, 0,
+                               "instance-ground-initial-stop")
         initializeBattleState(flow)
     flow.phase("battle-entry-sent")
 
@@ -59,7 +60,7 @@ def timer(flow, name):
         flow.send(0xA, wire.roundInfo(flow.now), "instance-round-info")
         flow.later("instance-round-state", 200)
     elif name == "instance-round-state":
-        flow.send(0xA, wire.roundState(flow.now, 2, wire.GAME_MS), "instance-round-state-after-auth")
+        flow.send(0xA, wire.roundState(flow.now, 2, wire.PREPARE_MS), "instance-round-state-after-auth")
         flow.later("instance-start-pattern", 200)
     elif name == "instance-start-pattern":
         flow.send(0xA, wire.startPattern(), "instance-start-pattern-data-ntf-after-auth")
@@ -155,8 +156,11 @@ def message(flow, command, selector, body):
         if any(mid not in (wire.ACTOR_ID, 2) for mid in request.object_mids):
             raise ValueError("VISION requested an object outside the fixed scene")
         for mid in request.object_mids:
+            position = (flow.session.get("ground", {}).get("position")
+                        if controls.runtimeMovement(flow) else None)
             vision = (wire.actorVision(flow.session["camp"], flow.session.get("heroId", wire.HERO_ID), flow.playerName,
-                                       runtimeMovement=controls.runtimeMovement(flow))
+                                       runtimeMovement=controls.runtimeMovement(flow),
+                                       position=tuple(position) if position is not None else wire.POSITION)
                       if mid == wire.ACTOR_ID else wire.enemyVision())
             flow.send(0xE, vision, "instance-fixed-local-actor-vision-add-event" if mid == wire.ACTOR_ID
                       else "instance-fixed-enemy-actor-vision-add-event")

@@ -38,10 +38,12 @@ namespace T7.Rekindle.Desktop.Services
         }
 
         internal async Task<string> DownloadAsync(LauncherUpdateAsset asset, IProgress<UpdateDownloadProgress> progress,
-            CancellationToken cancellation)
+            CancellationToken cancellation, UpdateDownloadControl control = null)
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
             cancellation.ThrowIfCancellationRequested();
+            control = control ?? new UpdateDownloadControl();
+            await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
             var directory = Path.Combine(_directory, Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             var partial = Path.Combine(directory, INSTALLER_FILENAME + ".part");
@@ -51,13 +53,13 @@ namespace T7.Rekindle.Desktop.Services
                 try
                 {
                     await DownloadFromAsync(asset.DownloadAddress, asset.Source, string.Empty, asset, partial,
-                        progress, cancellation).ConfigureAwait(false);
+                        progress, cancellation, control).ConfigureAwait(false);
                 }
                 catch (UpdateNetworkException error) when (asset.FallbackAddress != null && !cancellation.IsCancellationRequested)
                 {
                     File.Delete(partial);
                     await DownloadFromAsync(asset.FallbackAddress, "GitHub", "R2 下载失败，已切换到 GitHub：" + error.Message,
-                        asset, partial, progress, cancellation).ConfigureAwait(false);
+                        asset, partial, progress, cancellation, control).ConfigureAwait(false);
                 }
                 cancellation.ThrowIfCancellationRequested();
                 var destination = Path.Combine(directory, INSTALLER_FILENAME);
@@ -76,8 +78,9 @@ namespace T7.Rekindle.Desktop.Services
         }
 
         private async Task DownloadFromAsync(string address, string source, string notice, LauncherUpdateAsset asset,
-            string partial, IProgress<UpdateDownloadProgress> progress, CancellationToken cancellation)
+            string partial, IProgress<UpdateDownloadProgress> progress, CancellationToken cancellation, UpdateDownloadControl control)
         {
+            await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
             progress?.Report(new UpdateDownloadProgress(0, asset.Size, source, notice));
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation))
             using (var response = await GetResponseAsync(address, timeout, cancellation).ConfigureAwait(false))
@@ -96,8 +99,10 @@ namespace T7.Rekindle.Desktop.Services
                     var lastReport = DateTime.UtcNow;
                     while (true)
                     {
+                        await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
                         var read = await ReadNetworkAsync(() => input.ReadAsync(buffer, 0, buffer.Length, timeout.Token),
                             timeout, cancellation).ConfigureAwait(false);
+                        await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
                         cancellation.ThrowIfCancellationRequested();
                         if (timeout.IsCancellationRequested)
                             throw new UpdateNetworkException("下载数据读取超时。");

@@ -15,6 +15,7 @@ namespace T7.ManagedHarness
         public bool Cancelled { get; private set; }
         public string StartedName { get; private set; }
         public string StartedDirectory { get; private set; }
+        public bool StartedSkipStartupAnimation { get; private set; }
         public int StartCount { get; private set; }
         public int CheckCount { get; private set; }
         public TaskCompletionSource<OperationSnapshot> PendingCheck { get; set; }
@@ -32,10 +33,13 @@ namespace T7.ManagedHarness
         }
         public Task<OperationSnapshot> StartAsync(string directory, CancellationToken token) => StartAsync(directory, PlayerNameRules.DefaultName, token);
         public Task<OperationSnapshot> StartAsync(string directory, string name, CancellationToken token)
+            => StartAsync(directory, name, false, token);
+        public Task<OperationSnapshot> StartAsync(string directory, string name, bool skipStartupAnimation, CancellationToken token)
         {
             StartCount++;
             StartedDirectory = directory;
             StartedName = name;
+            StartedSkipStartupAnimation = skipStartupAnimation;
             if (PendingStart != null)
             {
                 Snapshot = new SessionSnapshot { State = SessionState.StartingRuntime };
@@ -74,13 +78,12 @@ namespace T7.ManagedHarness
     {
         public bool ConfirmResult { get; set; } = true;
         public int ConfirmCount { get; private set; }
+        public int EnvironmentInfoCount { get; private set; }
         public string Text { get; private set; }
         public bool IsMarkdown { get; private set; }
         public string DirectorySelection { get; set; }
         public Exception DirectoryError { get; set; }
         public Exception LogDirectoryError { get; set; }
-        public LauncherUpdateInfo Update { get; private set; }
-        public Action OnShowUpdate { get; set; }
         public string SelectDirectory(string initialDirectory)
         {
             if (DirectoryError != null) throw DirectoryError;
@@ -96,6 +99,6 @@ namespace T7.ManagedHarness
             Text = path;
         }
         public void OpenAddress(string address) { Text = address; }
-        public void ShowUpdate(LauncherUpdateInfo info) { Update = info; OnShowUpdate?.Invoke(); }
+        public void ShowEnvironmentInfo() { EnvironmentInfoCount++; }
     }
 }

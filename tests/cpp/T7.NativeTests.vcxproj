@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup Label="ProjectConfigurations"><ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration></ItemGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
   <PropertyGroup Label="Globals"><ProjectGuid>{4F2D3D28-6D00-4F12-9F5B-0A7DE8C9F004}</ProjectGuid><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet></PropertyGroup>
@@ -8,6 +11,29 @@
   <Import Project="..\..\Native.Common.props" />
   <PropertyGroup><TargetName>T7.NativeTests</TargetName></PropertyGroup>
   <ItemDefinitionGroup><Link><SubSystem>Console</SubSystem></Link></ItemDefinitionGroup>
-  <ItemGroup><ClCompile Include="AbiLayoutTests.cpp" /></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AbiLayoutTests.cpp" />
+    <ClCompile Include="ModuleLookupTests.cpp" />
+    <ClCompile Include="Ap32Tests.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\Ap32.cpp" />
+    <ClCompile Include="ClientCodeTests.cpp" />
+    <ClCompile Include="ClientImportsTests.cpp" />
+    <ClCompile Include="ClientAdaptationTests.cpp" />
+    <ClCompile Include="RemoteImageTests.cpp" />
+    <ClCompile Include="DebugClientTests.cpp" />
+    <ClCompile Include="EndpointStorageTests.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\EndpointStorage.cpp" />
+    <ClCompile Include="MovementResourcesTests.cpp" />
+    <ClCompile Include="StartupAnimationTests.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\StartupAnimation.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\MovementResources.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\ClientAdaptation.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\RemoteImage.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\DebugClient.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\ClientImports.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\ClientImage.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\ClientCode.cpp" />
+    <ClCompile Include="..\..\src\Runtime\core\Common.cpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

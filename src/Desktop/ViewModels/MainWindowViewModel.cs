@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -12,6 +13,7 @@ namespace T7.Rekindle.Desktop.ViewModels
 {
     public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
+        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(30);
         private readonly INativeBridge _bridge;
         private readonly SettingsService _settings;
         private readonly IDesktopInteraction _interaction;
@@ -30,9 +32,13 @@ namespace T7.Rekindle.Desktop.ViewModels
         private string _settingsFeedback;
         private string _noticeText = string.Empty;
         private bool _isNoticeError;
+
         private int _selectedPage;
         private bool _disposed;
         private bool _logsExpanded;
+        private DateTime? _nextUpdateCheckUtc;
+        private bool _automaticUpdateCheck;
+        private readonly HashSet<string> _announcedUpdateVersions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private SessionSnapshot _snapshot = new SessionSnapshot { State = SessionState.Idle };
 
         public MainWindowViewModel(NativeBridgeService bridge, SettingsService settings, UserSettings initial, string settingsWarning = null)
@@ -44,7 +50,9 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         internal MainWindowViewModel(INativeBridge bridge, SettingsService settings, UserSettings initial,
             string settingsWarning, Func<string, Task<ClientDirectoryResult>> inspectDirectory, IDesktopInteraction interaction,
-            Func<string, CancellationToken, Task<ClientDirectoryResult>> locateDirectory = null)
+            Func<string, CancellationToken, Task<ClientDirectoryResult>> locateDirectory = null,
+            Func<Task<LauncherUpdateInfo>> checkUpdate = null,
+            Func<LauncherUpdateInfo, UpdateDownloadViewModel> createUpdateDownload = null)
         {
             _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -56,26 +64,35 @@ namespace T7.Rekindle.Desktop.ViewModels
             _playerName = loaded.PlayerName;
             _savedDirectory = loaded.ClientDirectory;
             _savedName = loaded.PlayerName;
-            _windowWidth = Math.Max(856, loaded.WindowWidth);
-            _windowHeight = Math.Max(659, loaded.WindowHeight);
+            _windowWidth = loaded.WindowWidth;
+            _windowHeight = loaded.WindowHeight;
             _darkTheme = loaded.DarkTheme;
-            _settingsFeedback = "完成目录与名称配置后即可启动";
-            _noticeText = settingsWarning ?? string.Empty;
-            _isNoticeError = _noticeText.Length != 0;
+            _minimizeToTray = loaded.MinimizeToTray;
+            _startWithWindows = loaded.StartWithWindows;
+            _skipStartupAnimation = loaded.SkipStartupAnimation;
+            _settingsFeedback = string.Empty;
+            ShowNotice(settingsWarning ?? string.Empty, !string.IsNullOrEmpty(settingsWarning));
             BrowseCommand = new RelayCommand(Browse, () => !AreSessionFieldsLocked);
             CheckCommand = new AsyncRelayCommand(CheckAsync, () => !IsBusy && !_isValidating
                 && NativeBridgeContract.IsUtf8PathAcceptable(ClientDirectory));
             StartCommand = new AsyncRelayCommand(StartAsync, () => CanStart);
             MainActionCommand = new AsyncRelayCommand(ExecuteMainActionAsync,
-                () => !IsBusy && !_isValidating && (!_directoryResult.IsValid || !HasPlayerNameError));
+                () => !IsBusy && !_isValidating);
             CancelCommand = new RelayCommand(Cancel, () => CanCancel);
             StopCommand = new AsyncRelayCommand(StopAsync, () => CanStop);
             ShowHomeCommand = new RelayCommand(() => SelectedPage = 0);
-            ShowSettingsCommand = new RelayCommand(() => SelectedPage = 2);
+            ShowAboutCommand = new RelayCommand(() => IsAboutSelected = true);
+            ShowSettingsCommand = new RelayCommand(() => { SettingsTabIndex = 0; SelectedPage = 2; });
+            ShowUpdatePageCommand = new RelayCommand(() => IsUpdateSelected = true);
             ToggleLogsCommand = new RelayCommand(() => LogsExpanded = !LogsExpanded);
             OpenLogsCommand = new RelayCommand(OpenLogs);
             CopyLogsCommand = new RelayCommand(CopyLogs);
-            About = new AboutViewModel(interaction);
+            About = new AboutViewModel(interaction, checkUpdate ?? LauncherInformation.CheckUpdateAsync, createUpdateDownload);
+            About.NoticeRaised += (message, severity, actionText, action) => Notices.Publish(message, message, severity, actionText, action, severity == NoticeSeverity.Warning);
+            About.UpdateFinished += OnUpdateFinished;
+            ShowRecentNoticesCommand = new RelayCommand(ShowRecentNotices);
+            ShowDiagnosticsCommand = new RelayCommand(ShowDiagnostics);
+            CopyDirectoryCommand = new RelayCommand(CopyDirectory);
             var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
             _poller = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background,
                 (_, __) => Poll(), dispatcher);
@@ -93,10 +110,11 @@ namespace T7.Rekindle.Desktop.ViewModels
         {
             if (AreSessionFieldsLocked) return;
             var changed = SetProperty(ref _clientDirectory, value ?? string.Empty, nameof(ClientDirectory));
-            if (!changed && !scanDescendants) return;
+            if (!changed && !scanDescendants && !_directoryHasDraft && _directorySaveError.Length == 0) return;
+            _directoryHasDraft = false;
             _failureMessage = string.Empty;
             _completedMessage = string.Empty;
-            SettingsFeedback = "目录与名称验证通过后会自动保存";
+            SettingsFeedback = string.Empty;
             ValidationTask = ValidateDirectoryAsync(!scanDescendants, scanDescendants);
         }
 
@@ -105,11 +123,13 @@ namespace T7.Rekindle.Desktop.ViewModels
             get => _playerName;
             set
             {
-                if (AreSessionFieldsLocked || !SetProperty(ref _playerName, value ?? string.Empty)) return;
+                if (AreSessionFieldsLocked) return;
+                SetProperty(ref _playerName, value ?? string.Empty);
                 _hasEditedPlayerName = true;
                 OnPropertyChanged(nameof(PlayerNameError));
                 OnPropertyChanged(nameof(HasPlayerNameError));
                 OnPropertyChanged(nameof(ShowPlayerNameError));
+                OnPropertyChanged(nameof(NameFieldError));
                 SaveValidatedFields();
                 UpdatePresentation();
             }
@@ -135,6 +155,8 @@ namespace T7.Rekindle.Desktop.ViewModels
                 OnPropertyChanged(nameof(IsHomeSelected));
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAboutSelected));
+                OnPropertyChanged(nameof(IsMultiplayerSelected));
+                OnPropertyChanged(nameof(IsUpdateSelected));
             }
         }
         public bool IsHomeSelected { get => SelectedPage == 0; set { if (value) SelectedPage = 0; } }
@@ -150,7 +172,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public bool AreSessionFieldsLocked => _operationActive ? _activeKind != OperationKind.Check
             : IsBusy && _snapshot.State != SessionState.Checking;
         public bool CanClose => !IsBusy;
-        public bool CanStart => !IsBusy && !_isValidating && _directoryResult.IsValid && !HasPlayerNameError && !_hasSaveError;
+        public bool CanStart => !IsBusy && !_isValidating && !_directoryHasDraft && _directoryResult.IsValid && !HasPlayerNameError && !_hasSaveError;
         public bool CanCancel => _operationCancellation != null && !_operationCancellation.IsCancellationRequested
             && (_snapshot.State == SessionState.StartingRuntime || _snapshot.State == SessionState.Checking);
         public bool CanStop => !_operationActive && (_snapshot.State == SessionState.Running || _snapshot.State == SessionState.FailedCleaning);
@@ -165,14 +187,51 @@ namespace T7.Rekindle.Desktop.ViewModels
         public RelayCommand CancelCommand { get; }
         public IAsyncRelayCommand StopCommand { get; }
         public RelayCommand ShowHomeCommand { get; }
+        public RelayCommand ShowAboutCommand { get; }
         public RelayCommand ShowSettingsCommand { get; }
+        public RelayCommand ShowUpdatePageCommand { get; }
         public RelayCommand ToggleLogsCommand { get; }
         public RelayCommand OpenLogsCommand { get; }
         public RelayCommand CopyLogsCommand { get; }
 
+        internal void StartUpdateChecks(DateTime utcNow)
+        {
+            if (_disposed || _nextUpdateCheckUtc.HasValue) return;
+            _nextUpdateCheckUtc = utcNow + UpdateCheckInterval;
+            GameSessionEnded += TriggerUpdateCheck;
+            TriggerUpdateCheck();
+        }
+
+        internal void CheckScheduledUpdate(DateTime utcNow)
+        {
+            if (_disposed || !_nextUpdateCheckUtc.HasValue || utcNow < _nextUpdateCheckUtc.Value) return;
+            _nextUpdateCheckUtc = utcNow + UpdateCheckInterval;
+            TriggerUpdateCheck();
+        }
+
+        private void TriggerUpdateCheck()
+        {
+            if (_disposed || !About.CheckUpdateCommand.CanExecute(null)) return;
+            _automaticUpdateCheck = true;
+            About.CheckUpdateCommand.Execute(null);
+        }
+
+        private void OnUpdateFinished()
+        {
+            var automatic = _automaticUpdateCheck;
+            _automaticUpdateCheck = false;
+            if (!IsUpdateSelected && About.UpdateFailed)
+                Notices.Publish("update.failed", "检查更新失败，不影响本地启动", NoticeSeverity.Warning, "重试",
+                    () => { IsUpdateSelected = true; About.CheckUpdateCommand.Execute(null); });
+            if (!automatic || !About.HasNewUpdate || !_announcedUpdateVersions.Add(About.UpdateReminderVersion)) return;
+            Notices.Publish("update.available." + About.UpdateReminderVersion,
+                "发现启动器新版本 " + About.UpdateReminderVersion, NoticeSeverity.Info,
+                "查看", () => ShowUpdatePageCommand.Execute(null), duration: TimeSpan.FromSeconds(6));
+        }
+
         private Task ExecuteMainActionAsync()
         {
-            if (!_directoryResult.IsValid)
+            if (!_directoryResult.IsValid || HasPlayerNameError || _directoryHasDraft)
             {
                 ShowSettingsCommand.Execute(null);
                 return Task.CompletedTask;
@@ -200,21 +259,28 @@ namespace T7.Rekindle.Desktop.ViewModels
         private void ReportUiError(string action, Exception error)
         {
             _log.Error(action, error);
-            ShowNotice(action + "：" + error.Message, true);
+            ShowNotice(action + "，请重试", true);
         }
 
         private void ShowNotice(string message, bool isError)
         {
+            Notices.Publish(message, message, isError ? NoticeSeverity.Error : NoticeSeverity.Success);
             IsNoticeError = isError;
             NoticeText = message;
+        }
+
+        internal void DismissExpiredNotice(DateTime utcNow)
+        {
+            Notices.Tick(utcNow);
+            if (Notices.Visible.Count == 0) { NoticeText = string.Empty; IsNoticeError = false; }
         }
 
         public void SaveSettings(double windowWidth = 0, double windowHeight = 0)
         {
             if (!double.IsNaN(windowWidth) && !double.IsInfinity(windowWidth) && windowWidth > 0)
-                _windowWidth = Math.Max(856, Math.Min(4096, windowWidth));
+                _windowWidth = Math.Max(480, Math.Min(4096, windowWidth));
             if (!double.IsNaN(windowHeight) && !double.IsInfinity(windowHeight) && windowHeight > 0)
-                _windowHeight = Math.Max(659, Math.Min(4096, windowHeight));
+                _windowHeight = Math.Max(320, Math.Min(4096, windowHeight));
             _settings.Save(CreateSettings(_savedDirectory, _savedName));
         }
 
@@ -223,6 +289,9 @@ namespace T7.Rekindle.Desktop.ViewModels
             ClientDirectory = directory,
             PlayerName = name,
             DarkTheme = _darkTheme,
+            MinimizeToTray = _minimizeToTray,
+            StartWithWindows = _startWithWindows,
+            SkipStartupAnimation = _skipStartupAnimation,
             WindowWidth = _windowWidth,
             WindowHeight = _windowHeight
         };
@@ -232,6 +301,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             if (_disposed) return;
             _disposed = true;
             _poller.Stop();
+            About.Dispose();
+            GameSessionEnded -= TriggerUpdateCheck;
             _validationCancellation?.Cancel();
             _operationCancellation?.Cancel();
         }

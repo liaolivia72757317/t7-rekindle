@@ -1,12 +1,33 @@
 import json
 import math
+import struct
 import sys
 from pathlib import Path
+
+from Business.scripts import app, contracts as wire, scene
 
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src/Business" / "runtime"))
 import host_runtime  # noqa: E402
+
+
+def test_round_timing_configuration():
+    assert wire.PREPARE_MS == 30000
+    assert wire.START_MS == 5000
+    assert wire.GAME_MS == 1200000
+
+
+def test_initial_prepare_uses_preparation_duration():
+    state = app.createState({})
+    state["sessions"]["1"] = {"role": "instance"}
+    flow = app.Flow({"connection": 1}, state, {"nowMs": 1000})
+
+    assert scene.timer(flow, "instance-round-state") is True
+
+    packet = flow.result["send"][0]
+    assert packet["command"] == 0xA
+    assert struct.unpack(">HQQiQQi", packet["body"]) == (0x67, 1000, 1, 2, 1000, 30000, 0)
 
 
 def test_business_self_test_and_context(tmp_path):

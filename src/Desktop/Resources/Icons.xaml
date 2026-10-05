@@ -1,0 +1,1040 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<SolidColorBrush x:Key="T7.Icon.Brush.Ink" Color="#234759"/>
+<SolidColorBrush x:Key="T7.Icon.Brush.White" Color="#FFFFFF"/>
+<SolidColorBrush x:Key="T7.Icon.Brush.Muted" Color="#607B8E"/>
+<SolidColorBrush x:Key="T7.Icon.Brush.Success" Color="#27785A"/>
+<SolidColorBrush x:Key="T7.Icon.Brush.Warning" Color="#90621E"/>
+<SolidColorBrush x:Key="T7.Icon.Brush.Danger" Color="#A4443E"/>
+<DrawingImage x:Key="T7.Icon.home.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.home.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.home.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.home.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.home.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.home.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.users.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a3.5 3.5 0 0 1 0 7 M18 14a5 5 0 0 1 4 5v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.users.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a3.5 3.5 0 0 1 0 7 M18 14a5 5 0 0 1 4 5v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.users.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a3.5 3.5 0 0 1 0 7 M18 14a5 5 0 0 1 4 5v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.users.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a3.5 3.5 0 0 1 0 7 M18 14a5 5 0 0 1 4 5v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.users.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a3.5 3.5 0 0 1 0 7 M18 14a5 5 0 0 1 4 5v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.users.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a3.5 3.5 0 0 1 0 7 M18 14a5 5 0 0 1 4 5v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.refresh.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 10a8 8 0 0 0-14-5L3 8 M3 3v5h5 M4 14a8 8 0 0 0 14 5l3-3 M21 21v-5h-5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.refresh.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 10a8 8 0 0 0-14-5L3 8 M3 3v5h5 M4 14a8 8 0 0 0 14 5l3-3 M21 21v-5h-5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.refresh.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 10a8 8 0 0 0-14-5L3 8 M3 3v5h5 M4 14a8 8 0 0 0 14 5l3-3 M21 21v-5h-5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.refresh.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 10a8 8 0 0 0-14-5L3 8 M3 3v5h5 M4 14a8 8 0 0 0 14 5l3-3 M21 21v-5h-5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.refresh.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 10a8 8 0 0 0-14-5L3 8 M3 3v5h5 M4 14a8 8 0 0 0 14 5l3-3 M21 21v-5h-5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.refresh.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 10a8 8 0 0 0-14-5L3 8 M3 3v5h5 M4 14a8 8 0 0 0 14 5l3-3 M21 21v-5h-5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.settings.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M19.749 10.010 L21.851 10.281 L21.851 13.719 L19.749 13.990 L18.886 16.072 L20.181 17.750 L17.750 20.181 L16.072 18.886 L13.990 19.749 L13.719 21.851 L10.281 21.851 L10.010 19.749 L7.928 18.886 L6.250 20.181 L3.819 17.750 L5.114 16.072 L4.251 13.990 L2.149 13.719 L2.149 10.281 L4.251 10.010 L5.114 7.928 L3.819 6.250 L6.250 3.819 L7.928 5.114 L10.010 4.251 L10.281 2.149 L13.719 2.149 L13.990 4.251 L16.072 5.114 L17.750 3.819 L20.181 6.250 L18.886 7.928Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 0 0 6.8 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.settings.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M19.749 10.010 L21.851 10.281 L21.851 13.719 L19.749 13.990 L18.886 16.072 L20.181 17.750 L17.750 20.181 L16.072 18.886 L13.990 19.749 L13.719 21.851 L10.281 21.851 L10.010 19.749 L7.928 18.886 L6.250 20.181 L3.819 17.750 L5.114 16.072 L4.251 13.990 L2.149 13.719 L2.149 10.281 L4.251 10.010 L5.114 7.928 L3.819 6.250 L6.250 3.819 L7.928 5.114 L10.010 4.251 L10.281 2.149 L13.719 2.149 L13.990 4.251 L16.072 5.114 L17.750 3.819 L20.181 6.250 L18.886 7.928Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 0 0 6.8 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.settings.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M19.749 10.010 L21.851 10.281 L21.851 13.719 L19.749 13.990 L18.886 16.072 L20.181 17.750 L17.750 20.181 L16.072 18.886 L13.990 19.749 L13.719 21.851 L10.281 21.851 L10.010 19.749 L7.928 18.886 L6.250 20.181 L3.819 17.750 L5.114 16.072 L4.251 13.990 L2.149 13.719 L2.149 10.281 L4.251 10.010 L5.114 7.928 L3.819 6.250 L6.250 3.819 L7.928 5.114 L10.010 4.251 L10.281 2.149 L13.719 2.149 L13.990 4.251 L16.072 5.114 L17.750 3.819 L20.181 6.250 L18.886 7.928Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 0 0 6.8 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.settings.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M19.749 10.010 L21.851 10.281 L21.851 13.719 L19.749 13.990 L18.886 16.072 L20.181 17.750 L17.750 20.181 L16.072 18.886 L13.990 19.749 L13.719 21.851 L10.281 21.851 L10.010 19.749 L7.928 18.886 L6.250 20.181 L3.819 17.750 L5.114 16.072 L4.251 13.990 L2.149 13.719 L2.149 10.281 L4.251 10.010 L5.114 7.928 L3.819 6.250 L6.250 3.819 L7.928 5.114 L10.010 4.251 L10.281 2.149 L13.719 2.149 L13.990 4.251 L16.072 5.114 L17.750 3.819 L20.181 6.250 L18.886 7.928Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 0 0 6.8 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.settings.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M19.749 10.010 L21.851 10.281 L21.851 13.719 L19.749 13.990 L18.886 16.072 L20.181 17.750 L17.750 20.181 L16.072 18.886 L13.990 19.749 L13.719 21.851 L10.281 21.851 L10.010 19.749 L7.928 18.886 L6.250 20.181 L3.819 17.750 L5.114 16.072 L4.251 13.990 L2.149 13.719 L2.149 10.281 L4.251 10.010 L5.114 7.928 L3.819 6.250 L6.250 3.819 L7.928 5.114 L10.010 4.251 L10.281 2.149 L13.719 2.149 L13.990 4.251 L16.072 5.114 L17.750 3.819 L20.181 6.250 L18.886 7.928Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 0 0 6.8 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.settings.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M19.749 10.010 L21.851 10.281 L21.851 13.719 L19.749 13.990 L18.886 16.072 L20.181 17.750 L17.750 20.181 L16.072 18.886 L13.990 19.749 L13.719 21.851 L10.281 21.851 L10.010 19.749 L7.928 18.886 L6.250 20.181 L3.819 17.750 L5.114 16.072 L4.251 13.990 L2.149 13.719 L2.149 10.281 L4.251 10.010 L5.114 7.928 L3.819 6.250 L6.250 3.819 L7.928 5.114 L10.010 4.251 L10.281 2.149 L13.719 2.149 L13.990 4.251 L16.072 5.114 L17.750 3.819 L20.181 6.250 L18.886 7.928Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 0 0 6.8 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.info.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 11v6 M12 7h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.info.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 11v6 M12 7h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.info.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 11v6 M12 7h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.info.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 11v6 M12 7h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.info.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 11v6 M12 7h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.info.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 11v6 M12 7h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.user.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0 M4 21v-2a8 8 0 0 1 16 0v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.user.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0 M4 21v-2a8 8 0 0 1 16 0v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.user.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0 M4 21v-2a8 8 0 0 1 16 0v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.user.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0 M4 21v-2a8 8 0 0 1 16 0v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.user.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0 M4 21v-2a8 8 0 0 1 16 0v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.user.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0 M4 21v-2a8 8 0 0 1 16 0v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h6l2 3h10v12H3Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h6l2 3h10v12H3Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h6l2 3h10v12H3Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h6l2 3h10v12H3Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h6l2 3h10v12H3Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h6l2 3h10v12H3Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder-open.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 19V5h6l2 3h9v4 M3 20l3-8h16l-3 8Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder-open.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 19V5h6l2 3h9v4 M3 20l3-8h16l-3 8Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder-open.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 19V5h6l2 3h9v4 M3 20l3-8h16l-3 8Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder-open.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 19V5h6l2 3h9v4 M3 20l3-8h16l-3 8Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder-open.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 19V5h6l2 3h9v4 M3 20l3-8h16l-3 8Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.folder-open.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 19V5h6l2 3h9v4 M3 20l3-8h16l-3 8Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.megaphone.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 9h5l11-5v16L9 15H4Z M9 9v6 M6 15l2 6h4l-2-6 M2 11v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.megaphone.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 9h5l11-5v16L9 15H4Z M9 9v6 M6 15l2 6h4l-2-6 M2 11v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.megaphone.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 9h5l11-5v16L9 15H4Z M9 9v6 M6 15l2 6h4l-2-6 M2 11v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.megaphone.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 9h5l11-5v16L9 15H4Z M9 9v6 M6 15l2 6h4l-2-6 M2 11v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.megaphone.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 9h5l11-5v16L9 15H4Z M9 9v6 M6 15l2 6h4l-2-6 M2 11v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.megaphone.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 9h5l11-5v16L9 15H4Z M9 9v6 M6 15l2 6h4l-2-6 M2 11v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.play.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M7 4 20 12 7 20Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.play.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M7 4 20 12 7 20Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.play.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M7 4 20 12 7 20Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.play.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M7 4 20 12 7 20Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.play.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M7 4 20 12 7 20Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.play.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M7 4 20 12 7 20Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.stop.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5h14v14H5Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.stop.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5h14v14H5Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.stop.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5h14v14H5Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.stop.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5h14v14H5Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.stop.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5h14v14H5Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.stop.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5h14v14H5Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.plus.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 4v16 M4 12h16"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.plus.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 4v16 M4 12h16"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.plus.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 4v16 M4 12h16"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.plus.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 4v16 M4 12h16"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.plus.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 4v16 M4 12h16"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.plus.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 4v16 M4 12h16"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.log-in.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h6v18h-6 M3 12h12 M10 7l5 5-5 5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.log-in.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h6v18h-6 M3 12h12 M10 7l5 5-5 5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.log-in.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h6v18h-6 M3 12h12 M10 7l5 5-5 5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.log-in.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h6v18h-6 M3 12h12 M10 7l5 5-5 5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.log-in.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h6v18h-6 M3 12h12 M10 7l5 5-5 5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.log-in.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h6v18h-6 M3 12h12 M10 7l5 5-5 5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.download.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.download.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.download.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.download.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.download.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.download.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.file-text.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.file-text.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.file-text.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.file-text.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.file-text.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.file-text.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.code.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 6 2 12 8 18 M16 6l6 6-6 6 M14 3l-4 18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.code.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 6 2 12 8 18 M16 6l6 6-6 6 M14 3l-4 18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.code.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 6 2 12 8 18 M16 6l6 6-6 6 M14 3l-4 18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.code.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 6 2 12 8 18 M16 6l6 6-6 6 M14 3l-4 18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.code.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 6 2 12 8 18 M16 6l6 6-6 6 M14 3l-4 18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.code.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 6 2 12 8 18 M16 6l6 6-6 6 M14 3l-4 18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.message.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 11a9 8 0 0 1-9 8H5l-3 3V11a9 8 0 0 1 19 0Z M7 9h10 M7 13h7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.message.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 11a9 8 0 0 1-9 8H5l-3 3V11a9 8 0 0 1 19 0Z M7 9h10 M7 13h7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.message.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 11a9 8 0 0 1-9 8H5l-3 3V11a9 8 0 0 1 19 0Z M7 9h10 M7 13h7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.message.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 11a9 8 0 0 1-9 8H5l-3 3V11a9 8 0 0 1 19 0Z M7 9h10 M7 13h7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.message.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 11a9 8 0 0 1-9 8H5l-3 3V11a9 8 0 0 1 19 0Z M7 9h10 M7 13h7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.message.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 11a9 8 0 0 1-9 8H5l-3 3V11a9 8 0 0 1 19 0Z M7 9h10 M7 13h7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.heart.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 21 3.5 12.5a5.4 5.4 0 0 1 7.6-7.6L12 6l.9-1.1a5.4 5.4 0 0 1 7.6 7.6Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.heart.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 21 3.5 12.5a5.4 5.4 0 0 1 7.6-7.6L12 6l.9-1.1a5.4 5.4 0 0 1 7.6 7.6Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.heart.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 21 3.5 12.5a5.4 5.4 0 0 1 7.6-7.6L12 6l.9-1.1a5.4 5.4 0 0 1 7.6 7.6Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.heart.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 21 3.5 12.5a5.4 5.4 0 0 1 7.6-7.6L12 6l.9-1.1a5.4 5.4 0 0 1 7.6 7.6Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.heart.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 21 3.5 12.5a5.4 5.4 0 0 1 7.6-7.6L12 6l.9-1.1a5.4 5.4 0 0 1 7.6 7.6Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.heart.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 21 3.5 12.5a5.4 5.4 0 0 1 7.6-7.6L12 6l.9-1.1a5.4 5.4 0 0 1 7.6 7.6Z"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.external-link.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h7v7 M21 3 10 14 M10 4H4v16h16v-6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.external-link.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h7v7 M21 3 10 14 M10 4H4v16h16v-6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.external-link.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h7v7 M21 3 10 14 M10 4H4v16h16v-6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.external-link.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h7v7 M21 3 10 14 M10 4H4v16h16v-6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.external-link.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h7v7 M21 3 10 14 M10 4H4v16h16v-6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.external-link.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M14 3h7v7 M21 3 10 14 M10 4H4v16h16v-6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.copy.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 8h13v13H8Z M16 8V3H3v13h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.copy.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 8h13v13H8Z M16 8V3H3v13h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.copy.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 8h13v13H8Z M16 8V3H3v13h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.copy.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 8h13v13H8Z M16 8V3H3v13h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.copy.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 8h13v13H8Z M16 8V3H3v13h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.copy.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 8h13v13H8Z M16 8V3H3v13h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.clock.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 6v6l4 2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.clock.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 6v6l4 2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.clock.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 6v6l4 2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.clock.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 6v6l4 2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.clock.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 6v6l4 2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.clock.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M12 6v6l4 2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.search.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0 M15 15l6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.search.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0 M15 15l6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.search.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0 M15 15l6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.search.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0 M15 15l6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.search.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0 M15 15l6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.search.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M17 10a7 7 0 1 0-14 0 7 7 0 0 0 14 0 M15 15l6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.lock.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 10h14v11H5Z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.lock.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 10h14v11H5Z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.lock.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 10h14v11H5Z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.lock.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 10h14v11H5Z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.lock.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 10h14v11H5Z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.lock.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 10h14v11H5Z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-left.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M15 5 8 12 15 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-left.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M15 5 8 12 15 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-left.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M15 5 8 12 15 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-left.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M15 5 8 12 15 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-left.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M15 5 8 12 15 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-left.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M15 5 8 12 15 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-right.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 5l7 7-7 7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-right.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 5l7 7-7 7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-right.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 5l7 7-7 7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-right.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 5l7 7-7 7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-right.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 5l7 7-7 7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-right.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 5l7 7-7 7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-down.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 9l7 7 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-down.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 9l7 7 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-down.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 9l7 7 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-down.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 9l7 7 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-down.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 9l7 7 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.chevron-down.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 9l7 7 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12l5 5L20 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12l5 5L20 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12l5 5L20 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12l5 5L20 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12l5 5L20 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12l5 5L20 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check-circle.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check-circle.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check-circle.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check-circle.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check-circle.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.check-circle.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.alert-triangle.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3 22 21H2Z M12 9v5 M12 17.5h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.alert-triangle.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3 22 21H2Z M12 9v5 M12 17.5h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.alert-triangle.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3 22 21H2Z M12 9v5 M12 17.5h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.alert-triangle.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3 22 21H2Z M12 9v5 M12 17.5h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.alert-triangle.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3 22 21H2Z M12 9v5 M12 17.5h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.alert-triangle.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 3 22 21H2Z M12 9v5 M12 17.5h.01"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x-circle.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M9 9l6 6 M15 9l-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x-circle.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M9 9l6 6 M15 9l-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x-circle.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M9 9l6 6 M15 9l-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x-circle.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M9 9l6 6 M15 9l-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x-circle.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M9 9l6 6 M15 9l-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x-circle.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 0-18 0 9 9 0 0 0 18 0 M9 9l6 6 M15 9l-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.bell.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 16l2-3V9a5 5 0 0 1 10 0v4l2 3v2H5Z M10 21h4 M12 2v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.bell.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 16l2-3V9a5 5 0 0 1 10 0v4l2 3v2H5Z M10 21h4 M12 2v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.bell.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 16l2-3V9a5 5 0 0 1 10 0v4l2 3v2H5Z M10 21h4 M12 2v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.bell.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 16l2-3V9a5 5 0 0 1 10 0v4l2 3v2H5Z M10 21h4 M12 2v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.bell.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 16l2-3V9a5 5 0 0 1 10 0v4l2 3v2H5Z M10 21h4 M12 2v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.bell.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 16l2-3V9a5 5 0 0 1 10 0v4l2 3v2H5Z M10 21h4 M12 2v2"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.minus.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 12h14"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.minus.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 12h14"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.minus.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 12h14"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.minus.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 12h14"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.minus.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 12h14"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.minus.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 12h14"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5l14 14 M19 5 5 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5l14 14 M19 5 5 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5l14 14 M19 5 5 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5l14 14 M19 5 5 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5l14 14 M19 5 5 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.x.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M5 5l14 14 M19 5 5 19"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.loader.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 1-9-9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.loader.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 1-9-9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.loader.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 1-9-9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.loader.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 1-9-9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.loader.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 1-9-9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.loader.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M21 12a9 9 0 1 1-9-9"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.power.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2v10 M6 5a9 9 0 1 0 12 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.power.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2v10 M6 5a9 9 0 1 0 12 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.power.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2v10 M6 5a9 9 0 1 0 12 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.power.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2v10 M6 5a9 9 0 1 0 12 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.power.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2v10 M6 5a9 9 0 1 0 12 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.power.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2v10 M6 5a9 9 0 1 0 12 0"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.monitor.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 4h18v13H3Z M12 17v4 M8 21h8"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.monitor.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 4h18v13H3Z M12 17v4 M8 21h8"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.monitor.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 4h18v13H3Z M12 17v4 M8 21h8"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.monitor.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 4h18v13H3Z M12 17v4 M8 21h8"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.monitor.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 4h18v13H3Z M12 17v4 M8 21h8"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.monitor.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 4h18v13H3Z M12 17v4 M8 21h8"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.tray.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h18v14H3Z M3 13h5l2 3h4l2-3h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.tray.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h18v14H3Z M3 13h5l2 3h4l2-3h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.tray.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h18v14H3Z M3 13h5l2 3h4l2-3h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.tray.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h18v14H3Z M3 13h5l2 3h4l2-3h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.tray.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h18v14H3Z M3 13h5l2 3h4l2-3h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.tray.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M3 5h18v14H3Z M3 13h5l2 3h4l2-3h5"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-left.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 12H4 M10 6l-6 6 6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-left.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 12H4 M10 6l-6 6 6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-left.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 12H4 M10 6l-6 6 6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-left.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 12H4 M10 6l-6 6 6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-left.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 12H4 M10 6l-6 6 6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-left.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M20 12H4 M10 6l-6 6 6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-right.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12h16 M14 6l6 6-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-right.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12h16 M14 6l6 6-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-right.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12h16 M14 6l6 6-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-right.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12h16 M14 6l6 6-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-right.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12h16 M14 6l6 6-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.arrow-right.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M4 12h16 M14 6l6 6-6 6"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.link.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 15l6-6 M8 8l-4 4a5 5 0 0 0 7 7l3-3 M10 8l3-3a5 5 0 0 1 7 7l-4 4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.link.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 15l6-6 M8 8l-4 4a5 5 0 0 0 7 7l3-3 M10 8l3-3a5 5 0 0 1 7 7l-4 4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.link.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 15l6-6 M8 8l-4 4a5 5 0 0 0 7 7l3-3 M10 8l3-3a5 5 0 0 1 7 7l-4 4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.link.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 15l6-6 M8 8l-4 4a5 5 0 0 0 7 7l3-3 M10 8l3-3a5 5 0 0 1 7 7l-4 4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.link.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 15l6-6 M8 8l-4 4a5 5 0 0 0 7 7l3-3 M10 8l3-3a5 5 0 0 1 7 7l-4 4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.link.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 15l6-6 M8 8l-4 4a5 5 0 0 0 7 7l3-3 M10 8l3-3a5 5 0 0 1 7 7l-4 4"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.hash.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 3 6 21 M18 3l-2 18 M3 9h18 M2 15h18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.hash.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 3 6 21 M18 3l-2 18 M3 9h18 M2 15h18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.hash.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 3 6 21 M18 3l-2 18 M3 9h18 M2 15h18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.hash.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 3 6 21 M18 3l-2 18 M3 9h18 M2 15h18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.hash.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 3 6 21 M18 3l-2 18 M3 9h18 M2 15h18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.hash.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M8 3 6 21 M18 3l-2 18 M3 9h18 M2 15h18"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.shield-check.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2 21 6v6c0 5-6 9-9 10-3-1-9-5-9-10V6Z M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.shield-check.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2 21 6v6c0 5-6 9-9 10-3-1-9-5-9-10V6Z M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.shield-check.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2 21 6v6c0 5-6 9-9 10-3-1-9-5-9-10V6Z M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.shield-check.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2 21 6v6c0 5-6 9-9 10-3-1-9-5-9-10V6Z M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.shield-check.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2 21 6v6c0 5-6 9-9 10-3-1-9-5-9-10V6Z M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.shield-check.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M12 2 21 6v6c0 5-6 9-9 10-3-1-9-5-9-10V6Z M7 12l3 3 7-7"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.construction.Ink"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 3 L9 6 L6 7 L3 4 C1.6 8.6 5.1 12 9.1 10.9 L18.1 19.9 A1.8 1.8 0 0 0 20.7 17.3 L11.7 8.3 C12.8 4.2 10.8 2.8 9 3 Z M14.4 7.6 L18.2 3.8 L20.2 2.8 L21.2 3.8 L20.2 5.8 L16.4 9.6 M7.5 14.4 L2.9 19 A1.6 1.6 0 0 0 5.2 21.2 L9.8 16.6 M5 18.8 L7.7 16.1"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Ink}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.construction.White"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 3 L9 6 L6 7 L3 4 C1.6 8.6 5.1 12 9.1 10.9 L18.1 19.9 A1.8 1.8 0 0 0 20.7 17.3 L11.7 8.3 C12.8 4.2 10.8 2.8 9 3 Z M14.4 7.6 L18.2 3.8 L20.2 2.8 L21.2 3.8 L20.2 5.8 L16.4 9.6 M7.5 14.4 L2.9 19 A1.6 1.6 0 0 0 5.2 21.2 L9.8 16.6 M5 18.8 L7.7 16.1"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.White}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.construction.Muted"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 3 L9 6 L6 7 L3 4 C1.6 8.6 5.1 12 9.1 10.9 L18.1 19.9 A1.8 1.8 0 0 0 20.7 17.3 L11.7 8.3 C12.8 4.2 10.8 2.8 9 3 Z M14.4 7.6 L18.2 3.8 L20.2 2.8 L21.2 3.8 L20.2 5.8 L16.4 9.6 M7.5 14.4 L2.9 19 A1.6 1.6 0 0 0 5.2 21.2 L9.8 16.6 M5 18.8 L7.7 16.1"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Muted}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.construction.Success"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 3 L9 6 L6 7 L3 4 C1.6 8.6 5.1 12 9.1 10.9 L18.1 19.9 A1.8 1.8 0 0 0 20.7 17.3 L11.7 8.3 C12.8 4.2 10.8 2.8 9 3 Z M14.4 7.6 L18.2 3.8 L20.2 2.8 L21.2 3.8 L20.2 5.8 L16.4 9.6 M7.5 14.4 L2.9 19 A1.6 1.6 0 0 0 5.2 21.2 L9.8 16.6 M5 18.8 L7.7 16.1"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Success}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.construction.Warning"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 3 L9 6 L6 7 L3 4 C1.6 8.6 5.1 12 9.1 10.9 L18.1 19.9 A1.8 1.8 0 0 0 20.7 17.3 L11.7 8.3 C12.8 4.2 10.8 2.8 9 3 Z M14.4 7.6 L18.2 3.8 L20.2 2.8 L21.2 3.8 L20.2 5.8 L16.4 9.6 M7.5 14.4 L2.9 19 A1.6 1.6 0 0 0 5.2 21.2 L9.8 16.6 M5 18.8 L7.7 16.1"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Warning}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+<DrawingImage x:Key="T7.Icon.construction.Danger"><DrawingImage.Drawing><DrawingGroup>
+<GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0Z"/>
+<GeometryDrawing Geometry="M9 3 L9 6 L6 7 L3 4 C1.6 8.6 5.1 12 9.1 10.9 L18.1 19.9 A1.8 1.8 0 0 0 20.7 17.3 L11.7 8.3 C12.8 4.2 10.8 2.8 9 3 Z M14.4 7.6 L18.2 3.8 L20.2 2.8 L21.2 3.8 L20.2 5.8 L16.4 9.6 M7.5 14.4 L2.9 19 A1.6 1.6 0 0 0 5.2 21.2 L9.8 16.6 M5 18.8 L7.7 16.1"><GeometryDrawing.Pen><Pen Brush="{StaticResource T7.Icon.Brush.Danger}" Thickness="1.75" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/></GeometryDrawing.Pen></GeometryDrawing>
+</DrawingGroup></DrawingImage.Drawing></DrawingImage>
+</ResourceDictionary>

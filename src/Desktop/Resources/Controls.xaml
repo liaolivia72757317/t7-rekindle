@@ -2,29 +2,6 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <FontFamily x:Key="UiFontFamily">Microsoft YaHei UI, Microsoft YaHei, Segoe UI</FontFamily>
   <FontFamily x:Key="CodeFontFamily">Consolas, Microsoft YaHei UI, Microsoft YaHei</FontFamily>
-  <Geometry x:Key="RefreshGeometry">M20,7 L20,12 L15,12 M4,17 L4,12 L9,12 M6.1,7 A7,7 0 0 1 17.7,6 L20,9 M4,15 L6.3,18 A7,7 0 0 0 18,17</Geometry>
-  <Geometry x:Key="FolderGeometry">M3,6 L9,6 L11,8 L21,8 L21,19 L3,19 Z</Geometry>
-  <Geometry x:Key="CheckGeometry">M5,12 L9,16 L19,6</Geometry>
-  <Geometry x:Key="WarningGeometry">M12,3 L2,21 L22,21 Z M12,9 L12,14 M12,17 L12,18</Geometry>
-  <Geometry x:Key="ErrorGeometry">M12,3 A9,9 0 1 1 12,21 A9,9 0 1 1 12,3 M8,8 L16,16 M16,8 L8,16</Geometry>
-  <Geometry x:Key="InfoGeometry">M12,3 A9,9 0 1 1 12,21 A9,9 0 1 1 12,3 M12,11 L12,17 M12,7 L12,8</Geometry>
-  <Geometry x:Key="WorkingGeometry">M12,3 A9,9 0 1 1 3,12</Geometry>
-  <Style x:Key="LineGlyph" TargetType="Path">
-    <Setter Property="StrokeThickness" Value="1.8" /><Setter Property="StrokeStartLineCap" Value="Round" />
-    <Setter Property="StrokeEndLineCap" Value="Round" /><Setter Property="StrokeLineJoin" Value="Round" />
-  </Style>
-  <Style x:Key="ButtonGlyph" TargetType="Path" BasedOn="{StaticResource LineGlyph}">
-    <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" />
-  </Style>
-  <Style x:Key="StatusGlyph" TargetType="Path" BasedOn="{StaticResource LineGlyph}">
-    <Setter Property="Data" Value="{StaticResource InfoGeometry}" /><Setter Property="Stroke" Value="{DynamicResource MutedTextBrush}" />
-    <Style.Triggers>
-      <DataTrigger Binding="{Binding StatusTone}" Value="Success"><Setter Property="Data" Value="{StaticResource CheckGeometry}" /><Setter Property="Stroke" Value="{DynamicResource SuccessBrush}" /></DataTrigger>
-      <DataTrigger Binding="{Binding StatusTone}" Value="Warning"><Setter Property="Data" Value="{StaticResource WarningGeometry}" /><Setter Property="Stroke" Value="{DynamicResource WarningBrush}" /></DataTrigger>
-      <DataTrigger Binding="{Binding StatusTone}" Value="Danger"><Setter Property="Data" Value="{StaticResource ErrorGeometry}" /><Setter Property="Stroke" Value="{DynamicResource DangerBrush}" /></DataTrigger>
-      <DataTrigger Binding="{Binding StatusTone}" Value="Working"><Setter Property="Data" Value="{StaticResource WorkingGeometry}" /><Setter Property="Stroke" Value="{DynamicResource PrimaryBrush}" /></DataTrigger>
-    </Style.Triggers>
-  </Style>
   <Style x:Key="KeyboardFocus">
     <Setter Property="Control.Template">
       <Setter.Value><ControlTemplate><Rectangle Margin="-3" Stroke="{DynamicResource FocusBrush}" StrokeThickness="2" RadiusX="4" RadiusY="4" /></ControlTemplate></Setter.Value>

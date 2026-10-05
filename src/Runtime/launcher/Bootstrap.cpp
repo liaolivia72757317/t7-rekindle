@@ -1,21 +1,19 @@
 #include "Bootstrap.h"
 #include "ModuleLookup.h"
 #include "ProcessCleanup.h"
-#include "EndpointLayout.h"
+#include "EndpointStorage.h"
 #include "ClientPath.h"
 #include "MovementOverlay.h"
 #include <d3d9.h>
 #include <sstream>
-#include <iomanip>
 #include <utility>
 
 namespace t7 {
 namespace {
 const char* CLIENT_HASH = "3c205c7efaf1956bc2c458b1073e5273a9fef29e3e5ee18418f93f418eeaa5c8";
 const char* PROTOCOL_HASH = "432ea9dd64d7b90af5fed323e52ce33d0a035a3b13cf4ac75a050f0611776d18";
-constexpr uintptr_t SERVICE_RVA = 0x024396CC, VTABLE_RVA = 0x01734E64, STARTUP_RVA = 0x000890B1;
-const unsigned char SIGNATURE[] = {0xE8,0x8A,0x04,0,0,0x84,0xC0,0x75,0x18,0x6A,0,0x68,0xA0,0xCF,0xB2,1,
-    0x68,0x9C,0x4F,0xB3,1,0x6A,0,0xFF,0x15,0x90,0x6A,0xAF,1,0x32,0xC0,0x5E,0xC3};
+const char* WEB_HELPER_HASH = "6d6232bddd6374abdcda65c726b5ecb007bd410dca04e125097d2b59449b0b47";
+constexpr uintptr_t SERVICE_RVA = 0x024396CC, VTABLE_RVA = 0x01734E64;
 std::string hexValue(uintptr_t value) {
     std::ostringstream out; out << "0x" << std::hex << std::uppercase << value; return out.str();
 }
@@ -89,45 +87,64 @@ void inject(HANDLE process, uintptr_t base, const Config& config, const std::fun
     if (sha256(parser) != "b55a282ee9fcd56ab08ff3d9eb0189e2d82d84c87dc7ec0d2bb1d1d931510eae")
         throw std::runtime_error("client endpoint parser identity mismatch");
     if (log) log("Direct endpoint layout verified; no parser thread will be created");
-    void* storage = VirtualAllocEx(process, nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!storage) throw std::runtime_error(errorText("endpoint data allocation"));
-    auto address = reinterpret_cast<uintptr_t>(storage);
-    bool publicationAttempted = false;
+    const auto allocator = clientEndpointAllocator(process, static_cast<uint32_t>(base));
+    suspended.resume();
+    const auto addresses = allocateEndpointStorage(process, allocator, config, selectorSalt & 1);
+    bool unpublished = true;
     try {
-        if (address > UINT32_MAX) throw std::runtime_error("endpoint allocation outside x86 address range");
-        auto layout = makeEndpointLayout(config, static_cast<uint32_t>(address), selectorSalt & 1);
-        write(process, address, &layout, sizeof(layout));
-        EndpointLayout checked{}; read(process, address, &checked, sizeof(checked));
-        if (memcmp(&layout, &checked, sizeof(layout))) throw std::runtime_error("endpoint data readback mismatch");
-        uint32_t begin = static_cast<uint32_t>(address + offsetof(EndpointLayout, group));
-        uint32_t published[]{begin, begin + sizeof(layout.group), begin + sizeof(layout.group)};
-        uint32_t candidates = static_cast<uint32_t>(address + offsetof(EndpointLayout, candidates));
-        uint32_t selected[]{candidates, candidates + sizeof(layout.candidates), candidates + sizeof(layout.candidates)};
-        publicationAttempted = true;
-        write(process, object + 0x8C, published, sizeof(published));
-        write(process, object + 0x78, selected, sizeof(selected));
-        uint32_t current[3]{};
+        const auto layout = makeEndpointLayout(config, addresses, selectorSalt & 1);
+        const auto writeBlock = [&](uint32_t address, const void* data, size_t size) {
+            write(process, address, data, size);
+            const auto checked = readClientMemory(process, address, size);
+            if (memcmp(data, checked.data(), size)) throw std::runtime_error("endpoint data readback mismatch");
+        };
+        writeBlock(addresses.records, layout.records, sizeof(layout.records));
+        writeBlock(addresses.group, layout.group, sizeof(layout.group));
+        writeBlock(addresses.candidates, layout.candidates, sizeof(layout.candidates));
+        for (size_t i = 0; i < 4; ++i) {
+            if (addresses.descriptors[i]) writeBlock(addresses.descriptors[i], layout.descriptors[i], sizeof(layout.descriptors[i]));
+        }
+        SuspendedProcess publication(process);
+        uint32_t currentObject = 0, currentVtable = 0, currentSalt = 0, current[3]{}, currentServers[3]{};
+        read(process, base + SERVICE_RVA, &currentObject, 4);
+        read(process, object, &currentVtable, 4);
+        read(process, object + 0x1C, &currentSalt, 4);
         read(process, object + 0x8C, current, sizeof(current));
-        if (memcmp(published, current, sizeof(published))) throw std::runtime_error("published vector readback mismatch");
-        read(process, object + 0x78, current, sizeof(current));
-        if (memcmp(selected, current, sizeof(selected))) throw std::runtime_error("selected candidate vector readback mismatch");
+        read(process, object + 0x78, currentServers, sizeof(currentServers));
+        if (currentObject != object || currentVtable != vtable || currentSalt != selectorSalt
+            || memcmp(fields, current, sizeof(fields)) || memcmp(servers, currentServers, sizeof(servers)))
+            throw std::runtime_error("endpoint owner changed during allocation");
+        const auto begin = addresses.group;
+        uint32_t published[]{begin, begin + sizeof(layout.group), begin + sizeof(layout.group)};
+        const auto candidates = addresses.candidates;
+        uint32_t selected[]{candidates, candidates + sizeof(layout.candidates), candidates + sizeof(layout.candidates)};
+        try {
+            unpublished = false;
+            write(process, object + 0x8C, published, sizeof(published));
+            write(process, object + 0x78, selected, sizeof(selected));
+            read(process, object + 0x8C, current, sizeof(current));
+            if (memcmp(published, current, sizeof(published))) throw std::runtime_error("published vector readback mismatch");
+            read(process, object + 0x78, current, sizeof(current));
+            if (memcmp(selected, current, sizeof(selected))) throw std::runtime_error("selected candidate vector readback mismatch");
+        } catch (...) {
+            cleanupAndRethrow(std::current_exception(), [&] {
+                uint32_t restored[3]{}; write(process, object + 0x8C, fields, sizeof(fields));
+                read(process, object + 0x8C, restored, sizeof(restored));
+                if (memcmp(fields, restored, sizeof(fields))) throw std::runtime_error("endpoint publication rollback failed");
+                write(process, object + 0x78, servers, sizeof(servers));
+                read(process, object + 0x78, restored, sizeof(restored));
+                if (memcmp(servers, restored, sizeof(servers))) throw std::runtime_error("candidate publication rollback failed");
+                unpublished = true;
+            });
+        }
+        publication.resume();
     } catch (...) {
         cleanupAndRethrow(std::current_exception(), [&] {
-            if (publicationAttempted) {
-                uint32_t current[3]{}; write(process, object + 0x8C, fields, sizeof(fields));
-                read(process, object + 0x8C, current, sizeof(current));
-                if (memcmp(fields, current, sizeof(fields))) throw std::runtime_error("endpoint publication rollback failed");
-                write(process, object + 0x78, servers, sizeof(servers));
-                read(process, object + 0x78, current, sizeof(current));
-                if (memcmp(servers, current, sizeof(servers))) throw std::runtime_error("candidate publication rollback failed");
-            }
-            if (!VirtualFreeEx(process, storage, 0, MEM_RELEASE)) throw std::runtime_error(errorText("unpublished endpoint cleanup"));
+            if (unpublished) freeEndpointStorage(process, allocator, addresses);
         });
     }
-    suspended.resume();
-    // Borrowed fixture data stays valid until the owned process exits.
     if (log) {
-        log("Direct endpoint vector published and read back; data retained for process lifetime at " + hexValue(address));
+        log("Direct endpoint vectors published and read back; allocation ownership transferred to client");
         log("Fixed same-host selection published: candidates=2; parity=" + std::to_string(selectorSalt & 1) +
             "; attempt0=" + config.advertisedAddress + ":" + std::to_string(config.ports[0]) +
             "; attempt1=" + config.advertisedAddress + ":" + std::to_string(config.ports[1]));
@@ -142,15 +159,14 @@ Bootstrap::~Bootstrap() {
         }
         return;
     }
-    try { movementOverlay_.rollback(); } catch (...) {}
-    if (process_) CloseHandle(process_);
-    if (job_) CloseHandle(job_);
+    try { stop(); } catch (...) {}
 }
 bool Bootstrap::running() const {
     if (testAdapter_.launch) {
         return testAdapter_.running ? testAdapter_.running() : testRunning_;
     }
     if (!process_) return false;
+    if (debugClient_) debugClient_->check();
     auto state = WaitForSingleObject(process_, 0);
     if (state == WAIT_FAILED) throw std::runtime_error(errorText("owned client status wait"));
     return state == WAIT_TIMEOUT;
@@ -168,10 +184,12 @@ void Bootstrap::check(const fs::path& directory, const Config& config, const std
         return;
     }
     validateClientDirectory(directory);
-    if (fileHash(directory / "TieJiClient.exe") != CLIENT_HASH || fileHash(directory / "ProtocalHandler.dll") != PROTOCOL_HASH)
+    if (fileHash(directory / "TieJiClient.exe") != CLIENT_HASH || fileHash(directory / "ProtocalHandler.dll") != PROTOCOL_HASH
+        || fileHash(directory / "TenProxy.dll") != TEN_PROXY_SHA256
+        || fileHash(directory / "TieJiWebHelper.exe") != WEB_HELPER_HASH)
         throw std::runtime_error("unsupported client/protocol baseline");
     if (fs::exists(directory / "TesSafe.sys") && log)
-        log("WARNING: 发现 Bin/TesSafe.sys 文件，仅记录文件存在，不代表驱动已加载。启动器不安装或加载驱动；客户端自身行为未由本检查验证。");
+        log("Bin/TesSafe.sys 保持原样；客户端适配仅在本次进程内存中进行。");
     verifyGraphics();
 }
 void Bootstrap::launch(const fs::path& directory, const Config& config, const std::function<void(std::string)>& log,
@@ -184,115 +202,33 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const st
         testRunning_ = true;
         return;
     }
-    if (process_) {
-        // A previous client may have exited naturally.  Clear the overlay's
-        // ownership record before reusing this Bootstrap instance.
-        movementOverlay_.rollback();
-        CloseHandle(process_);
-        process_ = nullptr;
-    }
-    if (job_) { CloseHandle(job_); job_ = nullptr; }
+    if (process_ || debugClient_) stop();
     if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
     check(directory, config, log);
-    if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
-    if (log) log("Baseline and D3D9 preflight passed; host/VM and network deployment are user-selected");
-    auto image = (directory / "TieJiClient.exe").make_preferred();
-    std::wstring command = L"\"" + image.wstring() + L"\"";
-    STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION info{};
-    if (!CreateProcessW(image.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr, directory.c_str(), &startup, &info))
-        throw std::runtime_error(errorText("CreateProcessW"));
-    HANDLE job = CreateJobObjectW(nullptr, nullptr);
-    if (!job) {
-        TerminateProcess(info.hProcess, 1); CloseHandle(info.hThread); CloseHandle(info.hProcess);
-        throw std::runtime_error(errorText("CreateJobObjectW"));
-    }
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
-    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))
-        || !SetHandleInformation(job, HANDLE_FLAG_INHERIT, 0)
-        || !AssignProcessToJobObject(job, info.hProcess)) {
-        auto error = GetLastError();
-        TerminateProcess(info.hProcess, 1); WaitForSingleObject(info.hProcess, 5000);
-        CloseHandle(info.hThread); CloseHandle(info.hProcess); CloseHandle(job);
-        throw std::runtime_error("owned client Job Object setup failed error=" + std::to_string(error));
-    }
-    process_ = info.hProcess; job_ = job; pid_ = info.dwProcessId;
+    if (adapting) adapting();
+    auto image = recoverClientImage(readFile(directory / "TieJiClient.exe"), cancelled);
+    applyMemoryPatches(image.bytes, clientMemoryPatches(image.bytes));
+    const auto helper = readFile(directory / "TenProxy.dll");
+    tenProxyMemoryPatches(helper, 0x10000000);
+    const DllEntryRule rule{L"TenProxy.dll", TEN_PROXY_SHA256, TEN_PROXY_ENTRY_RVA,
+                           {0x55,0x8B,0xEC,0x53,0x8B,0x5D,0x08},
+                           [helper](uint32_t base) { return tenProxyMemoryPatches(helper, base); }};
+    const auto executable = (directory / "TieJiClient.exe").make_preferred();
+    debugClient_ = std::make_unique<DebugClient>();
+    const auto base = static_cast<uintptr_t>(image.imageBase);
     try {
-        uintptr_t overlayBase = 0;
-        const auto overlayDeadline = GetTickCount64() + 5000;
-        while (GetTickCount64() < overlayDeadline) {
-            if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
-            overlayBase = findImageBase(pid_, image).base;
-            if (overlayBase) break;
-            Sleep(25);
-        }
-        if (!overlayBase) throw std::runtime_error("client image unavailable for movement overlay");
-        movementOverlay_.install(process_, overlayBase, log);
-    } catch (...) {
-        stop();
-        throw;
-    }
-    if (ResumeThread(info.hThread) == static_cast<DWORD>(-1)) {
-        auto error = GetLastError(); CloseHandle(info.hThread);
-        stop(); throw std::runtime_error("owned client resume failed error=" + std::to_string(error));
-    }
-    CloseHandle(info.hThread);
-    try {
-        if (adapting) adapting();
-        if (log) log("Started owned client PID=" + std::to_string(pid_));
-        uintptr_t base = 0; bool patched = false; auto deadline = GetTickCount64() + 20000;
-        std::string stage = "module-lookup";
-        DWORD lastError = ERROR_SUCCESS; bool moduleLogged = false;
-        unsigned char observed[sizeof(SIGNATURE)]{}; SIZE_T observedCount = 0;
-        while (running() && GetTickCount64() < deadline) {
-            if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
-            auto module = findImageBase(pid_, image); base = module.base; lastError = module.error;
-            stage = "module-lookup"; observedCount = 0;
-            if (base) {
-                if (!moduleLogged) {
-                    if (log) log("Main module resolved; imageBase=" + hexValue(base) + "; startupRva=" + hexValue(STARTUP_RVA));
-                    moduleLogged = true;
-                }
-                stage = "startup-memory-read";
-                if (!ReadProcessMemory(process_, reinterpret_cast<void*>(base + STARTUP_RVA), observed, sizeof(observed), &observedCount))
-                    lastError = GetLastError();
-                else if (observedCount != sizeof(observed)) lastError = ERROR_PARTIAL_COPY;
-                else { stage = "startup-signature-mismatch"; lastError = ERROR_SUCCESS; }
-            }
-            if (base && !lastError && observedCount == sizeof(observed) && !memcmp(observed, SIGNATURE, sizeof(observed))) {
-                SuspendedProcess suspended(process_);
-                unsigned char bytes[sizeof(SIGNATURE)]{};
-                read(process_, base + STARTUP_RVA, bytes, sizeof(bytes));
-                if (memcmp(bytes, SIGNATURE, sizeof(bytes))) throw std::runtime_error("startup signature changed before patch");
-                DWORD old = 0; auto address = reinterpret_cast<void*>(base + STARTUP_RVA + 29);
-                if (!VirtualProtectEx(process_, address, 2, PAGE_EXECUTE_READWRITE, &old)) throw std::runtime_error("startup protection failed");
-                const unsigned char patch[]{0xB0, 1}; write(process_, reinterpret_cast<uintptr_t>(address), patch, 2);
-                DWORD ignored = 0;
-                if (!FlushInstructionCache(process_, address, 2) || !VirtualProtectEx(process_, address, 2, old, &ignored))
-                    throw std::runtime_error("startup protection restore failed");
-                unsigned char checked[2]; read(process_, reinterpret_cast<uintptr_t>(address), checked, 2);
-                if (memcmp(patch, checked, 2)) throw std::runtime_error("startup readback mismatch");
-                suspended.resume();
-                patched = true; break;
-            }
-            Sleep(50);
-        }
-        if (!patched) {
-            std::ostringstream details;
-            details << "startup adaptation failed; stage=" << stage << "; imageBase=" << hexValue(base)
-                << "; win32Error=" << lastError << "; bytesRead=" << observedCount;
-            if (!running()) {
-                DWORD exitCode = 0;
-                if (GetExitCodeProcess(process_, &exitCode)) details << "; clientExitCode=" << exitCode;
-            } else details << "; timeoutMs=20000";
-            if (stage == "startup-signature-mismatch") {
-                details << "; observed=";
-                for (auto byte : observed) details << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned>(byte);
-            }
-            throw std::runtime_error(details.str());
-        }
-        if (log) log("Startup adapted; waiting for network object");
-        Prompt prompt{pid_, nullptr}; deadline = GetTickCount64() + 60000; bool ready = false;
+        debugClient_->start(executable, CLIENT_HASH, {rule}, [&](HANDLE process, HANDLE thread) {
+            const auto module = findMappedImageBase(process, executable);
+            if (module.base != base) throw std::runtime_error("client mapped image identity mismatch before preparation");
+            installClientImage(process, thread, image, cancelled);
+            movementOverlay_.install(process, base, log, config.skipStartupAnimation);
+            if (log) log("Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
+        }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH}},
+        [this](DWORD threadId, uintptr_t address) { return movementOverlay_.handleBreakpoint(threadId, address); });
+        process_ = debugClient_->process(); pid_ = debugClient_->pid();
+        if (log) log("Prepared owned client PID=" + std::to_string(pid_) + "; waiting for network object");
+        auto deadline = GetTickCount64() + 60000;
+        Prompt prompt{pid_, nullptr}; bool ready = false;
         while (running() && GetTickCount64() < deadline) {
             if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
             EnumWindows(findPrompt, reinterpret_cast<LPARAM>(&prompt)); uint32_t object = 0; SIZE_T actual = 0;
@@ -319,21 +255,17 @@ void Bootstrap::stop() {
         testRunning_ = false;
         return;
     }
-    std::string overlayError;
-    try { movementOverlay_.rollback(); }
-    catch (const std::exception& error) { overlayError = error.what(); }
-    if (process_) {
-        stopOwnedProcess(process_);
-        // If rollback failed while the client was live, process termination
-        // makes the remote page unreachable; clear the stale local record.
-        if (movementOverlay_.installed()) {
-            try { movementOverlay_.rollback(); } catch (...) {}
-        }
+    std::string cleanupError;
+    if (debugClient_) {
+        try { debugClient_->stop(); }
+        catch (const std::exception& error) { cleanupError = error.what(); }
     }
-    if (process_) CloseHandle(process_);
-    process_ = nullptr; pid_ = 0;
-    if (job_) CloseHandle(job_);
-    job_ = nullptr;
-    if (!overlayError.empty()) throw std::runtime_error(overlayError);
+    try { movementOverlay_.rollback(); }
+    catch (const std::exception& error) {
+        if (!cleanupError.empty()) cleanupError += "; ";
+        cleanupError += error.what();
+    }
+    debugClient_.reset(); process_ = nullptr; pid_ = 0;
+    if (!cleanupError.empty()) throw std::runtime_error(cleanupError);
 }
 }

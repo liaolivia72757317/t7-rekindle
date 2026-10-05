@@ -46,6 +46,19 @@ int32_t guard(F&& action) noexcept {
     try { return action(); }
     catch (...) { return T7NB_INTERNAL_ERROR; }
 }
+
+int32_t submitStart(T7NativeSessionHandle handle, const T7NativeStartArgs* args,
+                    uint64_t* operationId, bool skipStartupAnimation) {
+    if (!operationId) return T7NB_INVALID_ARGUMENT;
+    *operationId = 0;
+    if (!args) return T7NB_INVALID_ARGUMENT;
+    if (!validHeader(args->abiVersion, args->structSize, sizeof(T7NativeStartArgs))) return T7NB_INVALID_ABI;
+    std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
+    std::string directory, name;
+    status = copyUtf8(args->clientDirectory, args->clientDirectoryLength, directory); if (status != T7NB_OK) return status;
+    status = copyUtf8(args->playerName, args->playerNameLength, name); if (status != T7NB_OK) return status;
+    return session->submit(T7NB_OPERATION_START, std::move(directory), *operationId, std::move(name), skipStartupAnimation);
+}
 }
 
 extern "C" int32_t T7NB_CALL t7_native_get_abi(uint32_t* version, uint32_t* snapshotSize) {
@@ -107,15 +120,17 @@ extern "C" int32_t T7NB_CALL t7_native_submit_stop(T7NativeSessionHandle handle,
 }
 
 extern "C" int32_t T7NB_CALL t7_native_submit_start_named(T7NativeSessionHandle handle, const T7NativeStartArgs* args, uint64_t* operationId) {
+    return guard([&] { return submitStart(handle, args, operationId, false); });
+}
+
+extern "C" int32_t T7NB_CALL t7_native_submit_start_options(T7NativeSessionHandle handle, const T7NativeStartOptions* args, uint64_t* operationId) {
     return guard([&]() -> int32_t {
-        if (!args || !operationId) return T7NB_INVALID_ARGUMENT;
+        if (!operationId) return T7NB_INVALID_ARGUMENT;
         *operationId = 0;
-        if (!validHeader(args->abiVersion, args->structSize, sizeof(T7NativeStartArgs))) return T7NB_INVALID_ABI;
-        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
-        std::string directory, name;
-        status = copyUtf8(args->clientDirectory, args->clientDirectoryLength, directory); if (status != T7NB_OK) return status;
-        status = copyUtf8(args->playerName, args->playerNameLength, name); if (status != T7NB_OK) return status;
-        return session->submit(T7NB_OPERATION_START, std::move(directory), *operationId, std::move(name));
+        if (!args) return T7NB_INVALID_ARGUMENT;
+        if (!validHeader(args->start.abiVersion, args->start.structSize, sizeof(T7NativeStartOptions))) return T7NB_INVALID_ABI;
+        if (args->reserved || (args->flags & ~T7NB_START_SKIP_STARTUP_ANIMATION)) return T7NB_INVALID_ARGUMENT;
+        return submitStart(handle, &args->start, operationId, (args->flags & T7NB_START_SKIP_STARTUP_ANIMATION) != 0);
     });
 }
 

@@ -8,9 +8,9 @@ using T7.Rekindle.Desktop.Services;
 
 namespace T7.Rekindle.Desktop.ViewModels
 {
-    internal sealed class UpdateDialogViewModel : ObservableObject, IDisposable
+    public sealed class UpdateDownloadViewModel : ObservableObject, IDisposable
     {
-        private readonly Func<LauncherUpdateAsset, IProgress<UpdateDownloadProgress>, CancellationToken, Task<string>> _download;
+        private readonly Func<LauncherUpdateAsset, IProgress<UpdateDownloadProgress>, CancellationToken, UpdateDownloadControl, Task<string>> _download;
         private readonly Func<string, Task<bool>> _install;
         private readonly Action<string> _openAddress;
         private CancellationTokenSource _cancellation;
@@ -25,9 +25,11 @@ namespace T7.Rekindle.Desktop.ViewModels
         private bool _isDownloading;
         private bool _isInstalling;
         private bool _cancelRequested;
+        private bool _disposed;
+        private UpdateDownloadControl _downloadControl;
 
-        internal UpdateDialogViewModel(LauncherUpdateInfo info,
-            Func<LauncherUpdateAsset, IProgress<UpdateDownloadProgress>, CancellationToken, Task<string>> download,
+        internal UpdateDownloadViewModel(LauncherUpdateInfo info,
+            Func<LauncherUpdateAsset, IProgress<UpdateDownloadProgress>, CancellationToken, UpdateDownloadControl, Task<string>> download,
             Func<string, Task<bool>> install, Action<string> openAddress)
         {
             Info = info ?? throw new ArgumentNullException(nameof(info));
@@ -37,22 +39,28 @@ namespace T7.Rekindle.Desktop.ViewModels
             _sourceNotice = info.SourceNotice ?? string.Empty;
             _statusText = info.Installer == null && info.IsNewVersion
                 ? "该版本缺少可校验的安装包，请从发布页手动下载。" : string.Empty;
-            PrimaryCommand = new AsyncRelayCommand(ActAsync, () => HasPrimaryAction && !IsDownloading && !IsInstalling);
+            PrimaryCommand = new AsyncRelayCommand(ActAsync, () => !_disposed && HasPrimaryAction && !IsDownloading && !IsInstalling);
+            PauseDownloadCommand = new RelayCommand(TogglePause, () => IsDownloading && !_cancelRequested && !_disposed);
             CancelDownloadCommand = new RelayCommand(CancelDownload, () => IsDownloading && !_cancelRequested);
         }
 
         public LauncherUpdateInfo Info { get; }
-        public string Heading => Info.IsNewVersion ? "发现启动器新版本" : Info.StatusText;
-        public string CloseText => Info.IsNewVersion ? "稍后" : "关闭";
         public bool IsDownloading => _isDownloading;
+        public bool IsPaused => _downloadControl?.IsPaused == true;
+        public string PauseActionText => IsPaused ? "继续下载" : "暂停下载";
         public bool IsInstalling => _isInstalling;
         public bool CanClose => !IsInstalling;
         public bool HasDownloadedInstaller => !string.IsNullOrEmpty(_installerPath);
-        public bool HasPrimaryAction => CanDownloadInstaller || Info.HasDownloadAddress;
+        public bool HasPrimaryAction => Info.IsNewVersion && (CanDownloadInstaller || Info.HasDownloadAddress);
         private bool CanDownloadInstaller => Info.IsNewVersion && Info.Installer != null;
-        public string PrimaryActionText => IsInstalling ? "准备安装…" : IsDownloading ? "下载中…"
-            : HasDownloadedInstaller ? "立即安装" : CanDownloadInstaller ? "下载安装版" : "打开发布页 ↗";
-        public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
+        public string PrimaryActionText => IsInstalling ? "准备安装…" : IsDownloading ? (IsPaused ? "已暂停" : "下载中…")
+            : HasDownloadedInstaller ? "立即安装" : "下载更新";
+        public string StatusText
+        {
+            get => _statusText;
+            private set { if (SetProperty(ref _statusText, value)) OnPropertyChanged(nameof(HasStatusText)); }
+        }
+        public bool HasStatusText => !string.IsNullOrEmpty(StatusText);
         public string ErrorText
         {
             get => _errorText;
@@ -69,11 +77,12 @@ namespace T7.Rekindle.Desktop.ViewModels
         public double Percent { get => _percent; private set => SetProperty(ref _percent, value); }
         public bool HasProgress { get => _hasProgress; private set => SetProperty(ref _hasProgress, value); }
         public IAsyncRelayCommand PrimaryCommand { get; }
+        public RelayCommand PauseDownloadCommand { get; }
         public RelayCommand CancelDownloadCommand { get; }
 
         private async Task ActAsync()
         {
-            if (IsDownloading || IsInstalling) return;
+            if (_disposed || !HasPrimaryAction || IsDownloading || IsInstalling) return;
             ErrorText = string.Empty;
             if (!CanDownloadInstaller)
             {
@@ -93,7 +102,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             try
             {
                 StatusText = await _install(_installerPath).ConfigureAwait(true)
-                    ? "安装向导已启动。" : "安装已取消，安装包已保留。";
+                    ? "安装程序已启动。" : "安装已取消，安装包已保留。";
             }
             catch (Exception error)
             {
@@ -108,10 +117,11 @@ namespace T7.Rekindle.Desktop.ViewModels
         {
             _isDownloading = true;
             _cancelRequested = false;
+            _downloadControl = new UpdateDownloadControl();
             HasProgress = true;
             Percent = 0;
             ProgressText = "正在连接下载源…";
-            StatusText = "关闭此窗口将取消下载。";
+            StatusText = "正在下载安装包，可暂停或取消。";
             SourceNotice = Info.SourceNotice ?? string.Empty;
             using (var cancellation = new CancellationTokenSource())
             {
@@ -119,7 +129,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 RefreshActions();
                 var progress = new Progress<UpdateDownloadProgress>(value =>
                 {
-                    if (_cancellation != cancellation || cancellation.IsCancellationRequested) return;
+                    if (_cancellation != cancellation || cancellation.IsCancellationRequested || IsPaused) return;
                     Percent = value.Percent;
                     ProgressText = string.Format("{0} · {1:F1}% · {2:F1} / {3:F1} MiB", value.Source, value.Percent,
                         value.BytesReceived / 1048576.0, value.TotalBytes / 1048576.0);
@@ -127,7 +137,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 });
                 try
                 {
-                    _installerPath = await _download(Info.Installer, progress, cancellation.Token).ConfigureAwait(true);
+                    _installerPath = await _download(Info.Installer, progress, cancellation.Token, _downloadControl).ConfigureAwait(true);
                     Percent = 100;
                     ProgressText = string.Format("100% · {0:F1} MiB · SHA-256 校验通过", Info.Installer.Size / 1048576.0);
                     StatusText = "下载完成。点击“立即安装”后将确认退出当前启动器。";
@@ -146,10 +156,20 @@ namespace T7.Rekindle.Desktop.ViewModels
                 finally
                 {
                     _cancellation = null;
+                    _downloadControl = null;
                     _isDownloading = false;
                     RefreshActions();
                 }
             }
+        }
+
+        private void TogglePause()
+        {
+            if (!IsDownloading || _cancelRequested || _disposed) return;
+            if (IsPaused) _downloadControl.Resume();
+            else _downloadControl.Pause();
+            StatusText = IsPaused ? "下载已暂停，点击“继续下载”后继续。" : "正在下载安装包，可暂停或取消。";
+            RefreshActions();
         }
 
         private void CancelDownload()
@@ -170,13 +190,19 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private void RefreshActions()
         {
-            foreach (var name in new[] { nameof(IsDownloading), nameof(IsInstalling), nameof(CanClose),
+            foreach (var name in new[] { nameof(IsDownloading), nameof(IsPaused), nameof(PauseActionText), nameof(IsInstalling), nameof(CanClose),
                 nameof(HasDownloadedInstaller), nameof(PrimaryActionText), nameof(HasPrimaryAction) })
                 OnPropertyChanged(name);
             PrimaryCommand.NotifyCanExecuteChanged();
+            PauseDownloadCommand.NotifyCanExecuteChanged();
             CancelDownloadCommand.NotifyCanExecuteChanged();
         }
 
-        public void Dispose() => CancelDownload();
+        public void Dispose()
+        {
+            _disposed = true;
+            CancelDownload();
+            RefreshActions();
+        }
     }
 }

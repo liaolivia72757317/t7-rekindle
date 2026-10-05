@@ -1,0 +1,49 @@
+<Window x:Class="T7.Rekindle.Desktop.Views.EnvironmentInfoDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:T7.Rekindle.Desktop.Views"
+        Title="环境信息" Width="700" Height="620" MinWidth="480" MinHeight="320"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
+        Icon="/T7-Rekindle;component/Resources/Assets/brand/launcher.ico"
+        FontFamily="{StaticResource UiFontFamily}" FontSize="16" Language="zh-CN" KeyboardNavigation.TabNavigation="Cycle"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Background="{DynamicResource PanelBackgroundBrush}" Foreground="{DynamicResource TextBrush}">
+  <Grid Margin="24" Background="{DynamicResource PanelBackgroundBrush}">
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+    <StackPanel Margin="0,0,0,16">
+      <StackPanel Orientation="Horizontal">
+        <views:Icon Kind="monitor" Width="24" Height="24" Margin="0,0,12,0" />
+        <TextBlock Text="环境信息" FontSize="22" FontWeight="SemiBold" />
+      </StackPanel>
+      <TextBlock Text="当前计算机的硬件与项目运行组件" Style="{StaticResource MutedText}" Margin="0,8,0,0" />
+    </StackPanel>
+    <Grid Grid.Row="1">
+      <TextBox x:Name="ReportText" Text="{Binding Report, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+               VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+               TextBlock.LineHeight="24" Padding="16" Background="{DynamicResource PanelBackgroundBrush}"
+               AutomationProperties.Name="可复制的环境信息" TabIndex="0" />
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16"
+                  Visibility="{Binding IsLoading, Converter={StaticResource BoolVisibility}}">
+        <TextBlock Text="正在检测运行环境…" HorizontalAlignment="Center" Style="{StaticResource MutedText}" />
+        <ProgressBar IsIndeterminate="True" Height="4" Width="200" Margin="0,16,0,0" AutomationProperties.Name="环境信息检测进度" />
+      </StackPanel>
+    </Grid>
+    <StackPanel Grid.Row="2" Margin="0,16,0,0">
+      <TextBlock Text="{Binding StatusText}" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,12" AutomationProperties.LiveSetting="Polite">
+        <TextBlock.Style><Style TargetType="TextBlock">
+          <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+          <Style.Triggers><DataTrigger Binding="{Binding HasError}" Value="True"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger></Style.Triggers>
+        </Style></TextBlock.Style>
+      </TextBlock>
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Button x:Name="CopyButton" Content="一键复制" Command="{Binding CopyCommand}" Style="{StaticResource PrimaryButton}"
+                AutomationProperties.Name="复制全部环境信息" TabIndex="1" />
+        <Button x:Name="RefreshButton" Grid.Column="1" Content="重新检测" Command="{Binding RefreshCommand}" Margin="12,0,0,0"
+                AutomationProperties.Name="重新检测环境信息" TabIndex="2" />
+        <Button x:Name="CloseButton" Grid.Column="2" Content="关闭" IsCancel="True" MinWidth="88" HorizontalAlignment="Right"
+                AutomationProperties.Name="关闭环境信息窗口" TabIndex="3" />
+      </Grid>
+    </StackPanel>
+  </Grid>
+</Window>

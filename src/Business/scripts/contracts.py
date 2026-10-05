@@ -13,17 +13,18 @@ RUNTIME_HERO_IDS = (110001,)
 RESOURCE_ID = 1028
 START_PATTERN = 2
 USER_ID = 10000
+USER_LEVEL = 100
 ACTOR_ID = 1
 HERO_ID = 110001
 HERO_IDS = (110001, 110003, 110004)
-USER_NAME = "吃我一记流星锤".encode("gbk")
+USER_NAME = "新玩家".encode("gbk")
 WEAPON_ID = 1030411
 POSITION = (272.451, 157.634, 0.218)
 ENEMY_POSITION = (271.046, 156.857, 0.218)
 # Keep the synthetic fixture's preparation window deterministic across runs.
-PREPARE_MS = 1200000
+PREPARE_MS = 30000
 START_MS = 5000
-GAME_MS = 5400000
+GAME_MS = 1200000
 GROUND_STEP_DISTANCE = 0.25
 GROUND_STEP_MS = 50
 
@@ -69,7 +70,7 @@ def instanceInfo(now, startedAt=None):
 def actorInfo(now, camp, playerName=USER_NAME):
     return room_flow.encode_instance_update_actor_basic_info(
         server_time_ms=now, instance_id=1, actor_mid=ACTOR_ID, user_id=USER_ID,
-        user_name=playerName, user_image_id=7, level=1, actor_state=4,
+        user_name=playerName, user_image_id=7, level=USER_LEVEL, actor_state=4,
         hero_resource_id=HERO_ID, camp=camp, start_pattern=START_PATTERN)
 
 
@@ -81,7 +82,8 @@ def actorState(now, current):
 def actorVision(camp, heroId=HERO_ID, actorName=USER_NAME, *, runtimeMovement=False,
                 position=POSITION):
     body = vision_flow.encode_fixed_local_actor_vision_add_event(
-        camp=camp, position=position, hero_resource_id=heroId, actor_name=actorName)
+        camp=camp, position=position, hero_resource_id=heroId, actor_name=actorName,
+        level=USER_LEVEL)
     if runtimeMovement:
         if heroId != RUNTIME_HERO_IDS[0]:
             raise ValueError("runtime movement gravity is bound to local hero 110001")

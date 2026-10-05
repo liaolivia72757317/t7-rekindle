@@ -73,6 +73,26 @@ int main() {
     startArgs.structSize = 8;
     assert(t7_native_submit_start_named(session, &startArgs, &operationId) == T7NB_INVALID_ABI);
     assert(t7_native_submit_start_named(session, nullptr, &operationId) == T7NB_INVALID_ARGUMENT);
+    T7NativeStartOptions options{startArgs, T7NB_START_SKIP_STARTUP_ANIMATION, 0};
+    options.start.structSize = sizeof(options);
+    operationId = 99;
+    assert(t7_native_submit_start_options(session, &options, &operationId) == T7NB_INVALID_ARGUMENT && operationId == 0);
+    const uint8_t name[]{'P', 'l', 'a', 'y', 'e', 'r'};
+    options.start.playerName = name; options.start.playerNameLength = sizeof(name);
+    for (const auto flag : {0u, static_cast<uint32_t>(T7NB_START_SKIP_STARTUP_ANIMATION)}) {
+        options.flags = flag;
+        assert(t7_native_submit_start_options(nullptr, &options, &operationId) == T7NB_INVALID_HANDLE);
+    }
+    options.flags = 2;
+    assert(t7_native_submit_start_options(session, &options, &operationId) == T7NB_INVALID_ARGUMENT);
+    options.flags = T7NB_START_SKIP_STARTUP_ANIMATION; options.reserved = 1;
+    assert(t7_native_submit_start_options(session, &options, &operationId) == T7NB_INVALID_ARGUMENT);
+    options.reserved = 0; options.start.structSize = sizeof(T7NativeStartArgs);
+    assert(t7_native_submit_start_options(session, &options, &operationId) == T7NB_INVALID_ABI);
+    options.start.structSize = sizeof(options); options.start.abiVersion = T7NB_ABI_VERSION + 1;
+    assert(t7_native_submit_start_options(session, &options, &operationId) == T7NB_INVALID_ABI);
+    assert(t7_native_submit_start_options(session, nullptr, &operationId) == T7NB_INVALID_ARGUMENT);
+    assert(t7_native_submit_start_options(session, &options, nullptr) == T7NB_INVALID_ARGUMENT);
     assert(t7_native_submit_check(session, &path, &operationId) == T7NB_OK && operationId != 0);
     T7NativeOperation operation{};
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);

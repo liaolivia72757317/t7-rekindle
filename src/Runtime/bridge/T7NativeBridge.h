@@ -79,6 +79,16 @@ typedef struct T7NativeStartArgs {
     uint32_t playerNameLength;
 } T7NativeStartArgs;
 
+enum T7NativeStartFlags : uint32_t {
+    T7NB_START_SKIP_STARTUP_ANIMATION = 1u
+};
+
+typedef struct T7NativeStartOptions {
+    T7NativeStartArgs start;
+    uint32_t flags;
+    uint32_t reserved;
+} T7NativeStartOptions;
+
 typedef struct T7NativePath {
     uint32_t abiVersion;
     uint32_t structSize;
@@ -130,6 +140,7 @@ typedef struct T7NativeOperation {
 
 static_assert(sizeof(T7NativePath) == 24, "T7NativePath ABI changed");
 static_assert(sizeof(T7NativeStartArgs) == 40, "T7NativeStartArgs ABI changed");
+static_assert(sizeof(T7NativeStartOptions) == 48, "T7NativeStartOptions ABI changed");
 static_assert(sizeof(T7NativeCreateArgs) == 24, "T7NativeCreateArgs ABI changed");
 static_assert(sizeof(T7NativeSnapshot) == 120, "T7NativeSnapshot ABI changed");
 static_assert(sizeof(T7NativeOperation) == 32, "T7NativeOperation ABI changed");
@@ -143,6 +154,7 @@ T7NB_EXPORT int32_t T7NB_CALL t7_native_release(T7NativeSessionHandle session);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_submit_check(T7NativeSessionHandle session, const T7NativePath* clientPath, uint64_t* operationId);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_submit_start(T7NativeSessionHandle session, const T7NativePath* clientPath, uint64_t* operationId);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_submit_start_named(T7NativeSessionHandle session, const T7NativeStartArgs* args, uint64_t* operationId);
+T7NB_EXPORT int32_t T7NB_CALL t7_native_submit_start_options(T7NativeSessionHandle session, const T7NativeStartOptions* args, uint64_t* operationId);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_submit_stop(T7NativeSessionHandle session, uint64_t* operationId);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_cancel(T7NativeSessionHandle session, uint64_t operationId);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_get_snapshot(T7NativeSessionHandle session, T7NativeSnapshot* snapshot);

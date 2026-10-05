@@ -1,0 +1,130 @@
+<Project>
+  <PropertyGroup>
+    <!-- Copy-only acceleration would skip the validation and cleanup target. -->
+    <AccelerateBuildsInVisualStudio>false</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(RepositoryRoot)src\Business\**\*.py"
+          Exclude="$(RepositoryRoot)src\Business\**\__pycache__\**\*"
+          Link="Business\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <!-- Retained output paths let VS notice a source file that has been deleted. -->
+  <Target Name="CollectBusinessCopyInputs" BeforeTargets="CollectUpToDateCheckBuiltDesignTime">
+    <ItemGroup>
+      <_BusinessOutputScripts Include="$(OutDir)Business\**\*.py" />
+      <UpToDateCheckBuilt Include="@(_BusinessOutputScripts)"
+                          Original="$(RepositoryRoot)src\Business\%(_BusinessOutputScripts.RecursiveDir)%(_BusinessOutputScripts.Filename)%(_BusinessOutputScripts.Extension)" />
+    </ItemGroup>
+  </Target>
+
+  <UsingTask TaskName="T7PrepareBusinessScripts" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <Task>
+      <Code Type="Class" Language="cs"><![CDATA[
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Microsoft.Build.Framework;
+
+public sealed class T7PrepareBusinessScripts : Microsoft.Build.Utilities.Task
+{
+    [Required] public string SourceDirectory { get; set; }
+    [Required] public string OutputDirectory { get; set; }
+
+    private static string directoryPath(string path)
+    {
+        return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+    }
+
+    private static void rejectLinkedAncestors(string path)
+    {
+        for (var current = new DirectoryInfo(path); current != null; current = current.Parent)
+        {
+            try
+            {
+                if ((File.GetAttributes(current.FullName) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("Business scripts path contains a link: " + current.FullName);
+            }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
+        }
+    }
+
+    private static List<string> filesIn(string root)
+    {
+        var files = new List<string>();
+        if (!Directory.Exists(root)) return files;
+        var pending = new Stack<string>();
+        pending.Push(root);
+        while (pending.Count != 0)
+        {
+            foreach (var path in Directory.EnumerateFileSystemEntries(pending.Pop()))
+            {
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("Business scripts tree contains a link: " + path);
+                if ((attributes & FileAttributes.Directory) != 0) pending.Push(path);
+                else files.Add(path);
+            }
+        }
+        return files;
+    }
+
+    public override bool Execute()
+    {
+        try
+        {
+            var source = directoryPath(SourceDirectory);
+            var output = directoryPath(OutputDirectory);
+            var destination = directoryPath(Path.Combine(output, "Business"));
+            if (source.StartsWith(destination, StringComparison.OrdinalIgnoreCase)
+                || destination.StartsWith(source, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Business source and output paths overlap.");
+            rejectLinkedAncestors(source);
+            rejectLinkedAncestors(destination);
+            var sources = filesIn(source);
+            var outputs = filesIn(destination);
+            foreach (var entry in new[] { "runtime/host_runtime.py", "scripts/__init__.py" })
+                if (!File.Exists(Path.Combine(source, entry)))
+                    throw new IOException("Business source entry is missing: " + entry);
+
+            var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in sources)
+            {
+                var relative = path.Substring(source.Length);
+                var segments = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (Path.GetExtension(path).Equals(".py", StringComparison.OrdinalIgnoreCase)
+                    && !Array.Exists(segments, part => part.Equals("__pycache__", StringComparison.OrdinalIgnoreCase)))
+                    expected.Add(Path.Combine(destination, relative));
+            }
+            // Only generated Python files beneath the validated Business output are owned here.
+            foreach (var path in outputs)
+            {
+                var extension = Path.GetExtension(path);
+                if (extension.Equals(".pyc", StringComparison.OrdinalIgnoreCase)
+                    || (extension.Equals(".py", StringComparison.OrdinalIgnoreCase) && !expected.Contains(path)))
+                    File.Delete(path);
+            }
+            return true;
+        }
+        catch (Exception error)
+        {
+            Log.LogErrorFromException(error, false);
+            return false;
+        }
+    }
+}
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PrepareBusinessScripts" BeforeTargets="PrepareForBuild;GetCopyToOutputDirectoryItems"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(OutDir)' == ''" Text="Business output directory is missing." />
+    <T7PrepareBusinessScripts SourceDirectory="$(RepositoryRoot)src\Business"
+                              OutputDirectory="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(OutDir)'))" />
+  </Target>
+</Project>

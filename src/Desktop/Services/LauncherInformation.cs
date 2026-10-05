@@ -45,6 +45,7 @@ namespace T7.Rekindle.Desktop.Services
         public static string RepositoryAddress => ReadMetadata("RepositoryUrl");
         public static string DownloadAddress => ReadMetadata("DownloadUrl");
         public static string BuildsAddress => ReadMetadata("BuildsUrl");
+        public static string ContactAddress => ReadMetadata("ContactUrl");
         public static string IssuesAddress => ReadMetadata("IssuesUrl");
         public static string UpdateBaseAddress => ReadMetadata("UpdateBaseUrl");
 
@@ -52,10 +53,10 @@ namespace T7.Rekindle.Desktop.Services
             new ReleaseUpdateService(UpdateClient, RepositoryAddress, UpdateBaseAddress).CheckAsync(Version);
 
         internal static Task<string> DownloadInstallerAsync(LauncherUpdateAsset asset,
-            IProgress<UpdateDownloadProgress> progress, CancellationToken cancellation) =>
+            IProgress<UpdateDownloadProgress> progress, CancellationToken cancellation, UpdateDownloadControl control) =>
             new UpdateDownloadService(DownloadClient, Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "T7-Rekindle", "updates"))
-                .DownloadAsync(asset, progress, cancellation);
+                .DownloadAsync(asset, progress, cancellation, control);
 
         public static Task<LauncherUpdateInfo> CheckSampleUpdateAsync() => CheckUpdateAsync();
 

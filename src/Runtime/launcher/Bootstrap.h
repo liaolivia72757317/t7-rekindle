@@ -1,7 +1,9 @@
 #pragma once
 #include "../core/Common.h"
 #include "MovementOverlay.h"
+#include "DebugClient.h"
 #include <functional>
+#include <memory>
 namespace t7 {
 class Bootstrap {
 public:
@@ -25,7 +27,7 @@ public:
     void stop();
 private:
     HANDLE process_ = nullptr;
-    HANDLE job_ = nullptr;
+    std::unique_ptr<DebugClient> debugClient_;
     DWORD pid_ = 0;
     MovementOverlay movementOverlay_;
     TestAdapter testAdapter_;

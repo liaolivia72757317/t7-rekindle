@@ -30,6 +30,8 @@ PROJECT_ROOT/
   .github/workflows/           # CI 与 tag 发布工作流
   T7-Rekindle.sln
   Directory.Build.props
+  Managed.Common.props
+  Managed.Common.targets
   Native.Common.props
   pytest.ini
 ```

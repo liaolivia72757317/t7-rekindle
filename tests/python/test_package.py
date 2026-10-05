@@ -16,13 +16,19 @@ def load_package_module():
     return module
 
 
-def test_package_manifest_excludes_client(tmp_path):
+@pytest.mark.parametrize("business_directory", ["Business", "BUSINESS"])
+def test_package_manifest_excludes_client(tmp_path, business_directory):
     module = load_package_module()
     source = tmp_path / "source"
     (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
     (source / "artifacts/bin/T7.Desktop/x64/Release/net48").mkdir(parents=True)
     (source / "src/Business/scripts").mkdir(parents=True)
     (source / "src/Business/scripts/__init__.py").write_text("API_VERSION=1\nSTATE_VERSION=1\n", encoding="utf-8")
+    stale = source / "artifacts/bin/T7.Desktop/x64/Release/net48" / business_directory
+    (stale / "scripts/__pycache__").mkdir(parents=True)
+    (stale / "scripts/__init__.py").write_text("stale = True\n", encoding="utf-8")
+    (stale / "scripts/removed.py").write_text("stale = True\n", encoding="utf-8")
+    (stale / "scripts/__pycache__/removed.pyc").write_bytes(b"stale bytecode")
     (source / "artifacts/native/bin/x64/Release/T7.NativeBridge.dll").write_bytes(b"bridge")
     (source / "artifacts/bin/T7.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
     (source / "artifacts/bin/T7.Desktop/x64/Release/net48/T7.Core.dll").write_bytes(b"core")
@@ -50,6 +56,9 @@ def test_package_manifest_excludes_client(tmp_path):
     assert "T7.ManagedHarness.exe" not in manifest["files"]
     assert "runtimes/managed.dll" in manifest["files"]
     assert "Business/scripts/__init__.py" in manifest["files"]
+    assert (output / "Business/scripts/__init__.py").read_bytes() == (source / "src/Business/scripts/__init__.py").read_bytes()
+    assert not (output / "Business/scripts/removed.py").exists()
+    assert not (output / "Business/scripts/__pycache__").exists()
     for name in ("src", "scripts", "tests", ".local", "client", "work"):
         assert not (output / name).exists()
 

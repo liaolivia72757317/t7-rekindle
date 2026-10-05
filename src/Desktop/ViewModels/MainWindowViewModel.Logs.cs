@@ -35,6 +35,9 @@ namespace T7.Rekindle.Desktop.ViewModels
         private async void Poll()
         {
             if (_disposed) return;
+            var utcNow = DateTime.UtcNow;
+            DismissExpiredNotice(utcNow);
+            CheckScheduledUpdate(utcNow);
             Refresh();
             if (Interlocked.CompareExchange(ref _logPollActive, 1, 0) != 0) return;
             try
@@ -77,11 +80,10 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private void CopyLogs()
         {
-            if (!_interaction.Confirm("日志可能包含个人路径、玩家名称等信息。分享前请检查并移除个人信息。\n复制本次运行的诊断信息？（不会自动上传）")) return;
             try
             {
-                _interaction.CopyText(EndpointText + Environment.NewLine + NativeLogText);
-                ShowNotice("当前日志已复制；分享前请检查个人信息。", false);
+                _interaction.CopyText(Services.DiagnosticSanitizer.Redact(EndpointText + Environment.NewLine + NativeLogText));
+                ShowNotice("诊断信息已复制", false);
             }
             catch (Exception error) { ReportUiError("复制日志失败", error); }
         }

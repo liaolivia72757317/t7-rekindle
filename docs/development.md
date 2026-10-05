@@ -55,13 +55,57 @@ python scripts/integration_test.py --report artifacts/test-results/integration.j
 | `T7.ManagedHarness.exe` | 设置、ViewModel、目录选择、主题、布局及生命周期契约 |
 | `integration_test.py` | 使用独立原生宿主验证嵌入式 Python、三通道及模拟客户端生命周期 |
 
-脚本固定构建 Release/x64；原生 Debug/Release 输出分开，Visual Studio 可另行构建 Debug。托管和原生编译将警告按错误处理，CI 也检查 Inno 编译警告；Python 测试使用 pytest 默认警告处理。
+脚本默认构建 Release/x64，可用 `--configuration Debug` 构建 Debug/x64；省略参数与显式指定 `--configuration Release` 等效。该配置同时用于原生、托管项目及自动运行的原生测试，Debug/Release 产物分别存放。托管和原生编译将警告按错误处理，CI 也检查 Inno 编译警告；Python 测试使用 pytest 默认警告处理。
+
+```powershell
+python scripts/build.py --project all --configuration Debug
+python scripts/build.py --project managed --configuration Debug
+```
+
+第二条命令仅构建托管项目；它不生成 NativeBridge 或准备 Python 运行时。正式打包和 `integration_test.py` 仍使用 Release 产物，Debug 构建不替代发行前的 Release 构建与验证。
 
 合成集成测试依赖 `native-tests` 的输出，并生成 JSON 报告。`realClient=false` 表示未启动真实客户端；它验证所覆盖的合成流程，不代替进图、移动、AI 或完整对局验收。真实客户端与界面验收项目见[实施计划](planning/implementation-plan.md)。
 
+界面截图可通过 `T7.ManagedHarness.exe --render-ui artifacts/ui-v11-final` 生成；`--native-ui artifacts/ui-v11-final` 另行检查当前显示器的真实窗口边界、弹窗位置与托盘恢复。两者均使用测试数据，不启动真实游戏或修改自启动项。覆盖范围、截图索引及待实机验收项见 [UI 1.1 实施与验收](planning/ui-handoff-v1.1.md)。
+
+客户端异常退出后，“本地服务未运行”表示会话清理后的状态，不是端口分配失败的诊断。应查看日志中的首个错误；未处理的客户端异常会记录模块名、RVA 和线程寄存器，并从最多 32 个栈槽中记录指向映像的地址候选。这些候选不是完整展开的调用栈，也不包含原始栈正文。诊断采集失败另行记录，不覆盖原始异常；分享日志前仍需检查个人信息。
+
+### 在 Visual Studio 中构建
+
+使用 VS 2022 IDE 时，先准备上述工具链。Python 开发安装路径只需配置一次：
+
+1. 执行 `python -c "import sys; print(sys.base_prefix)"`，确认该目录属于 CPython 3.14.4 AMD64，包含 `Include/Python.h` 和 `libs/python314.lib`。
+2. 创建仓库根目录下的 `.local/Build.props`，将下面的 `PYTHON_HOME` 替换为该目录；已有文件时只补充属性，不覆盖其他设置。
+
+```xml
+<Project>
+  <PropertyGroup>
+    <PythonHome Condition="'$(PythonHome)' == ''">PYTHON_HOME</PythonHome>
+  </PropertyGroup>
+</Project>
+```
+
+`Directory.Build.props` 自动加载此本机配置，原生项目通过 `Native.Common.props` 使用头文件和导入库路径。环境变量 `PythonHome` 和 MSBuild `/p:PythonHome=...` 仍可覆盖示例中的默认值。`.local/` 已被 Git 忽略，不要将个人绝对路径写入共享项目文件。
+
+托管项目通过 `Managed.Common.props` / `Managed.Common.targets` 成对导入 SDK：优先使用下方约定的便携 SDK，目录不存在时使用系统 SDK。便携 net48 引用程序集也会自动检测；显式设置的 `TargetFrameworkRootPath` 和 NuGet 缓存路径保持优先。WPF 支持仍由 Desktop 项目的 `UseWPF` 启用。
+
+配置完成后直接打开 `T7-Rekindle.sln`，选择 Debug/x64 或 Release/x64 生成；已经打开的解决方案需重新加载，无需从环境脚本启动 VS。此配置只解决构建，运行完整启动器仍需按下一节打包。
+
+### Python 脚本同步与生效
+
+`src/Business` 是 Python 代码的唯一维护位置。Desktop 构建会将其中的 `.py` 文件复制到当前配置输出目录的 `Business`，包括 `runtime` 和 `scripts`，并保留相对目录。VS 与命令行共用这套规则；只修改 Python 也会触发输出更新，无需改动 C# 或手工复制。
+
+VS 快速最新检查和 C# 增量编译保持启用；仅关闭 Desktop 的复制加速，确保同步时执行校验与清理。设计时构建不修改输出目录。
+
+输出副本是构建产物：同名脚本会被源码覆盖，源中已删除或重命名的旧 `.py` 和遗留 `.pyc` 会被清理，其他文件不受此规则影响。同步失败会使构建失败；不要继续启动旧产物。首次采用自动同步前，应备份输出目录中尚未合入源码的手工改动。
+
+运行时从启动器所在目录读取 `Business`，并在启动游戏会话时建立固定脚本快照。正确流程是：修改源码 → 保存 → 构建当前配置 → 结束旧游戏会话 → 重新启动游戏。仅重新匹配、只改输出副本或构建另一个配置，都不保证当前会话使用新代码。直接双击已有 EXE 不会触发构建同步。
+
+排查时核对正在运行的 EXE 路径、其旁边的 `Business` 文件和现有诊断记录中的 `scriptVersion`。验证脚本行为应从实际输出目录加载，而不只运行源码测试。这里的同步不安装 Python，也不替代完整产品包的运行环境准备。
+
 ### 依赖锁定
 
-仓库通过根目录的 `global.json` 固定 .NET SDK 8.0.425，CI 按同一文件安装 SDK，避免默认 RuntimeIdentifier 随 SDK 版本变化而与 lock file 不一致。升级 SDK 时需同步便携工具链脚本，并验证依赖锁定与输出路径。
+仓库通过根目录的 `global.json` 固定 .NET SDK 8.0.425，CI 按同一文件安装 SDK，避免默认 RuntimeIdentifier 随 SDK 版本变化而与 lock file 不一致。升级 SDK 时需同步 `Managed.Common.props` 和便携工具链脚本，并验证依赖锁定与输出路径。
 
 托管构建通过 `RestoreLockedMode=true` 使用项目级 `packages.lock.json`。正常构建不更新依赖版本。
 
@@ -107,7 +151,9 @@ Compress-Archive -Path artifacts/package/* -DestinationPath dist/T7-Rekindle-win
 
 CI 通过 `GITHUB_SHA` 写入 Git 提交元数据。项目文件同时生成项目名称、介绍及仓库、发布页、CI 构建和 Issues 的地址元数据。
 
-更新检查仅在用户点击时进行，优先匿名请求内置域名的 R2 清单，失败时回退 GitHub Releases `latest` API，每个检查请求超时为 10 秒；不查询预发布版或 CI 开发构建。数字版本比较支持四段数字及不影响优先级的 `+构建标识`。用户可在更新弹窗下载安装版、查看进度和取消；大小及 SHA-256 校验成功后，由用户再次确认安装。未配置镜像地址的开发构建仍使用 GitHub。配置、协议和验收见 [R2 发布镜像](release-mirror.md)。
+程序启动时、运行中每 30 分钟，以及游戏结束并完成会话清理后自动检查更新，也支持用户手动点击。所有触发共用同一个检查命令，已有检查时跳过重叠触发，不排队；手动检查和游戏结束检查不重置定时周期。检查结果不自动打开弹窗、下载或安装。
+
+更新检查优先匿名请求内置域名的 R2 清单，失败时回退 GitHub Releases `latest` API，每个检查请求超时为 10 秒；不查询预发布版或 CI 开发构建。数字版本比较支持四段数字及不影响优先级的 `+构建标识`。用户可在更新页点击“下载更新”，查看进度、暂停、继续或取消下载；大小及 SHA-256 校验成功后，由用户再次确认安装。启动器结束当前游戏并退出后，安装程序直接覆盖当前启动器目录，跳过目录选择并保留进度窗口；手动安装仍使用完整向导。未配置镜像地址的开发构建仍使用 GitHub。配置、协议和验收见 [R2 发布镜像](release-mirror.md)。
 
 ## 5. CI 产物与正式发布
 
@@ -125,16 +171,18 @@ GitHub Release 的文件名为 `T7-Rekindle-{tag}-Setup.exe` 和 `T7-Rekindle-wi
 | --- | --- |
 | 找不到 VS 2022 MSBuild | 确认安装的是 VS 2022，MSBuild 组件齐全；原生构建还要求 v143 C++ workload |
 | Python 版本或开发文件检查失败 | 检查当前 `python` 路径、3.14.4/64 位版本及头文件和导入库；不要使用 embeddable ZIP 作为开发安装 |
+| VS 报 `Python.h` 缺失 | 按上方 VS 配置设置 `.local/Build.props` 中的 `PythonHome`，然后重新加载项目 |
 | 原生阶段成功，随后提示缺少 SDK 或 Targeting Pack | `--project all` 先构建和测试原生部分，再检查托管前置；补齐 .NET SDK 与 net48 Developer Pack 后重试 |
 | NuGet 锁定还原失败 | 检查源访问及项目与 lock file 是否匹配；不要默认解除锁定 |
-| 托管输出缺少 NativeBridge、Python 或 Business | 先完成原生构建，再构建 managed，最后打包；不要直接运行或手工拼接零散构建文件 |
+| 托管输出缺少 NativeBridge 或 Python | 先完成相同配置的原生构建；完整产品仍按 Release 流程打包，不手工拼接零散运行时文件 |
+| Python 修改后仍是旧行为 | 核对 EXE 所在配置，构建 Desktop 确认 Business 同步成功，再结束并重新启动游戏会话 |
 | 打包输出已存在 | 使用已确认的新目录或先保留旧产物；安装器输入路径须与产品目录一致 |
 
 客户端目录、图形预检、名称及退出错误见[使用问题排查](requirements.md#问题排查与反馈)。反馈构建问题时提供命令、工具版本、提交号及相关错误片段，去除个人路径等信息。
 
 ## 附：可选的便携托管工具链
 
-系统 SDK 和 Targeting Pack 可用时，无需此方案。仓库的 `scripts/Use-ManagedTools.ps1` 支持以下固定布局：
+系统 SDK 和 Targeting Pack 可用时，无需此方案。项目配置和构建脚本支持以下固定布局：
 
 ```text
 .local/toolchains/
@@ -143,10 +191,12 @@ GitHub Release 的文件名为 `T7-Rekindle-{tag}-Setup.exe` 和 `T7-Rekindle-wi
     build/.NETFramework/v4.8/
 ```
 
-SDK 从 [.NET 下载页](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)获取，引用程序集来自 [NuGet 包](https://www.nuget.org/packages/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3)。准备好目录后，在执行构建的同一个 PowerShell 会话中加载：
+SDK 从 [.NET 下载页](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)获取，引用程序集来自 [NuGet 包](https://www.nuget.org/packages/Microsoft.NETFramework.ReferenceAssemblies.net48/1.0.3)。准备好目录后，VS、MSBuild 和 `scripts/build.py` 自动使用便携工具链，不需要设置系统环境变量。便携 SDK 默认使用 `.local/toolchains/nuget-packages/` 缓存；已有的 `RestorePackagesPath` 或 `NUGET_PACKAGES` 配置优先。
+
+需要在终端直接运行 `dotnet` 命令时，仍可加载：
 
 ```powershell
 . .\scripts\Use-ManagedTools.ps1
 ```
 
-首个点号后有空格。脚本检查文件并设置当前会话的 SDK、引用程序集和 NuGet 缓存路径，不下载组件，也不替代 VS 2022 MSBuild。新开终端需重新加载；其他 SDK 布局不适用此脚本的固定路径。
+首个点号后有空格。脚本只设置当前会话，供 `dotnet` CLI 使用；新开终端后如需该 CLI，应重新加载。它不下载组件，也不替代 VS 2022 MSBuild。自动检测和此脚本均使用上述固定布局。

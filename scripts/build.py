@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import shutil
@@ -60,6 +61,7 @@ def check_python() -> Path:
 
 def check_wpf_targeting_pack() -> None:
     roots = [
+        ROOT / ".local/toolchains/net48-reference-assemblies/build/.NETFramework/v4.8",
         Path(r"C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"),
         Path(r"C:\Program Files\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8"),
     ]
@@ -71,14 +73,17 @@ def check_wpf_targeting_pack() -> None:
 
 def check_managed_sdk(msbuild: Path) -> None:
     sdk = msbuild.parent.parent / "Sdks/Microsoft.NET.Sdk/Sdk/Sdk.props"
+    version = json.loads((ROOT / "global.json").read_text(encoding="utf-8"))["sdk"]["version"]
+    portable_sdk = ROOT / f".local/toolchains/dotnet-{version}/sdk/{version}/Sdks/Microsoft.NET.Sdk/Sdk/Sdk.props"
     dotnet = shutil.which("dotnet")
-    if not sdk.is_file() and not dotnet:
+    if not sdk.is_file() and not portable_sdk.is_file() and not dotnet:
         fail(".NET SDK / Microsoft.NET.Sdk targets are missing; install a supported .NET SDK separately")
 
 
-def run_msbuild(project: Path, platform: str, msbuild: Path, python_home: Path | None) -> None:
+def run_msbuild(project: Path, platform: str, msbuild: Path, python_home: Path | None,
+                configuration: str = "Release") -> None:
     env = {key.upper(): value for key, value in os.environ.items()}
-    command = [str(msbuild), str(project), "/nologo", "/m", "/p:Configuration=Release",
+    command = [str(msbuild), str(project), "/nologo", "/m", f"/p:Configuration={configuration}",
                f"/p:Platform={platform}", "/v:minimal"]
     if project.suffix == ".csproj":
         command.extend(["/restore", "/p:RestoreLockedMode=true"])
@@ -127,8 +132,8 @@ def remove_tree(path: Path) -> None:
     shutil.rmtree(path, onerror=onerror)
 
 
-def run_native_tests(python_home: Path) -> None:
-    binary = ROOT / "artifacts/native/bin/x64/Release"
+def run_native_tests(python_home: Path, configuration: str = "Release") -> None:
+    binary = ROOT / "artifacts/native/bin/x64" / configuration
     fixture = prepare_runtime_fixture(python_home)
     environment = os.environ.copy()
     environment["PATH"] = str(python_home) + os.pathsep + environment.get("PATH", "")
@@ -145,23 +150,24 @@ def run_native_tests(python_home: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", choices=("all", "native", "native-tests", "managed"), default="all")
+    parser.add_argument("--configuration", choices=("Debug", "Release"), default="Release")
     args = parser.parse_args()
     msbuild = locate_msbuild(require_native=args.project != "managed")
     python_home = check_python() if args.project in ("all", "native", "native-tests") else None
     if args.project in ("all", "native", "native-tests"):
-        run_msbuild(ROOT / "src/Runtime/T7.NativeBridge.vcxproj", "x64", msbuild, python_home)
+        run_msbuild(ROOT / "src/Runtime/T7.NativeBridge.vcxproj", "x64", msbuild, python_home, args.configuration)
     if args.project in ("all", "native-tests"):
-        run_msbuild(ROOT / "tests/cpp/T7.NativeTests.vcxproj", "x64", msbuild, python_home)
-        run_msbuild(ROOT / "tests/cpp/T7.BridgeTests.vcxproj", "x64", msbuild, python_home)
-        run_msbuild(ROOT / "tests/cpp/T7.RuntimeTests.vcxproj", "x64", msbuild, python_home)
-        run_native_tests(python_home)
+        run_msbuild(ROOT / "tests/cpp/T7.NativeTests.vcxproj", "x64", msbuild, python_home, args.configuration)
+        run_msbuild(ROOT / "tests/cpp/T7.BridgeTests.vcxproj", "x64", msbuild, python_home, args.configuration)
+        run_msbuild(ROOT / "tests/cpp/T7.RuntimeTests.vcxproj", "x64", msbuild, python_home, args.configuration)
+        run_native_tests(python_home, args.configuration)
     if args.project in ("all", "managed"):
         check_managed_sdk(msbuild)
         check_wpf_targeting_pack()
-        run_msbuild(ROOT / "src/Core/T7.Core.csproj", "x64", msbuild, python_home)
-        run_msbuild(ROOT / "src/Desktop/T7.Desktop.csproj", "x64", msbuild, python_home)
-        run_msbuild(ROOT / "tests/managed/T7.ManagedHarness.csproj", "x64", msbuild, python_home)
-    print("build completed")
+        run_msbuild(ROOT / "src/Core/T7.Core.csproj", "x64", msbuild, python_home, args.configuration)
+        run_msbuild(ROOT / "src/Desktop/T7.Desktop.csproj", "x64", msbuild, python_home, args.configuration)
+        run_msbuild(ROOT / "tests/managed/T7.ManagedHarness.csproj", "x64", msbuild, python_home, args.configuration)
+    print(f"build completed: {args.configuration}/x64")
 
 
 if __name__ == "__main__":

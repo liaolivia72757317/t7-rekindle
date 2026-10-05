@@ -1,0 +1,4 @@
+<Project>
+  <Import Project="$(_T7PortableSdkDirectory)Sdk.targets" Condition="'$(_T7UsePortableSdk)' == 'true'" />
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" Condition="'$(_T7UsePortableSdk)' != 'true'" />
+</Project>

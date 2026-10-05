@@ -14,6 +14,11 @@ namespace T7.ManagedHarness
         [STAThread]
         private static int Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--native-ui")
+            {
+                NativeWindowUiTests.Run(args[1]);
+                return 0;
+            }
             if (!SettingsSchema.IsValid(new UserSettings())) return 1;
             if (SettingsSchema.IsValid(new UserSettings { ClientDirectory = "C:\\client\r\n" })) return 2;
             if (SettingsSchema.IsValid(new UserSettings { WindowWidth = 479 })) return 3;
@@ -31,12 +36,17 @@ namespace T7.ManagedHarness
             if (SettingsSchema.IsValid(new UserSettings { ClientDirectory = "\\root-relative" })) return 15;
             if (NativeBridgeContract.IsUtf8PathAcceptable("\\\\")) return 16;
             if (SettingsSchema.IsValid(new UserSettings { ClientDirectory = "\\\\" })) return 17;
+            if (args.Length == 2 && args[0] == "--render-v11")
+            {
+                ThemeTests.Run(args[1]);
+                return 0;
+            }
             NativeAbiLayout.Validate();
             NativeBridgeServiceTests.Run();
             GitHubReleaseUpdateTests.Run();
             UpdateFeedTests.Run();
             UpdateDownloadTests.Run();
-            UpdateDialogTests.Run();
+            UpdateDownloadViewModelTests.Run();
             LauncherTests.Run();
             ThemeTests.Run(args.Length == 2 && args[0] == "--render-ui" ? args[1] : null);
             Console.WriteLine("managed contract checks passed");

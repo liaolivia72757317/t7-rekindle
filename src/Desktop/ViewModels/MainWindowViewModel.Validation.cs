@@ -13,6 +13,17 @@ namespace T7.Rekindle.Desktop.ViewModels
         private bool _isValidating;
         private bool _isScanningDirectory;
         private bool _hasSaveError;
+        private bool _directoryHasDraft;
+
+        internal void BeginDirectoryDraft()
+        {
+            if (_directoryHasDraft || AreSessionFieldsLocked) return;
+            _directoryHasDraft = true;
+            ++_validationVersion;
+            _validationCancellation?.Cancel();
+            _isValidating = _isScanningDirectory = false;
+            UpdatePresentation();
+        }
         public string DirectoryMessage => _isScanningDirectory ? "正在自动定位游戏目录，可重新选择或修改路径…"
             : _isValidating ? "正在检查游戏目录…" : _directoryResult.Message;
         public bool IsDirectoryValid => !_isValidating && _directoryResult.IsValid;
@@ -61,42 +72,60 @@ namespace T7.Rekindle.Desktop.ViewModels
                 {
                     _isValidating = false;
                     _isScanningDirectory = false;
-                    _validationCancellation = null;
                     UpdatePresentation();
                 }
+                if (ReferenceEquals(_validationCancellation, cancellation)) _validationCancellation = null;
                 cancellation.Dispose();
             }
         }
 
+        private string _nameSaveError = string.Empty;
+        private string _directorySaveError = string.Empty;
+
         private bool SaveValidatedFields()
         {
-            _hasSaveError = false;
-            if (_isValidating || !_directoryResult.IsValid || HasPlayerNameError)
+            var directory = !_directoryHasDraft && !_isValidating && _directoryResult.IsValid ? _directoryResult.Root : _savedDirectory;
+            var name = HasPlayerNameError ? _savedName : PlayerName.Trim();
+            if (!HasPlayerNameError && name == _savedName) _nameSaveError = string.Empty;
+            if (!_isValidating && !_directoryHasDraft && _directoryResult.IsValid && directory == _savedDirectory) _directorySaveError = string.Empty;
+            _hasSaveError = _nameSaveError.Length != 0 || _directorySaveError.Length != 0;
+            if (!_hasSaveError) SettingsFeedback = string.Empty;
+            if (_savedDirectory == directory && _savedName == name)
             {
-                SettingsFeedback = "完成目录与名称配置后即可启动";
-                return false;
-            }
-            var name = PlayerName.Trim();
-            if (_savedDirectory == _directoryResult.Root && _savedName == name)
-            {
-                SettingsFeedback = "目录与名称已保存，供下次使用";
-                return true;
+                OnPropertyChanged(nameof(NameFieldError));
+                OnPropertyChanged(nameof(DirectoryFieldError));
+                if (!_hasSaveError) Notices.Resolve("settings.save-failed");
+                return !_hasSaveError && !_isValidating && !_directoryHasDraft && _directoryResult.IsValid && !HasPlayerNameError;
             }
             try
             {
-                _settings.Save(CreateSettings(_directoryResult.Root, name));
-                _savedDirectory = _directoryResult.Root;
+                _settings.Save(CreateSettings(directory, name));
+                _savedDirectory = directory;
                 _savedName = name;
-                SettingsFeedback = "目录与名称已保存，供下次使用";
-                return true;
+                _hasSaveError = false;
+                _nameSaveError = _directorySaveError = SettingsFeedback = string.Empty;
+                Notices.Resolve("settings.save-failed");
+                OnPropertyChanged(nameof(SavedPlayerName));
+                OnPropertyChanged(nameof(SavedClientDirectory));
             }
             catch (Exception error)
             {
                 _hasSaveError = true;
                 _log.Error("保存设置失败", error);
-                SettingsFeedback = "保存设置失败，请检查写入权限后重试";
-                return false;
+                SettingsFeedback = "设置未保存，请检查写入权限后重试";
+                if (_savedName != name) _nameSaveError = SettingsFeedback;
+                if (_savedDirectory != directory) _directorySaveError = SettingsFeedback;
+                if (!IsSettingsSelected || SettingsTabIndex != 0)
+                    Notices.Publish("settings.save-failed", "设置未保存，请重试", NoticeSeverity.Error, "重试", () =>
+                    {
+                        ShowSettingsCommand.Execute(null);
+                        SaveValidatedFields();
+                        UpdatePresentation();
+                    });
             }
+            OnPropertyChanged(nameof(NameFieldError));
+            OnPropertyChanged(nameof(DirectoryFieldError));
+            return !_hasSaveError && !_isValidating && _directoryResult.IsValid && !HasPlayerNameError;
         }
     }
 }

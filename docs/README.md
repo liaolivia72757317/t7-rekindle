@@ -9,7 +9,9 @@
 | 使用启动器，确认运行环境和客户端兼容性 | [产品需求与使用说明](requirements.md) |
 | 排查目录、名称、启动和退出问题 | [使用说明中的问题排查](requirements.md#问题排查与反馈) |
 | 从源码构建、测试或制作运行包 | [开发与交付](development.md) |
+| 了解 UI 1.1 的接入、状态绑定和界面验收 | [UI 1.1 实施与验收](planning/ui-handoff-v1.1.md) |
 | 理解模块职责、进程关系和启动流程 | [架构说明](architecture.md) |
+| 了解原版客户端无 TP 启动的验证结果与实施前置 | [TP 纯内存启动方案](planning/tp-memory-launch.md) |
 | 查找源码、测试、构建产物或内置文档 | [目录与源码范围](source-layout.md) |
 | 修改原生接口、生命周期、日志或设置格式 | [运行契约](runtime-contracts.md) |
 | 了解人机对战和局域网联机的推进顺序 | [实施与验收计划](planning/implementation-plan.md) |

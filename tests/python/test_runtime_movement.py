@@ -1,6 +1,27 @@
 import struct
+from pathlib import Path
 
-from Business.scripts import app, controls, contracts as wire
+import math
+
+import pytest
+
+from Business.scripts import app, controls, contracts as wire, scene
+
+
+def test_overlay_follows_independent_image_recovery_before_first_resume():
+    root = Path(__file__).resolve().parents[2]
+    source = (root / "src/Runtime/launcher/Bootstrap.cpp").read_text(encoding="utf-8")
+    launch = source.split("void Bootstrap::launch(", 1)[1].split("void Bootstrap::stop()", 1)[0]
+    assert launch.count("movementOverlay_.install(") == 1
+    recovered = launch.index("recoverClientImage(")
+    adapted = launch.index("applyMemoryPatches(")
+    started = launch.index("debugClient_->start(")
+    installed_image = launch.index("installClientImage(")
+    installed = launch.index("movementOverlay_.install(")
+    assert recovered < adapted < started < installed_image < installed
+    debug = (root / "src/Runtime/launcher/DebugClient.cpp").read_text(encoding="utf-8")
+    assert debug.index("prepare(process_, primaryThread)") < debug.index("ResumeThread(primaryThread)")
+    assert "startup signature changed before patch" not in launch
 
 
 def make_runtime_flow():
@@ -39,3 +60,48 @@ def test_runtime_reports_update_local_snapshot_without_server_echo():
 def test_runtime_vision_carries_gravity_without_resource_overlay_files():
     body = wire.actorVision(1, runtimeMovement=True)
     assert struct.unpack_from(">h", body, 79)[0] == -10000
+
+
+def test_runtime_entry_initializes_idle_once_without_position_stop():
+    flow = make_runtime_flow()
+    flow.session.update(battleEntered=False, heroChosen=True, heroId=110001,
+                        instanceStartedAt=100, moveClock=controls.MOVE_CLOCK)
+    scene.battleEntry(flow)
+    sends = list(flow.result["send"])
+    assert [item["command"] for item in sends] == [0x36, 0xE, 0xE, 0x36, 4]
+    assert struct.unpack(">HHHHIH", sends[-1]["body"]) == (3, 1, 1, 2, 900, 0)
+    scene.battleEntry(flow)
+    assert flow.result["send"] == sends
+
+
+def test_runtime_object_refresh_preserves_position_and_gravity():
+    flow = make_runtime_flow()
+    flow.session.update(instanceStartedAt=0, moveClock=controls.MOVE_CLOCK)
+    position = (20., 30., -4.)
+    controls.message(flow, 2, 52, struct.pack(">Hi6Bfff", 52, 1, 1, 0, 0, 0, 0, 0, *position))
+    scene.message(flow, 0xE, 7, struct.pack(">HiQb", 7, 1, 1, 0))
+    vision = next(item["body"] for item in flow.result["send"] if item["command"] == 0xE)
+    assert struct.unpack_from(">fff", vision, 47) == position
+    assert struct.unpack_from(">h", vision, 79)[0] == -10000
+    assert [item["body"][:2] for item in flow.result["send"] if item["command"] == 2] == [b"\0\x1f"]
+
+
+def test_runtime_stale_timers_and_repeated_reports_never_echo():
+    flow = make_runtime_flow()
+    for position in ((1., 2., 3.), (7., 8., -2.)):
+        controls.message(flow, 2, 52, struct.pack(">Hi6Bfff", 52, 1, 1, 0, 0, 0, 0, 0, *position))
+        for timer in ("ground-step", "direction-prime-start", "direction-prime-stop"):
+            assert controls.timer(flow, timer)
+        assert controls.groundState(flow)["position"] == list(position)
+    controls.message(flow, 2, 3, struct.pack(">HiBhfff", 3, 1, 0, 90, -1., -2., -3.))
+    assert controls.groundState(flow)["position"] == [-1., -2., -3.]
+    assert flow.result["send"] == []
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_runtime_nonfinite_reports_do_not_change_snapshot(value):
+    flow = make_runtime_flow()
+    before = dict(flow.session)
+    with pytest.raises(ValueError):
+        controls.message(flow, 2, 52, struct.pack(">Hi6Bfff", 52, 1, 0, 0, 0, 0, 0, 0, 1., 2., value))
+    assert flow.session == before
