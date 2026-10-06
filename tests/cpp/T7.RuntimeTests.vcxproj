@@ -17,12 +17,14 @@
   <ItemGroup>
     <ClCompile Include="ServerLifecycleSmoke.cpp" />
     <ClCompile Include="JournalContractTests.cpp" />
+    <ClCompile Include="DiagnosticLogTests.cpp" />
     <ClCompile Include="SessionCleanupTests.cpp" />
     <ClCompile Include="SessionOperationTests.cpp" />
     <ClCompile Include="MovementOverlayTests.cpp" />
     <ClCompile Include="MovementHookExecutionTests.cpp" />
     <ClCompile Include="../../src/Runtime/bridge/Session.cpp" />
     <ClCompile Include="../../src/Runtime/core/Common.cpp" />
+    <ClCompile Include="../../src/Runtime/core/DiagnosticLog.cpp" />
     <ClCompile Include="../../src/Runtime/core/Protocol.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/Bootstrap.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/EndpointStorage.cpp" />

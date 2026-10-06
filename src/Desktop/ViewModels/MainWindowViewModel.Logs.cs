@@ -18,10 +18,10 @@ namespace T7.Rekindle.Desktop.ViewModels
         public bool HasSessionLog => _nativeLogs.Count > 0 || _failureMessage.Length != 0 || _snapshot.State == SessionState.Failed;
         public static string LogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "T7-Rekindle", "logs");
 
-        private void AppendLog(string level, string message)
+        private void AppendLog(string level, string message, Exception error = null)
         {
             var text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "  " + level + "  [Launcher] " + message;
-            _log.Info(text);
+            _log.WriteRecord(text, error);
             EnqueueLog(text);
             NativeLogText = string.Join(Environment.NewLine, _nativeLogs);
         }
@@ -56,7 +56,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 {
                     var text = record.Text;
                     EnqueueLog(text);
-                    _log.Info(text);
+                    _log.WriteRecord(text);
                 }
                 if (_nativeLogs.Count > 0) NativeLogText = string.Join(Environment.NewLine, _nativeLogs);
             }

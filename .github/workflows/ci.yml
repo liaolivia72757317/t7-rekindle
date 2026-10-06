@@ -193,7 +193,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh release create --repo "$env:GITHUB_REPOSITORY"
-          --verify-tag --generate-notes --title "$env:RELEASE_TAG"
+          --verify-tag --notes-from-tag --title "$env:RELEASE_TAG"
           -- "$env:RELEASE_TAG" "dist/T7-Rekindle-windows-x64-${env:RELEASE_TAG}.zip"
           "dist/T7-Rekindle-${env:RELEASE_TAG}-Setup.exe"
 

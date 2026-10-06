@@ -12,6 +12,7 @@ public:
     explicit Journal(const fs::path& root, size_t segmentLimit = 64 * 1024 * 1024,
                      unsigned maxSegments = 160);
     ~Journal();
+    void stop();
     void add(std::string direction, uint64_t connection, std::string version, std::string reason,
              Bytes bytes = {}, bool capture = true);
     std::vector<std::string> lines();

@@ -5,6 +5,24 @@
 #include <thread>
 
 namespace {
+bool verifyFinalRecords(const t7::fs::path& root) {
+    t7::Journal journal(root);
+    t7::fs::create_directory(root / "frames-1.bin");
+    journal.add("ERROR", 42, "synthetic", "fixture business failure");
+    const auto original = journal.lines().front();
+    journal.stop();
+    journal.stop();
+    const auto lines = journal.lines();
+    return lines.front() == original
+        && original.find("  ERROR  [Journal] #42 synthetic fixture business failure") == 19
+        && std::any_of(lines.begin(), lines.end(), [](const std::string& line) {
+            return line.find("  ERROR  [Journal] LOG FAILURE:") == 19;
+        })
+        && std::any_of(lines.begin(), lines.end(), [](const std::string& line) {
+            return line.find("  WARNING  [Journal] WIRE COVERAGE INCOMPLETE:") == 19;
+        });
+}
+
 bool verifyWriteFailure(const t7::fs::path& root) {
     t7::Journal journal(root);
     t7::fs::create_directory(root / "frames-1.bin");
@@ -66,5 +84,6 @@ bool verifyRetention(const t7::fs::path& data) {
 
 bool verifyJournalContracts(const t7::fs::path& fixtureRoot) {
     return verifyWriteFailure(fixtureRoot / "journal-failure")
+        && verifyFinalRecords(fixtureRoot / "journal-final-records")
         && verifyRetention(fixtureRoot / "history-retention");
 }

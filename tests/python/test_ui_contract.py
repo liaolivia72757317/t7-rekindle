@@ -403,6 +403,13 @@ def test_app_reacts_to_high_contrast_changes():
     assert "SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged" in text
 
 
+def test_native_startup_failure_is_logged_before_display():
+    text = (ROOT / "src/Desktop/App.xaml.cs").read_text(encoding="utf-8")
+    failure = text.split("catch (Exception error)", 1)[1].split("return;", 1)[0]
+    assert 'new LogService().Error("启动原生运行时失败", error);' in failure
+    assert failure.index(".Error(") < failure.index("MessageBox.Show(")
+
+
 def test_managed_build_enables_binding_redirect_output():
     root = ET.parse(ROOT / "Directory.Build.props").getroot()
     values = {element.tag: (element.text or "").strip() for element in root.iter()}

@@ -34,6 +34,7 @@
     <ClCompile Include="bridge\T7NativeBridge.cpp" />
     <ClCompile Include="bridge\Session.cpp" />
     <ClCompile Include="core\Common.cpp" />
+    <ClCompile Include="core\DiagnosticLog.cpp" />
     <ClCompile Include="core\Protocol.cpp" />
     <ClCompile Include="launcher\Bootstrap.cpp" />
     <ClCompile Include="launcher\EndpointStorage.cpp" />
@@ -57,6 +58,7 @@
     <ClInclude Include="bridge\T7NativeBridge.h" />
     <ClInclude Include="bridge\Session.h" />
     <ClInclude Include="core\Common.h" />
+    <ClInclude Include="core\DiagnosticLog.h" />
     <ClInclude Include="core\PlayerName.h" />
     <ClInclude Include="core\Protocol.h" />
     <ClInclude Include="launcher\Bootstrap.h" />

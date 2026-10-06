@@ -1,5 +1,6 @@
 #include "Session.h"
 #include "../core/Common.h"
+#include "../core/DiagnosticLog.h"
 #include "../core/PlayerName.h"
 #include <algorithm>
 #include <cstring>
@@ -12,7 +13,6 @@ constexpr size_t MAX_LOG_RECORDS = 512;
 constexpr size_t MAX_LOG_BYTES = 1024 * 1024;
 // The supported client also returns 0x1234 after its exit confirmation.
 constexpr DWORD CLIENT_NORMAL_EXIT_CODE = 0x1234;
-std::mutex logFileMutex;
 
 fs::path localDataRoot() {
     wchar_t buffer[32768]{};
@@ -467,7 +467,7 @@ void Session::executeStop(const Command& command) {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.ports[0] = snapshot_.ports[1] = snapshot_.ports[2] = 0;
     }
-    for (const auto& line : journalLines) log("journal " + line);
+    for (const auto& line : journalLines) logRecord(line);
 }
 
 void Session::setFailure(uint64_t operationId, uint32_t code, const std::string& message) {
@@ -537,39 +537,26 @@ std::string Session::cleanup() noexcept {
 }
 
 void Session::log(const std::string& text, const char* level) {
-    SYSTEMTIME time{};
-    GetLocalTime(&time);
-    char timestamp[20];
-    sprintf_s(timestamp, "%04u-%02u-%02u %02u:%02u:%02u", time.wYear, time.wMonth, time.wDay,
-              time.wHour, time.wMinute, time.wSecond);
-    auto record = std::string(timestamp) + "  " + level + "  [NativeBridge] " + text;
+    logRecord(formatDiagnosticRecord(text, level, "NativeBridge"));
+}
+
+void Session::logRecord(const std::string& record) {
+    std::string writeFailure;
     try {
-        std::lock_guard<std::mutex> fileLock(logFileMutex);
-        const auto directory = localDataRoot() / "logs";
-        fs::create_directories(directory);
-        std::ofstream output(directory / "native.log", std::ios::binary | std::ios::app);
-        output << record << '\n';
-        output.flush();
-        if (!output) throw std::runtime_error("native.log write failed");
+        appendNativeLog(localDataRoot() / "logs", record);
     } catch (const std::exception& error) {
-        record = std::string(timestamp) + "  WARNING  [NativeBridge] 日志文件写入失败：" + error.what() + "; " + level + " " + text;
+        writeFailure = formatDiagnosticRecord(std::string("日志文件写入失败：") + error.what(), "WARNING", "NativeBridge");
     }
     std::lock_guard<std::mutex> lock(mutex_);
-    std::string normalized;
-    normalized.reserve((std::min)(record.size(), size_t(8192)));
-    for (char value : record) {
-        if (normalized.size() >= 8192) break;
-        normalized.push_back(value == '\r' || value == '\n' ? ' ' : value);
-    }
-    const auto cursor = nextLog_++;
-    logs_.push_back({cursor, std::move(normalized)});
+    logs_.push_back({nextLog_++, boundedDiagnosticRecord(record)});
+    if (!writeFailure.empty()) logs_.push_back({nextLog_++, boundedDiagnosticRecord(writeFailure)});
     while (logs_.size() > MAX_LOG_RECORDS) { logs_.pop_front(); earliestLog_ = logs_.front().cursor; }
     size_t bytes = 0; for (const auto& item : logs_) bytes += item.text.size() + 24;
     while (bytes > MAX_LOG_BYTES && !logs_.empty()) {
         logs_.pop_front(); earliestLog_ = logs_.empty() ? nextLog_ : logs_.front().cursor;
         bytes = 0; for (const auto& item : logs_) bytes += item.text.size() + 24;
     }
-    snapshot_.logCursor = cursor;
+    snapshot_.logCursor = nextLog_ - 1;
 }
 
 bool Session::cancelled(uint64_t operationId) const {

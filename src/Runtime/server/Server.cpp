@@ -1,6 +1,7 @@
 #include "Server.h"
 #include "SendQueue.h"
 #include "../core/Protocol.h"
+#include "../core/DiagnosticLog.h"
 #include <algorithm>
 
 namespace t7 {
@@ -91,6 +92,7 @@ void Server::stop() {
         signals_.reset();
     }
     if (journal) {
+        journal->stop();
         auto lines = journal->lines();
         journal.reset();
         std::lock_guard<std::mutex> lock(mutex_);
@@ -101,7 +103,7 @@ void Server::stop() {
         catch (const std::exception& error) {
             std::lock_guard<std::mutex> lock(mutex_);
             snapshot_.error = std::string("history retention failed: ") + error.what();
-            lastLines_.push_back(snapshot_.error);
+            lastLines_.push_back(formatDiagnosticRecord(snapshot_.error, "ERROR", "Journal"));
             if (lastLines_.size() > 1000) lastLines_.erase(lastLines_.begin());
         }
         runDirectory_.reset();

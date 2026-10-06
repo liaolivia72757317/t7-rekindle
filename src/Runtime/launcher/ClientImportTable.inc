@@ -225,7 +225,7 @@
         "D3DXSaveSurfaceToFileInMemory", "D3DXGetImageInfoFromFileInMemory", "D3DXCreateTextureFromFileInMemoryEx",
         "D3DXCreateCubeTextureFromFileInMemoryEx", "D3DXCompileShader", "D3DXAssembleShader", "D3DXPreprocessShader",
         "D3DXLoadSurfaceFromSurface", "D3DXVec3Normalize", "D3DXCreateVolumeTextureFromFileInMemoryEx", "D3DXCreateEffectCompiler",
-        "D3DXComputeBoundingBox", "D3DXMatrixScaling", "D3DXSaveTextureToFileA", "D3DXSaveTextureToFileInMemory",
+        "D3DXComputeBoundingBox", "D3DXMatrixScaling", "D3DXSaveTextureToFileA", "D3DXVec3Transform",
         "D3DXPlaneFromPointNormal", "D3DXPlaneIntersectLine", "D3DXMatrixOrthoLH", "D3DXMatrixLookAtLH", "D3DXVec3TransformNormal",
         "D3DXVec3TransformCoord",
     }},

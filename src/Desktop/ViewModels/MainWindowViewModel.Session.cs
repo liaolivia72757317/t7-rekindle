@@ -120,9 +120,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             }
             catch (Exception error)
             {
-                _log.Error(name + "失败", error);
                 if (kind != OperationKind.Check || version == _validationVersion) _failureMessage = error.Message;
-                AppendLog("ERROR", name + "失败：" + error.Message);
+                AppendLog("ERROR", name + "失败：" + error.Message, error);
             }
             finally
             {

@@ -35,6 +35,7 @@
 ## 3. 发布与补传
 
 - 正式 tag 使用 `v主版本.次版本.修订号`，也支持第四段数字和 `+构建标识`；每段数字为 0—65534。CI 将相同的数字版本写入程序集和安装器，构建标识不参与版本排序。预发布 tag 不属于该 CI 的正式发布格式。
+- 发布 tag 使用 annotated tag（可签名），注释保存基于实际变更梳理并确认的中文 Markdown 更新日志；可通过 [create-tag 技能](../.agents/skills/create-tag/SKILL.md) 完成。CI 使用 `--notes-from-tag` 将注释作为 Release 正文，再同步到 R2 清单的 `summary`，不使用 GitHub 自动生成说明。轻量 tag 会回退使用提交信息，不用于此日志流程。
 - 推送正式 tag 后，CI 发布 GitHub Release，随后调用 [R2 镜像工作流](../.github/workflows/r2-mirror.yml)。它通过 GitHub CLI 下载已发布产物，再使用 [AWS CLI / S3 API](https://developers.cloudflare.com/r2/examples/aws/aws-cli/) 上传。
 - 镜像失败时，GitHub Release 保留。修复配置后，在 Actions 重跑失败任务，或手动运行 **Mirror release to R2**，填写已发布的 tag；无需重建或重新创建 Release。草稿、预发布 Release 不更新稳定通道。
 - 不同 tag 的镜像任务按桶串行运行；旧版本补传不会回退最新清单。同一版本的产物保持不可变，内容不同需使用新 tag，不覆盖已有对象。

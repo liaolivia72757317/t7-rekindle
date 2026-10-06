@@ -44,6 +44,7 @@ namespace T7.Rekindle.Desktop
             }
             catch (Exception error)
             {
+                new LogService().Error("启动原生运行时失败", error);
                 MessageBox.Show(error.Message, "T7-Rekindle", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
                 return;

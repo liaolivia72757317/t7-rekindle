@@ -68,6 +68,10 @@ MovementOverlay 只在挂起状态安装或撤销三个入口：资源路径别�
 
 用户数据根目录为 `%LOCALAPPDATA%/T7-Rekindle`。托管日志位于 `logs/desktop.log`，原生诊断位于 `logs/native.log`；会话 Journal 与业务 revision 记录位于 `data/`。
 
+`desktop.log` 与 `native.log` 均按本地日期轮转，最多保留 7 个归档；原生日志在跨日后的首次写入时归档为 `native.YYYY-MM-DD.N.log`，日期取文件最后写入日，序号用于避免重名，归档成功后按最后写入时间清理最旧记录。Journal 转入诊断日志时保留记录生成时的时间、级别与来源，磁盘 JSONL 格式不变。
+
+单条原生内存日志上限为 8192 字节，按 UTF-8 字符边界截断并附加 `[truncated]`；磁盘原始记录不受此单条上限影响。
+
 内存日志通过单调 cursor 暴露有界记录。轮转导致 cursor 早于最早记录时，返回 `gap` 和新的 earliest cursor；小 buffer 返回所需容量并保持 cursor 不变。UI 轮询在后台进行，WPF 线程只更新绑定状态。
 
 磁盘 Journal 按 64 MiB 分段，每次运行最多保留 160 段。已结束运行最多保留 16 次，Journal 与 revisions 合计最多 10 GiB；每次 Start/Stop 按时间从旧到新裁剪，活动运行通过文件锁排除，删除失败记录诊断。内存日志与磁盘记录分开，不保证无限期保留。

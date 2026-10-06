@@ -1,3 +1,3 @@
 interface:
   display_name: "创建 Git Tag"
-  short_description: "根据提交变化推荐版本号，确认后创建 Git Tag 并校验本地与远端状态"
+  short_description: "根据实际变更推荐版本并梳理中文更新日志，确认后创建 Git Tag，按明确请求推送"

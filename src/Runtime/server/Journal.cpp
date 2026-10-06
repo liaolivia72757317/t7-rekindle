@@ -1,4 +1,5 @@
 #include "Journal.h"
+#include "../core/DiagnosticLog.h"
 #include <sstream>
 #include <chrono>
 
@@ -12,7 +13,8 @@ Journal::Journal(const fs::path& root, size_t segmentLimit, unsigned maxSegments
                                        : "journal directory already exists");
     thread_ = std::thread(&Journal::run, this);
 }
-Journal::~Journal() {
+Journal::~Journal() { stop(); }
+void Journal::stop() {
     { std::lock_guard<std::mutex> lock(mutex_); stopping_ = true; }
     changed_.notify_all(); if (thread_.joinable()) thread_.join();
 }
@@ -28,13 +30,16 @@ void Journal::add(std::string direction, uint64_t connection, std::string versio
     auto timestamp = utcNow();
     auto monotonicUs = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
-    lines_.push_back(timestamp + " " + direction + " #" + std::to_string(connection) + " " + version.substr(0, 12) + " " + reason);
+    const bool isError = direction == "ERROR" || direction == "LOG-ERROR";
+    const auto message = (isError ? "" : direction + " ") + "#" + std::to_string(connection)
+        + " " + version.substr(0, 12) + " " + reason;
+    lines_.push_back(formatDiagnosticRecord(message, isError ? "ERROR" : "INFO", "Journal"));
     while (lines_.size() > 1000) lines_.pop_front();
     size_t size = bytes.size() + reason.size() + 256;
     if (failed_ || queuedBytes_ + size > 8 * 1024 * 1024) {
         ++dropped_;
         if (dropped_ == 1) {
-            lines_.push_back("WIRE COVERAGE INCOMPLETE: log queue/write failure");
+            lines_.push_back(formatDiagnosticRecord("WIRE COVERAGE INCOMPLETE: log queue/write failure", "WARNING", "Journal"));
             while (lines_.size() > 1000) lines_.pop_front();
         }
         return;
@@ -92,8 +97,8 @@ void Journal::run() {
             failed_ = true;
             dropped_ += pending_.size() + 1;
             pending_.clear(); queuedBytes_ = 0;
-            lines_.push_back(std::string("LOG FAILURE: ") + e.what());
-            lines_.push_back("WIRE COVERAGE INCOMPLETE: pending records discarded after write failure");
+            lines_.push_back(formatDiagnosticRecord(std::string("LOG FAILURE: ") + e.what(), "ERROR", "Journal"));
+            lines_.push_back(formatDiagnosticRecord("WIRE COVERAGE INCOMPLETE: pending records discarded after write failure", "WARNING", "Journal"));
             while (lines_.size() > 1000) lines_.pop_front();
             return;
         }

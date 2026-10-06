@@ -85,6 +85,7 @@ private:
     void setFailure(uint64_t operationId, uint32_t code, const std::string& message);
     std::string cleanup() noexcept;
     void log(const std::string& text, const char* level = "INFO");
+    void logRecord(const std::string& record);
     bool cancelled(uint64_t operationId) const;
     void setState(uint32_t state, uint32_t operation, uint64_t operationId, const std::string& phase);
 

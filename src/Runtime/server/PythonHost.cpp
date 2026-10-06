@@ -9,10 +9,27 @@ using Object = std::unique_ptr<PyObject, Release>;
 std::string error() {
     Object exception(PyErr_GetRaisedException());
     if (!exception) return "Python operation failed";
+    std::string summary = Py_TYPE(exception.get())->tp_name;
     Object text(PyObject_Str(exception.get()));
-    if (!text) { PyErr_Clear(); return "Python exception formatting failed"; }
-    const char* chars = PyUnicode_AsUTF8(text.get());
-    return chars ? chars : "Python exception";
+    if (text) {
+        const char* chars = PyUnicode_AsUTF8(text.get());
+        if (chars) summary += std::string(": ") + chars;
+    }
+    PyErr_Clear();
+    Object traceback(PyImport_ImportModule("traceback"));
+    if (traceback) {
+        Object lines(PyObject_CallMethod(traceback.get(), "format_exception", "O", exception.get()));
+        Object separator(PyUnicode_FromString(""));
+        if (lines && separator) {
+            Object formatted(PyUnicode_Join(separator.get(), lines.get()));
+            if (formatted) {
+                const char* chars = PyUnicode_AsUTF8(formatted.get());
+                if (chars) return summary + "\n" + chars;
+            }
+        }
+    }
+    PyErr_Clear();
+    return summary;
 }
 std::mutex ownerMutex;
 bool ownerActive = false;

@@ -11,6 +11,7 @@
 #include <utility>
 
 bool verifyJournalContracts(const t7::fs::path& fixtureRoot);
+bool verifyDiagnosticLogs(const t7::fs::path& fixtureRoot);
 bool verifyFailureCleanup(const t7::fs::path& packageRoot, bool cancel);
 bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, bool normalExit);
 bool verifyOperationPublication(const t7::fs::path& packageRoot, uint32_t expectedStatus);
@@ -406,6 +407,7 @@ int wmain(int argc, wchar_t** argv) {
         // the fake client adapter confined to this native test host.
         if (!verifySessionAssembly(t7::fs::path(argv[1]))) result = 23;
         if (!verifyJournalContracts(t7::fs::path(argv[1]))) result = 25;
+        if (!verifyDiagnosticLogs(t7::fs::path(argv[1]))) result = 37;
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 0, true)) result = 28;
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 7, false)) result = 29;
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 4660, true)) result = 30;

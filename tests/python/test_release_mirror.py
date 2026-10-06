@@ -206,6 +206,25 @@ def test_r2_workflow_is_reusable_manual_and_follows_release():
     assert "python scripts/release_metadata.py prepare-build" in ci
 
 
+def test_release_uses_tag_notes_instead_of_generated_notes():
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    release = workflow.split("\n  release:\n", 1)[1].split("\n  mirror:\n", 1)[0]
+    assert "gh release create" in release and "--verify-tag" in release
+    assert "--notes-from-tag" in release
+    assert "--generate-notes" not in release
+
+
+def test_mirror_preserves_markdown_release_notes(tmp_path):
+    mirror = load_module("mirror_release")
+    release, assets = release_fixture(tmp_path)
+    notes = "## 新增功能\n- 支持保存启动配置。\n\n## 问题修复\n- 修复配置读取失败时的提示。\n"
+    release = {**release, "body": notes}
+    store = MemoryStore()
+    assert mirror.publish_release(release, assets, store, "https://downloads.example.com",
+                                  tmp_path, lambda url, asset: None)
+    assert json.loads(store.objects["updates/stable.json"][0])["summary"] == notes
+
+
 def test_branch_build_can_omit_the_mirror(tmp_path):
     metadata = load_module("release_metadata")
     environment = tmp_path / "github-env"

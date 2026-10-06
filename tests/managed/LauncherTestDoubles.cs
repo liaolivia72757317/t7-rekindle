@@ -20,6 +20,7 @@ namespace T7.ManagedHarness
         public int CheckCount { get; private set; }
         public TaskCompletionSource<OperationSnapshot> PendingCheck { get; set; }
         public TaskCompletionSource<OperationSnapshot> PendingStart { get; set; }
+        public IReadOnlyList<string> LogLines { get; set; } = Array.Empty<string>();
         public Task<OperationSnapshot> CheckAsync(string directory, CancellationToken token)
         {
             CheckCount++;
@@ -71,7 +72,16 @@ namespace T7.ManagedHarness
             return Task.FromResult(new OperationSnapshot { Status = OperationStatus.Succeeded });
         }
         public SessionSnapshot GetSnapshot() => Snapshot;
-        public LogReadResult ReadLogRecords(ref ulong cursor) => new LogReadResult { Records = new List<LogRecord>() };
+        public LogReadResult ReadLogRecords(ref ulong cursor)
+        {
+            var records = new List<LogRecord>();
+            while (cursor < (ulong)LogLines.Count)
+            {
+                var text = LogLines[(int)cursor];
+                records.Add(new LogRecord { Cursor = ++cursor, Text = text });
+            }
+            return new LogReadResult { NextCursor = cursor, Records = records };
+        }
     }
 
     internal sealed class FakeDesktopInteraction : IDesktopInteraction
