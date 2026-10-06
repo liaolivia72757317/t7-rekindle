@@ -83,13 +83,13 @@ namespace T7.Rekindle.Desktop.Services
             await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
             progress?.Report(new UpdateDownloadProgress(0, asset.Size, source, notice));
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation))
-            using (var response = await GetResponseAsync(address, timeout, cancellation).ConfigureAwait(false))
+            using (var response = await GetResponseAsync(address, timeout, cancellation, control).ConfigureAwait(false))
             using (timeout.Token.Register(response.Dispose))
             {
                 var length = response.Content.Headers.ContentLength;
                 if (length.HasValue && length.Value != asset.Size)
                     throw new InvalidDataException("安装包大小与更新清单不一致，请重新检查更新。");
-                using (var input = await ReadNetworkAsync(() => response.Content.ReadAsStreamAsync(), timeout, cancellation)
+                using (var input = await ReadNetworkAsync(() => response.Content.ReadAsStreamAsync(), timeout, cancellation, control)
                     .ConfigureAwait(false))
                 using (var output = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, true))
                 using (var hash = SHA256.Create())
@@ -101,7 +101,7 @@ namespace T7.Rekindle.Desktop.Services
                     {
                         await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
                         var read = await ReadNetworkAsync(() => input.ReadAsync(buffer, 0, buffer.Length, timeout.Token),
-                            timeout, cancellation).ConfigureAwait(false);
+                            timeout, cancellation, control).ConfigureAwait(false);
                         await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
                         cancellation.ThrowIfCancellationRequested();
                         if (timeout.IsCancellationRequested)
@@ -128,7 +128,7 @@ namespace T7.Rekindle.Desktop.Services
         }
 
         private async Task<HttpResponseMessage> GetResponseAsync(string address, CancellationTokenSource timeout,
-            CancellationToken cancellation)
+            CancellationToken cancellation, UpdateDownloadControl control)
         {
             var current = ReleaseMetadata.HttpsAddress(address);
             for (var redirects = 0; redirects <= 5; redirects++)
@@ -138,7 +138,7 @@ namespace T7.Rekindle.Desktop.Services
                     request.Headers.UserAgent.ParseAdd("T7-Rekindle-Updater/1.0");
                     request.Headers.AcceptEncoding.ParseAdd("identity");
                     var response = await ReadNetworkAsync(() => _client.SendAsync(request,
-                        HttpCompletionOption.ResponseHeadersRead, timeout.Token), timeout, cancellation).ConfigureAwait(false);
+                        HttpCompletionOption.ResponseHeadersRead, timeout.Token), timeout, cancellation, control).ConfigureAwait(false);
                     var status = (int)response.StatusCode;
                     if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308)
                     {
@@ -162,18 +162,19 @@ namespace T7.Rekindle.Desktop.Services
         }
 
         private async Task<T> ReadNetworkAsync<T>(Func<Task<T>> operation, CancellationTokenSource timeout,
-            CancellationToken cancellation)
+            CancellationToken cancellation, UpdateDownloadControl control)
         {
-            cancellation.ThrowIfCancellationRequested();
-            timeout.CancelAfter(_networkTimeout);
-            try { return await operation().ConfigureAwait(false); }
-            catch (Exception error) when (error is HttpRequestException || error is IOException
-                || error is OperationCanceledException || error is ObjectDisposedException)
+            await control.WaitWhilePausedAsync(cancellation).ConfigureAwait(false);
+            using (control.StartNetworkTimeout(timeout, _networkTimeout))
             {
-                if (cancellation.IsCancellationRequested) throw new OperationCanceledException(cancellation);
-                throw new UpdateNetworkException(timeout.IsCancellationRequested ? "下载连接或数据读取超时。" : "下载连接中断。", error);
+                try { return await operation().ConfigureAwait(false); }
+                catch (Exception error) when (error is HttpRequestException || error is IOException
+                    || error is OperationCanceledException || error is ObjectDisposedException)
+                {
+                    if (cancellation.IsCancellationRequested) throw new OperationCanceledException(cancellation);
+                    throw new UpdateNetworkException(timeout.IsCancellationRequested ? "下载连接或数据读取超时。" : "下载连接中断。", error);
+                }
             }
-            finally { timeout.CancelAfter(Timeout.InfiniteTimeSpan); }
         }
 
         private sealed class UpdateNetworkException : IOException

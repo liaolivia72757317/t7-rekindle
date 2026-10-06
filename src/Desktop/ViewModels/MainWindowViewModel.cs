@@ -92,6 +92,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             About.UpdateFinished += OnUpdateFinished;
             ShowRecentNoticesCommand = new RelayCommand(ShowRecentNotices);
             ShowDiagnosticsCommand = new RelayCommand(ShowDiagnostics);
+            ShowAnnouncementCommand = new RelayCommand(ShowAnnouncement);
             CopyDirectoryCommand = new RelayCommand(CopyDirectory);
             var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
             _poller = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background,

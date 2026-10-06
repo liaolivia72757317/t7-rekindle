@@ -47,6 +47,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             ShowEnvironmentInfoCommand = new RelayCommand(() => Run(_interaction.ShowEnvironmentInfo));
             ShowRepositoryCommand = new RelayCommand(() => OpenAddress(RepositoryAddress));
             ShowDownloadCommand = new RelayCommand(() => OpenAddress(LauncherInformation.DownloadAddress));
+            ShowClientDownloadCommand = new RelayCommand(() => OpenAddress(ClientDownloadAddress));
             ShowBuildsCommand = new RelayCommand(() => OpenAddress(LauncherInformation.BuildsAddress));
             ShowIssuesCommand = new RelayCommand(() => OpenAddress(LauncherInformation.IssuesAddress));
             CopyRepositoryCommand = new RelayCommand(() => Copy(RepositoryAddress, "仓库地址已复制。"));
@@ -89,6 +90,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public string RepositoryAddressDisplay => string.IsNullOrWhiteSpace(RepositoryAddress) ? "项目仓库地址待配置" : RepositoryAddress;
         public bool HasRepositoryAddress => !string.IsNullOrWhiteSpace(RepositoryAddress);
         public string DownloadAddress => LauncherInformation.DownloadAddress;
+        public string ClientDownloadAddress => LauncherInformation.ClientDownloadAddress;
         public string BuildsAddress => LauncherInformation.BuildsAddress;
         public string IssuesAddress => LauncherInformation.IssuesAddress;
         public string Feedback
@@ -125,6 +127,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public RelayCommand ShowEnvironmentInfoCommand { get; }
         public RelayCommand ShowRepositoryCommand { get; }
         public RelayCommand ShowDownloadCommand { get; }
+        public RelayCommand ShowClientDownloadCommand { get; }
         public RelayCommand ShowBuildsCommand { get; }
         public RelayCommand ShowIssuesCommand { get; }
         public RelayCommand CopyRepositoryCommand { get; }

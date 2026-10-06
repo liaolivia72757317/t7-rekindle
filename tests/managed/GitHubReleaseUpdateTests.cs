@@ -19,7 +19,7 @@ namespace T7.ManagedHarness
             Assert(LauncherInformation.ProjectName == "铁骑·重燃（T7-Rekindle）", "project name metadata is missing");
             Assert(LauncherInformation.ProjectDescription ==
                 "铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。"
-                + "我们希望先完成本地人机对战，再逐步支持局域网联机。\n"
+                + "我们希望先完成本地人机对战，再逐步支持局域网联机。\n\n"
                 + "项目不以营利为目的，欢迎开发者和玩家一起参与。", "project description metadata or paragraph break is incorrect");
             foreach (var address in new[] { LauncherInformation.RepositoryAddress,
                 LauncherInformation.DownloadAddress, LauncherInformation.BuildsAddress, LauncherInformation.IssuesAddress })

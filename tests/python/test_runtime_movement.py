@@ -6,6 +6,7 @@ import math
 import pytest
 
 from Business.scripts import app, controls, contracts as wire, scene
+from Business.scripts.codec import move_flow
 
 
 def test_overlay_follows_independent_image_recovery_before_first_resume():
@@ -24,11 +25,12 @@ def test_overlay_follows_independent_image_recovery_before_first_resume():
     assert "startup signature changed before patch" not in launch
 
 
-def make_runtime_flow():
+def make_runtime_flow(*, playing=True):
     state = app.createState({"runtimeMovement": True})
     state["sessions"]["1"] = {
         "role": "instance", "hydration": [], "pending": {}, "camp": 1,
         "battleEntered": True, "controlBaseline": wire.BASELINE_ID,
+        "groundEnabled": playing, "instanceStartedAt": 0, "moveClock": controls.MOVE_CLOCK,
     }
     return app.Flow({"connection": 1}, state, {"nowMs": 1000, "runtimeMovement": True})
 
@@ -62,13 +64,15 @@ def test_runtime_vision_carries_gravity_without_resource_overlay_files():
     assert struct.unpack_from(">h", body, 79)[0] == -10000
 
 
-def test_runtime_entry_initializes_idle_once_without_position_stop():
-    flow = make_runtime_flow()
+@pytest.mark.parametrize("playing,actor_state", [(False, 8), (True, 6)])
+def test_runtime_entry_initializes_idle_once_without_position_stop(playing, actor_state):
+    flow = make_runtime_flow(playing=playing)
     flow.session.update(battleEntered=False, heroChosen=True, heroId=110001,
                         instanceStartedAt=100, moveClock=controls.MOVE_CLOCK)
     scene.battleEntry(flow)
     sends = list(flow.result["send"])
-    assert [item["command"] for item in sends] == [0x36, 0xE, 0xE, 0x36, 4]
+    assert [item["command"] for item in sends] == [0x36, 0xE, 0xE, 4]
+    assert sends[0]["body"] == wire.actorState(flow.now, actor_state)
     assert struct.unpack(">HHHHIH", sends[-1]["body"]) == (3, 1, 1, 2, 900, 0)
     scene.battleEntry(flow)
     assert flow.result["send"] == sends
@@ -105,3 +109,63 @@ def test_runtime_nonfinite_reports_do_not_change_snapshot(value):
     with pytest.raises(ValueError):
         controls.message(flow, 2, 52, struct.pack(">Hi6Bfff", 52, 1, 0, 0, 0, 0, 0, 0, 1., 2., value))
     assert flow.session == before
+
+
+@pytest.mark.parametrize("keys", [
+    (1, 0, 0, 0, 0, 0), (0, 1, 0, 0, 0, 0),
+    (0, 0, 1, 0, 0, 0), (0, 0, 0, 1, 0, 0),
+    (0, 0, 0, 0, 1, 0), (0, 0, 0, 0, 0, 1),
+    (1, 1, 1, 1, 1, 1), (0, 0, 0, 0, 0, 0),
+])
+def test_runtime_preparation_ignores_movement_jump_and_crouch_reports(keys):
+    flow = make_runtime_flow(playing=False)
+    before = dict(flow.session)
+    assert controls.message(flow, 2, 52, struct.pack(">Hi6Bfff", 52, 1, *keys, 10., 20., 30.))
+    assert flow.session == before
+    assert flow.result["send"] == []
+
+
+def test_runtime_preparation_heading_does_not_accept_position_or_echo_camera_commands():
+    flow = make_runtime_flow(playing=False)
+    before = dict(flow.session)
+    assert controls.message(flow, 2, 3, struct.pack(">HiBhfff", 3, 1, 0, 90, 10., 20., 30.))
+    assert flow.session == before
+    assert flow.result["send"] == []
+
+
+@pytest.mark.parametrize("playing", [False, True])
+def test_runtime_object_refresh_obeys_movement_phase(playing):
+    flow = make_runtime_flow(playing=playing)
+    scene.message(flow, 0xE, 7, struct.pack(">HiQb", 7, 1, 1, 0))
+    active = move_flow.decode_move_notify_active(flow.result["send"][-1]["body"])
+    assert active.active == int(playing)
+    vision = flow.result["send"][0]["body"]
+    assert struct.unpack_from(">fff", vision, 47) == pytest.approx(wire.POSITION)
+
+
+def test_runtime_controls_unlock_only_after_start_countdown_and_without_respawn():
+    flow = make_runtime_flow(playing=False)
+    flow.session.update(heroChosen=True, heroId=wire.HERO_ID)
+    scene.timer(flow, "round-start")
+    deadline = flow.session["pending"]["round-game"]
+    assert not controls.groundEnabled(flow)
+    flow.result["send"].clear()
+    flow.now = deadline - 1
+    app.handleTimer(flow, "round-game")
+    assert not controls.groundEnabled(flow)
+    assert flow.result["send"] == []
+    flow.now = deadline
+    app.handleTimer(flow, "round-game")
+    assert controls.groundEnabled(flow)
+    assert [item["command"] for item in flow.result["send"]] == [0xA, 0x36, 2]
+    assert flow.result["send"][1]["body"] == wire.actorState(deadline, 6)
+    assert move_flow.decode_move_notify_active(flow.result["send"][2]["body"]).active == 1
+    sends = list(flow.result["send"])
+    app.handleTimer(flow, "round-game")
+    controls.enableGround(flow)
+    assert flow.result["send"] == sends
+    controls.message(flow, 2, 52, struct.pack(">Hi6Bfff", 52, 1, 1, 0, 0, 0, 1, 1, 10., 20., 30.))
+    ground = controls.groundState(flow)
+    assert ground["position"] == [10., 20., 30.]
+    assert ground["crouched"] is True and ground["jumpPressed"] is True
+    assert flow.result["send"] == sends

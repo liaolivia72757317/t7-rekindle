@@ -10,7 +10,7 @@
     <AssemblyVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</AssemblyVersion>
     <FileVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</FileVersion>
     <Product>铁骑·重燃（T7-Rekindle）</Product>
-    <Description>铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。我们希望先完成本地人机对战，再逐步支持局域网联机。&#xA;项目不以营利为目的，欢迎开发者和玩家一起参与。</Description>
+    <Description>铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。我们希望先完成本地人机对战，再逐步支持局域网联机。&#xA;&#xA;项目不以营利为目的，欢迎开发者和玩家一起参与。</Description>
     <RepositoryUrl>https://github.com/liaolivia72757317/t7-rekindle</RepositoryUrl>
     <SourceRevisionId Condition="'$(GITHUB_SHA)' != ''">$(GITHUB_SHA)</SourceRevisionId>
     <RootNamespace>T7.Rekindle.Desktop</RootNamespace>
@@ -38,6 +38,7 @@
     <EmbeddedResource Include="$(RepositoryRoot)LICENSE" LogicalName="T7.Rekindle.Documents.LICENSE" />
     <EmbeddedResource Include="$(RepositoryRoot)THIRD-PARTY.txt" LogicalName="T7.Rekindle.Documents.THIRD-PARTY.txt" />
     <EmbeddedResource Include="Resources\CHANGELOG.md" LogicalName="T7.Rekindle.Documents.CHANGELOG.md" />
+    <EmbeddedResource Include="Resources\ANNOUNCEMENT.md" LogicalName="T7.Rekindle.Documents.ANNOUNCEMENT.md" />
     <EmbeddedResource Include="Resources\THANKS.md" LogicalName="T7.Rekindle.Documents.THANKS.md" />
     <EmbeddedResource Include="Resources\THIRD-PARTY-NOTICES.txt" LogicalName="T7.Rekindle.Documents.THIRD-PARTY-NOTICES.txt" />
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">

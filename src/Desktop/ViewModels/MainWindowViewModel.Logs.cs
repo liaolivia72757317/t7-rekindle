@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +20,7 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private void AppendLog(string level, string message)
         {
-            var text = DateTime.Now.ToString("HH:mm:ss") + "  " + level + "  [Launcher] " + message;
+            var text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "  " + level + "  [Launcher] " + message;
             _log.Info(text);
             EnqueueLog(text);
             NativeLogText = string.Join(Environment.NewLine, _nativeLogs);

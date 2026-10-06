@@ -44,6 +44,7 @@ namespace T7.Rekindle.Desktop.Services
         public static string ShortHash => CommitHash.Length >= 7 ? CommitHash.Substring(0, Math.Min(10, CommitHash.Length)) : "提交未记录";
         public static string RepositoryAddress => ReadMetadata("RepositoryUrl");
         public static string DownloadAddress => ReadMetadata("DownloadUrl");
+        public static string ClientDownloadAddress => "https://www.bilibili.com/opus/768784882628296761";
         public static string BuildsAddress => ReadMetadata("BuildsUrl");
         public static string ContactAddress => ReadMetadata("ContactUrl");
         public static string IssuesAddress => ReadMetadata("IssuesUrl");

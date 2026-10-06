@@ -23,10 +23,13 @@ namespace T7.ManagedHarness
             Assert(((List)blocks[2]).ListItems.Count == 8 && !Text(changelog).Contains("`")
                 && Text(changelog).Contains("GitHub Releases"),
                 "changelog bullets or inline code still contain Markdown syntax");
-            var thanks = MarkdownDocument.Render(LauncherInformation.ReadDocument("THANKS.md"));
-            Assert(thanks.Blocks.Count == 4 && Text(thanks.Blocks.FirstBlock).Trim() == "特别感谢"
-                && Text(thanks).Contains("社区支持的贡献者") && Text(thanks).Contains("公开署名由本人确认"),
-                "thanks document lost its heading, contributors, or attribution guidance");
+            var thanksDialog = new TextDialog("特别感谢", LauncherInformation.ReadDocument("THANKS.md"), true);
+            var thanks = ((FlowDocumentScrollViewer)thanksDialog.FindName("MarkdownViewer")).Document;
+            Assert(thanksDialog.Title == "特别感谢" && thanks.Blocks.Count == 3 && !Text(thanks).Contains("特别感谢"),
+                "thanks dialog repeats its title in the document body");
+            Assert(Text(thanks).Contains("社区支持的贡献者") && Text(thanks).Contains("组件许可")
+                && Text(thanks).Contains("公开署名由本人确认"),
+                "thanks document lost contributors, component notices, or attribution guidance");
 
             var formatting = MarkdownDocument.Render("# Heading\r\n\r\n**strong** and *emphasis* and `**literal**` and \\*plain\\*\r\ncontinued\r\n\r\n3. Third\r\n4. Fourth\r\n\r\n## Next\r\n\r\n+ Item");
             blocks = formatting.Blocks.ToArray();

@@ -537,7 +537,12 @@ std::string Session::cleanup() noexcept {
 }
 
 void Session::log(const std::string& text, const char* level) {
-    auto record = utcNow() + "  " + level + "  [NativeBridge] " + text;
+    SYSTEMTIME time{};
+    GetLocalTime(&time);
+    char timestamp[20];
+    sprintf_s(timestamp, "%04u-%02u-%02u %02u:%02u:%02u", time.wYear, time.wMonth, time.wDay,
+              time.wHour, time.wMinute, time.wSecond);
+    auto record = std::string(timestamp) + "  " + level + "  [NativeBridge] " + text;
     try {
         std::lock_guard<std::mutex> fileLock(logFileMutex);
         const auto directory = localDataRoot() / "logs";
@@ -547,7 +552,7 @@ void Session::log(const std::string& text, const char* level) {
         output.flush();
         if (!output) throw std::runtime_error("native.log write failed");
     } catch (const std::exception& error) {
-        record = std::string("WARNING [NativeBridge] 日志文件写入失败：") + error.what() + "; " + record;
+        record = std::string(timestamp) + "  WARNING  [NativeBridge] 日志文件写入失败：" + error.what() + "; " + level + " " + text;
     }
     std::lock_guard<std::mutex> lock(mutex_);
     std::string normalized;

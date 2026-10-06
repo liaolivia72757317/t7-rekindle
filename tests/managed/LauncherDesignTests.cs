@@ -193,6 +193,8 @@ namespace T7.ManagedHarness
         {
             LauncherTests.Assert(window.ResizeMode == ResizeMode.CanMinimize, "window is resizable or maximizable");
             VerifyBrandLayout(window, root);
+            VerifyHeroArtwork((LaunchPage)window.FindName("HomePage"));
+            VerifyHomeSpacing((LaunchPage)window.FindName("HomePage"));
             var sidebar = (Grid)window.FindName("Sidebar");
             var version = (Button)window.FindName("VersionCapsule");
             var point = version.TranslatePoint(new Point(), sidebar);
@@ -208,7 +210,54 @@ namespace T7.ManagedHarness
                     "sidebar item background must retain 16 DIP insets on both sides: " + item.Content);
             }
             var image = (Image)window.FindName("SceneArtwork");
-            LauncherTests.Assert(image.Source != null && image.Stretch == Stretch.UniformToFill, "full window artwork is missing");
+            var source = image.Source as BitmapSource;
+            LauncherTests.Assert(source != null && source.PixelWidth == 1476 && source.PixelHeight == 1066
+                && image.Stretch == Stretch.UniformToFill, "full window artwork is missing or distorted");
+        }
+
+        private static void VerifyHomeSpacing(LaunchPage home)
+        {
+            if (home.Visibility != Visibility.Visible) return;
+            var hero = (Border)home.FindName("HeroPanel");
+            var announcement = (Border)home.FindName("AnnouncementCard");
+            var controls = (Grid)home.FindName("LaunchControls");
+            var scroll = (ScrollViewer)home.FindName("HomeScroll");
+            var heroBottom = hero.TranslatePoint(new Point(0, hero.ActualHeight), home).Y;
+            var announcementTop = announcement.TranslatePoint(new Point(), home).Y;
+            LauncherTests.Assert(Math.Abs(announcementTop - heroBottom - 24) <= 1,
+                "home banner and announcement spacing is not 24 DIP");
+            if (scroll.ScrollableHeight > 0)
+            {
+                scroll.ScrollToBottom();
+                home.UpdateLayout();
+                LauncherTests.Pump();
+            }
+            var announcementBottom = announcement.TranslatePoint(new Point(0, announcement.ActualHeight), home).Y;
+            var controlsTop = controls.TranslatePoint(new Point(), home).Y;
+            LauncherTests.Assert(Math.Abs(controlsTop - announcementBottom - 24) <= 1,
+                "announcement and launch controls spacing is not 24 DIP: " + (controlsTop - announcementBottom));
+            if (scroll.VerticalOffset > 0)
+            {
+                scroll.ScrollToTop();
+                home.UpdateLayout();
+                LauncherTests.Pump();
+            }
+        }
+
+        private static void VerifyHeroArtwork(LaunchPage home)
+        {
+            var artwork = (Image)home.FindName("HeroArtwork");
+            var source = artwork.Source as BitmapSource;
+            var fallback = (StackPanel)home.FindName("HeroFallback");
+            var visibility = (Visibility)Application.Current.Resources["LauncherArtworkVisibility"];
+            LauncherTests.Assert(source != null && source.PixelWidth == 1991 && source.PixelHeight == 790
+                && artwork.Stretch == Stretch.UniformToFill, "home banner resource is missing or distorted");
+            LauncherTests.Assert(fallback != null && artwork.Visibility == visibility
+                && fallback.Visibility == (visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible),
+                "home banner overlaps its title or lost the theme text fallback");
+            var panel = (Border)home.FindName("HeroPanel");
+            LauncherTests.Assert(Math.Abs(panel.ActualHeight - panel.ActualWidth * source.PixelHeight / source.PixelWidth) < 1,
+                "home banner crops the embedded title in compact layouts");
         }
 
         private static void VerifyBrandLayout(MainWindow window, FrameworkElement root)
@@ -232,18 +281,27 @@ namespace T7.ManagedHarness
             var fallback = (TextBlock)window.FindName("BrandFallback");
             var source = logo.Source as BitmapSource;
             var visibility = (Visibility)Application.Current.Resources["LauncherArtworkVisibility"];
-            LauncherTests.Assert(source != null && source.PixelWidth == 1254 && source.PixelHeight == 1254
+            LauncherTests.Assert(source != null && source.PixelWidth == 1062 && source.PixelHeight == 962
                 && logo.Stretch == Stretch.Uniform, "sidebar brand resource is missing or distorted");
             LauncherTests.Assert(logo.Visibility == visibility
                 && fallback.Visibility == (visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible),
                 "sidebar brand lost the theme text fallback");
             if (visibility != Visibility.Visible) return;
-            var logoSize = compact ? 112 : 168;
-            var position = logo.TranslatePoint(new Point(), sidebar);
-            LauncherTests.Assert(Math.Abs(logo.ActualWidth - logoSize) < 1 && Math.Abs(logo.ActualHeight - logoSize) < 1
-                && Math.Abs(position.X + logo.ActualWidth / 2 - sidebar.ActualWidth / 2) < 1
-                && Math.Abs(position.Y + logo.ActualHeight / 2 - brandHeight / 2.0) < 1,
+            var transform = logo.RenderTransform as ScaleTransform;
+            LauncherTests.Assert(transform != null && transform.ScaleX == 1.05 && transform.ScaleY == 1.05
+                && logo.RenderTransformOrigin == new Point(0.5, 0.5), "sidebar brand is not enlarged uniformly by 5 percent");
+            var availableWidth = sidebar.ActualWidth - logo.Margin.Left - logo.Margin.Right;
+            var availableHeight = brandHeight - logo.Margin.Top - logo.Margin.Bottom;
+            var scale = Math.Min(availableWidth / source.PixelWidth, availableHeight / source.PixelHeight);
+            var bounds = logo.TransformToAncestor(sidebar).TransformBounds(new Rect(logo.RenderSize));
+            LauncherTests.Assert(Math.Abs(bounds.Width - source.PixelWidth * scale * 1.05) < 1
+                && Math.Abs(bounds.Height - source.PixelHeight * scale * 1.05) < 1
+                && Math.Abs(bounds.X + bounds.Width / 2 - (logo.Margin.Left + availableWidth / 2)) < 1
+                && Math.Abs(bounds.Y + bounds.Height / 2 - (logo.Margin.Top + availableHeight / 2)) < 1,
                 "sidebar brand is not centered at its intended display size");
+            LauncherTests.Assert(bounds.Left >= -1 && bounds.Top >= -1
+                && bounds.Right <= sidebar.ActualWidth + 1 && bounds.Bottom <= brandHeight + 1,
+                "enlarged sidebar brand overflows its area or overlaps navigation");
         }
 
         private static void VerifyWorkAreas()

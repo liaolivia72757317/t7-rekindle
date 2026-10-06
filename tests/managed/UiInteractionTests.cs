@@ -24,9 +24,11 @@ namespace T7.ManagedHarness
             TestUpdateStates(directory, output);
             TestVersionCapsuleNavigation(directory);
             TestConstructionNavigation(directory, output);
+            TestClientDownloadCard(directory, output);
             TestSettingsAccessibility(directory);
             TestGameSettingsPersistence(directory);
             TestDialogs(output);
+            DiagnosticLogTests.Run(directory, output);
         }
 
         private static void TestConstructionNavigation(string directory, string output)
@@ -73,6 +75,68 @@ namespace T7.ManagedHarness
                     LauncherLayoutTests.Render((FrameworkElement)window.Content, window, output, "battle-feedback-unavailable", 1200, 900);
                     Assert(!feedback.IsEnabled && ((TextBlock)page.FindName("ConstructionFeedbackCaption")).Text == "反馈入口暂不可用",
                         "unavailable feedback did not disable its action and explain its state");
+                }
+                finally
+                {
+                    window.DataContext = null;
+                    window.Close();
+                }
+            }
+        }
+
+        private static void TestClientDownloadCard(string directory, string output)
+        {
+            const string address = "https://www.bilibili.com/opus/768784882628296761";
+            var interaction = new FakeDesktopInteraction();
+            var bridge = new FakeLauncherBridge();
+            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "client-download")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
+                path => Task.FromResult(ValidDirectory(path)), interaction))
+            {
+                RunTask(model.ValidationTask);
+                var window = new MainWindow { DataContext = model };
+                try
+                {
+                    model.IsAboutSelected = true;
+                    var page = (AboutPage)window.FindName("ProjectPage");
+                    var button = (Button)page.FindName("ClientDownloadButton");
+                    var disclaimer = (TextBlock)page.FindName("ClientDownloadDisclaimer");
+                    Assert(button != null && disclaimer != null, "client download card or disclaimer is missing");
+                    var root = (FrameworkElement)window.Content;
+                    foreach (var size in new[] { new Size(1200, 900), new Size(960, 720) })
+                    {
+                        LauncherLayoutTests.Render(root, window, null, "client-download", size.Width, size.Height);
+                        button.BringIntoView();
+                        Pump();
+                        LauncherLayoutTests.Render(root, window, output, "about-client-download-" + size.Width, size.Width, size.Height);
+                        LauncherLayoutTests.AssertWithin(button, root, size.Width, size.Height);
+                        LauncherLayoutTests.AssertWithin(disclaimer, button, button.ActualWidth, button.ActualHeight);
+                    }
+                    Assert(button.IsTabStop && button.Focusable && button.Command?.CanExecute(null) == true,
+                        "client download card is not keyboard accessible");
+                    Assert(disclaimer.FontSize == 14 && disclaimer.TextWrapping == TextWrapping.Wrap
+                        && System.Windows.Automation.AutomationProperties.GetHelpText(button) == disclaimer.Text,
+                        "client download disclaimer is not readable or exposed to accessibility tools");
+                    Assert(interaction.Text == null, "opening the about page unexpectedly opened a browser");
+                    var invoke = (IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke);
+                    invoke.Invoke();
+                    Pump();
+                    Assert(interaction.Text == address && model.About.ClientDownloadAddress == address
+                        && model.IsAboutSelected && bridge.StartCount == 0 && model.About.LastCheckText == "尚未检查",
+                        "client download did not open the requested address or triggered an unrelated operation");
+                    Action copyAddress = null;
+                    model.About.NoticeRaised += (message, severity, actionText, action) =>
+                    {
+                        if (severity == NoticeSeverity.Warning && actionText == "复制地址") copyAddress = action;
+                    };
+                    interaction.AddressError = new IOException("fixture browser unavailable");
+                    invoke.Invoke();
+                    Pump();
+                    Assert(copyAddress != null && model.About.Feedback.Contains("打开浏览器失败"),
+                        "browser failure did not offer the existing copy-address fallback");
+                    interaction.CopyText(string.Empty);
+                    copyAddress();
+                    Assert(interaction.Text == address, "browser failure copied the wrong client download address");
                 }
                 finally
                 {

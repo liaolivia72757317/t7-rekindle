@@ -17,7 +17,7 @@
     <Grid.ColumnDefinitions><ColumnDefinition Width="216" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
     <Grid.RowDefinitions><RowDefinition Height="60" /><RowDefinition Height="*" /></Grid.RowDefinitions>
     <Image x:Name="SceneArtwork" Grid.ColumnSpan="2" Grid.RowSpan="2"
-           Source="/T7-Rekindle;component/Resources/Assets/art/launcher-full-2560x1920.png"
+           Source="/T7-Rekindle;component/Resources/Assets/art/launcher-background.png"
            Stretch="UniformToFill" IsHitTestVisible="False" Focusable="False"
            Visibility="{DynamicResource LauncherArtworkVisibility}" ImageFailed="OnSceneArtworkFailed"
            RenderOptions.BitmapScalingMode="HighQuality" />
@@ -32,10 +32,12 @@
     </StackPanel>
     <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="Sidebar">
       <Grid.RowDefinitions><RowDefinition x:Name="SidebarBrandRow" Height="180" /><RowDefinition Height="*" /><RowDefinition x:Name="SidebarVersionRow" Height="64" /></Grid.RowDefinitions>
-      <Image x:Name="BrandLogo" Source="/T7-Rekindle;component/Resources/Assets/brand/logo-stacked-tagline-sidebar.png"
-             Margin="24,6,24,6" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+      <Image x:Name="BrandLogo" Source="/T7-Rekindle;component/Resources/Assets/brand/logo-stacked-no-slogan-sidebar.png"
+             Margin="24,15,24,15" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
              IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality"
-             Visibility="{DynamicResource LauncherArtworkVisibility}" ImageFailed="OnBrandLogoFailed" AutomationProperties.Name="T7-Rekindle 品牌标识" />
+             Visibility="{DynamicResource LauncherArtworkVisibility}" ImageFailed="OnBrandLogoFailed" AutomationProperties.Name="T7-Rekindle 品牌标识">
+        <Image.RenderTransform><ScaleTransform ScaleX="1.05" ScaleY="1.05" /></Image.RenderTransform>
+      </Image>
       <TextBlock x:Name="BrandFallback" Text="T7-Rekindle" FontWeight="Bold" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center">
         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers>
           <DataTrigger Binding="{Binding Visibility, ElementName=BrandLogo}" Value="Collapsed"><Setter Property="Visibility" Value="Visible" /></DataTrigger>

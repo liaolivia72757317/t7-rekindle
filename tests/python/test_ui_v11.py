@@ -37,9 +37,12 @@ def test_sidebar_brand_reclaims_caption_space_without_duplicate_title():
     assert sidebar.attrib["Grid.RowSpan"] == "2"
     assert named["SidebarBrandRow"].attrib["Height"] == "180"
     logo = named["BrandLogo"]
-    assert logo.attrib["Source"].endswith("/brand/logo-stacked-tagline-sidebar.png")
-    assert logo.attrib["Margin"] == "24,6,24,6"
+    assert logo.attrib["Source"].endswith("/brand/logo-stacked-no-slogan-sidebar.png")
+    assert logo.attrib["Margin"] == "24,15,24,15"
     assert logo.attrib["Stretch"] == "Uniform"
+    assert logo.attrib["RenderTransformOrigin"] == "0.5,0.5"
+    scale = logo.find(f"{{{WPF}}}Image.RenderTransform/{{{WPF}}}ScaleTransform")
+    assert scale.attrib["ScaleX"] == scale.attrib["ScaleY"] == "1.05"
     assert logo.attrib["HorizontalAlignment"] == "Center"
     assert logo.attrib["VerticalAlignment"] == "Center"
     assert logo.attrib["IsHitTestVisible"] == "False"
@@ -55,21 +58,45 @@ def test_sidebar_brand_reclaims_caption_space_without_duplicate_title():
     ]
 
 
-def test_sidebar_brand_asset_preserves_square_rgba_source():
-    asset = DESKTOP / "Resources/Assets/brand/logo-stacked-tagline-sidebar.png"
+def test_sidebar_brand_asset_uses_trimmed_rgba_source():
+    asset = DESKTOP / "Resources/Assets/brand/logo-stacked-no-slogan-sidebar.png"
     with asset.open("rb") as stream:
         header = stream.read(26)
     assert header[:8] == b"\x89PNG\r\n\x1a\n"
-    assert struct.unpack(">IIBB", header[16:26]) == (1254, 1254, 8, 6)
+    assert struct.unpack(">IIBB", header[16:26]) == (1062, 962, 8, 6)
 
 
 def test_v11_runtime_does_not_use_legacy_icons_or_cutout_backgrounds():
     text = "\n".join(path.read_text(encoding="utf-8-sig") for path in DESKTOP.rglob("*.xaml")
                      if path.name != "Icons.xaml")
+    assert "launcher-background.png" in text
     assert "launcher-full-2560x1920.png" in text
-    assert "hero-full-2560x1026.png" in text
+    assert "home-banner.png" in text
     for forbidden in ("scene-complete.png", "Assets/icons/", "reference/", "↗", "→"):
         assert forbidden not in text
+
+
+def test_home_banner_uses_embedded_artwork_without_duplicate_title():
+    root = ET.parse(DESKTOP / "Views/LaunchPage.xaml").getroot()
+    named = {item.attrib.get(f"{{{XAML}}}Name"): item for item in root.iter()}
+    artwork = named["HeroArtwork"]
+    assert artwork.attrib["Source"] == "/T7-Rekindle;component/Resources/Assets/art/home-banner.png"
+    assert artwork.attrib["Stretch"] == "UniformToFill"
+    assert artwork.attrib["Visibility"] == "{DynamicResource LauncherArtworkVisibility}"
+    assert named["HeroPanel"].attrib["AutomationProperties.Name"] == "重燃战意：十年之约再战江湖"
+    fallback = named["HeroFallback"]
+    style = fallback.find(f"{{{WPF}}}StackPanel.Style/{{{WPF}}}Style")
+    setter = style.find(f"{{{WPF}}}Setter")
+    assert setter.attrib == {"Property": "Visibility", "Value": "Collapsed"}
+    trigger = style.find(f"{{{WPF}}}Style.Triggers/{{{WPF}}}DataTrigger")
+    assert trigger.attrib == {"Binding": "{Binding Visibility, ElementName=HeroArtwork}", "Value": "Collapsed"}
+    assert trigger.find(f"{{{WPF}}}Setter").attrib == {"Property": "Visibility", "Value": "Visible"}
+    assert list(named["HeroPanel"].iter(f"{{{WPF}}}TextBlock")) == list(fallback.iter(f"{{{WPF}}}TextBlock"))
+    assert not named["HeroPanel"].findall(f".//{{{WPF}}}Border")
+    with (DESKTOP / "Resources/Assets/art/home-banner.png").open("rb") as stream:
+        header = stream.read(26)
+    assert header[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack(">IIBB", header[16:26]) == (1991, 790, 8, 2)
 
 
 def test_v11_settings_commit_editing_instead_of_saving_every_keystroke():

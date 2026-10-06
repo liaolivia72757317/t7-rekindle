@@ -8,24 +8,51 @@
 namespace t7 {
 namespace {
 using namespace resourceXml;
+struct Edit { size_t begin, end; std::string text; };
 std::string gates(uint32_t firstId) {
     return "<Node Type=\"CONDITION\" ID=\"" + std::to_string(firstId) + "\" Name=\"" + encoded(L"是否为本地单位") + "\"/>"
         + "<Node Type=\"CONDITION\" ID=\"" + std::to_string(firstId + 1) + "\" Name=\"" + encoded(L"是否为战斗角色") + "\"/>";
 }
-std::string router() {
-    // The client binds lifecycle slots by Description, not by ID.
-    return "<?xml version=\"1.0\" encoding=\"gb2312\"?><BTree Version=\"4\"><Node Type=\"SEL\" ID=\"1\">"
-        "<Node Type=\"SEL\" ID=\"2\" Description=\"" + encoded(L"进入节点") + "\"/>"
-        + "<Node Type=\"SEL\" ID=\"3\" Description=\"" + encoded(L"退出节点") + "\"/>"
-        + "<Node Type=\"SEL\" ID=\"4\" Description=\"" + encoded(L"执行节点") + "\">"
-        + "<Node Type=\"SEQ\" ID=\"5\" Event=\"INIT_FINISH\">" + gates(6)
-        + "<Node Type=\"ACTION\" ID=\"8\" Name=\"" + encoded(L"切换行为树") + "\">"
-        + "<Param Name=\"" + encoded(L"行为树") + "\" Type=\"str\" Value=\"" + encoded(L"移动_步兵_离线_慢") + "\"/>"
-        + "<Param Name=\"" + encoded(L"切换槽位") + "\" Type=\"i32\" Value=\"-1\"/>"
-        + "<Param Name=\"" + encoded(L"是否关闭大于切换槽位的行为树") + "\" Type=\"bool\" Value=\"false\"/>"
-        + "</Node></Node></Node></Node></BTree>";
+std::vector<Edit> router(std::string_view source, const std::vector<Element>& nodes) {
+    const auto root = unique(nodes, 0, "Node", "ID", "1");
+    for (const auto* label : {L"进入节点", L"退出节点"}) {
+        const auto branch = unique(nodes, root, "Node", "Description", encoded(label));
+        if (attribute(nodes[branch], "Type") != "SEL" || nodes[branch].content != nodes[branch].end) invalid();
+    }
+    const auto execute = unique(nodes, root, "Node", "Description", encoded(L"执行节点"));
+    if (attribute(nodes[root], "Type") != "SEL" || attribute(nodes[execute], "Type") != "SEL") invalid();
+    unique(nodes, execute, "Node", "Event", "GeEventKeyDown;GeEventKeyUp");
+    std::set<uint32_t> ids;
+    uint32_t maxId = 0;
+    for (const auto& node : nodes) {
+        if (node.name != "Node") continue;
+        const auto value = attribute(node, "ID");
+        if (value.empty() || value.size() > 10 || value.find_first_not_of("0123456789") != value.npos) invalid();
+        const auto id = std::stoull(value);
+        if (id > INT32_MAX || !ids.insert(static_cast<uint32_t>(id)).second
+            || attribute(node, "Name") == encoded(L"本地玩家状态")
+            || (!attribute(node, "Event").empty() && node.parent != execute)) invalid();
+        maxId = std::max(maxId, static_cast<uint32_t>(id));
+    }
+    std::vector<Edit> edits;
+    for (const auto& node : nodes) {
+        if (node.parent != execute) continue;
+        const auto type = attribute(node, "Type"), event = attribute(node, "Event");
+        if (node.name != "Node" || (type != "SEL" && type != "SEQ") || event.empty()
+            || event.find('"') != event.npos || node.content == node.end || maxId > INT32_MAX - 4) invalid();
+        // Gate each event, not INIT_FINISH: otherwise the original offline tree
+        // handles WASD, jump and crouch before GAME, independently of the server.
+        const auto replacement = "<Node Type=\"SEQ\" ID=\"" + attribute(node, "ID") + "\" Event=\"" + event + "\">"
+            + gates(maxId + 1)
+            + "<Node Type=\"CONDITION\" ID=\"" + std::to_string(maxId + 3) + "\" Name=\"" + encoded(L"本地玩家状态") + "\">"
+            + "<Param Name=\"" + encoded(L"玩家当前状态") + "\" Type=\"enum\" Value=\"4\"/></Node>"
+            + "<Node Type=\"" + type + "\" ID=\"" + std::to_string(maxId + 4) + "\">"
+            + std::string(source.substr(node.content, node.closing - node.content)) + "</Node></Node>";
+        edits.push_back({node.begin, node.end, replacement});
+        maxId += 4;
+    }
+    return edits;
 }
-struct Edit { size_t begin, end; std::string text; };
 std::vector<Edit> infantry(const std::vector<Element>& nodes) {
     const auto header = unique(nodes, 0, "Header");
     const auto schema = unique(nodes, header, "GeServerMovable");
@@ -99,8 +126,8 @@ std::string transformMovementResource(MovementResource resource, std::string_vie
     if (source.empty() || source.size() > MOVEMENT_XML_LIMIT || source.find('\0') != source.npos) invalid();
     const auto nodes = elements(source);
     if (resource != MovementResource::Infantry && (nodes[0].name != "BTree" || attribute(nodes[0], "Version") != "4")) invalid();
-    if (resource == MovementResource::Router) return router();
-    auto edits = resource == MovementResource::Infantry ? infantry(nodes) : birth(source, nodes);
+    auto edits = resource == MovementResource::Infantry ? infantry(nodes)
+        : resource == MovementResource::Router ? router(source, nodes) : birth(source, nodes);
     std::sort(edits.begin(), edits.end(), [](const auto& a, const auto& b) { return a.begin > b.begin; });
     std::string result(source);
     for (const auto& edit : edits) result.replace(edit.begin, edit.end - edit.begin, edit.text);

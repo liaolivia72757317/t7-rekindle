@@ -79,11 +79,14 @@ namespace T7.ManagedHarness
         public bool ConfirmResult { get; set; } = true;
         public int ConfirmCount { get; private set; }
         public int EnvironmentInfoCount { get; private set; }
+        public string Title { get; private set; }
         public string Text { get; private set; }
         public bool IsMarkdown { get; private set; }
+        public Exception MarkdownError { get; set; }
         public string DirectorySelection { get; set; }
         public Exception DirectoryError { get; set; }
         public Exception LogDirectoryError { get; set; }
+        public Exception AddressError { get; set; }
         public string SelectDirectory(string initialDirectory)
         {
             if (DirectoryError != null) throw DirectoryError;
@@ -91,14 +94,24 @@ namespace T7.ManagedHarness
         }
         public bool Confirm(string message) { ConfirmCount++; Text = message; return ConfirmResult; }
         public void ShowText(string title, string text) { Text = text; IsMarkdown = false; }
-        public void ShowMarkdown(string title, string markdown) { Text = markdown; IsMarkdown = true; }
+        public void ShowMarkdown(string title, string markdown)
+        {
+            if (MarkdownError != null) throw MarkdownError;
+            Title = title;
+            Text = markdown;
+            IsMarkdown = true;
+        }
         public void CopyText(string text) { Text = text; }
         public void OpenDirectory(string path)
         {
             if (LogDirectoryError != null) throw LogDirectoryError;
             Text = path;
         }
-        public void OpenAddress(string address) { Text = address; }
+        public void OpenAddress(string address)
+        {
+            if (AddressError != null) throw AddressError;
+            Text = address;
+        }
         public void ShowEnvironmentInfo() { EnvironmentInfoCount++; }
     }
 }

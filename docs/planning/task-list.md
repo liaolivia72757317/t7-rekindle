@@ -1,6 +1,6 @@
 # 任务清单
 
-更新时间：2026-10-01
+更新时间：2026-10-06
 
 推进顺序与完成条件见[实施计划](implementation-plan.md)。下表记录源码中已有的能力和测试入口；自动化覆盖不等于真实客户端验收完成，也不代表所有提交的 CI 均已通过。
 
@@ -8,8 +8,8 @@
 
 | 方向 | 已有实现 | 自动化入口 |
 | --- | --- | --- |
-| 启动器 | 三页界面、目录搜索与预检、玩家名称、设置保存、启动/取消/结束、退出反馈和关于页 | [托管 harness](../../tests/managed/T7.ManagedHarness.csproj)、[静态界面测试](../../tests/python/test_ui_contract.py) |
-| 原生生命周期 | 12 个 C ABI 导出、Session worker、动态三通道、Python owner、Job Object、清理重试和日志读取 | [原生测试](../../tests/cpp/)、[合成集成入口](../../scripts/integration_test.py) |
+| 启动器 | 五项导航（首页、对战、更新、设置、关于）、目录搜索与预检、玩家名称、设置保存、启动/取消/结束和退出反馈；对战页为功能建设中占位 | [托管 harness](../../tests/managed/T7.ManagedHarness.csproj)、[静态界面测试](../../tests/python/test_ui_contract.py)、[UI 实施与验收](ui-handoff-v1.1.md) |
+| 原生生命周期 | 13 个 C ABI 导出、Session worker、动态三通道、Python owner、Job Object、清理重试和日志读取 | [导出表](../../src/Runtime/bridge/T7NativeBridge.def)、[原生测试](../../tests/cpp/)、[合成集成入口](../../scripts/integration_test.py) |
 | 登录与场景 | 本地身份、大厅、房间、阵营、选将、角色与敌方对象、准备/开局和离房消息 | [业务测试](../../tests/python/test_business_runtime.py)、[名称测试](../../tests/python/test_player_name.py) |
 | 基础移动 | 客户端运行时离线移动适配、方向和移动同步、战斗状态初始化 | [移动测试](../../tests/python/test_runtime_movement.py)、原生适配相关契约测试 |
 | 构建与打包 | 锁定还原、独立输出、完整产品包、manifest 与依赖校验、Inno 定义、CI 安装器和便携包构建步骤 | [构建测试](../../tests/python/test_build.py)、[打包测试](../../tests/python/test_package.py)、[CI](../../.github/workflows/ci.yml) |

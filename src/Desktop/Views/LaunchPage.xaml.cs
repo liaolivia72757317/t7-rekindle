@@ -1,7 +1,5 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
 using System.Windows.Media;
 using System.Windows.Input;
 
@@ -11,17 +9,14 @@ namespace T7.Rekindle.Desktop.Views
     {
         private ToolTip _focusedHint;
         public LaunchPage() { InitializeComponent(); }
-        private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            HeroPanel.Height = Math.Max(140, Math.Min(384, ActualHeight - 410));
-        }
         private void OnHeroSizeChanged(object sender, SizeChangedEventArgs e)
         {
+            HeroPanel.Height = e.NewSize.Width * 790 / 1991;
             HeroArtwork.Clip = new RectangleGeometry(new Rect(e.NewSize), 8, 8);
         }
         private void OnHeroFailed(object sender, ExceptionRoutedEventArgs e)
         {
-            HeroArtwork.Source = new BitmapImage(new Uri("/T7-Rekindle;component/Resources/Assets/art/battlefield-light-reconstructed.png", UriKind.Relative));
+            HeroArtwork.Visibility = Visibility.Collapsed;
         }
         private void OnValueFocused(object sender, KeyboardFocusChangedEventArgs e)
         {

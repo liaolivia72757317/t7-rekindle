@@ -35,9 +35,12 @@ def test_main_window_has_accessible_lifecycle_contract():
 def test_launcher_uses_full_artwork_and_real_controls():
     root = _xaml(ROOT / "src/Desktop/MainWindow.xaml")
     named = {item.attrib.get("{" + XAML + "}Name"): item for item in root.iter()}
-    assert named["BrandLogo"].attrib["Source"].endswith("/brand/logo-stacked-tagline-sidebar.png")
+    assert named["BrandLogo"].attrib["Source"].endswith("/brand/logo-stacked-no-slogan-sidebar.png")
     scene = named["SceneArtwork"]
-    assert scene.attrib["Source"].endswith("/art/launcher-full-2560x1920.png")
+    assert scene.attrib["Source"].endswith("/art/launcher-background.png")
+    assert scene.attrib["Stretch"] == "UniformToFill"
+    assert scene.attrib["Grid.ColumnSpan"] == scene.attrib["Grid.RowSpan"] == "2"
+    assert scene.attrib["Visibility"] == "{DynamicResource LauncherArtworkVisibility}"
     assert scene.attrib["ImageFailed"] == "OnSceneArtworkFailed"
     assert scene.attrib["IsHitTestVisible"] == "False"
     home = _xaml(ROOT / "src/Desktop/Views/LaunchPage.xaml")
@@ -145,21 +148,58 @@ def test_about_page_has_real_metadata_and_project_entry_points():
     assert commands == {
         "{Binding CopyHashCommand}", "{Binding ShowRepositoryCommand}", "{Binding ShowIssuesCommand}",
         "{Binding ShowLicensesCommand}", "{Binding ShowThanksCommand}",
-        "{Binding ShowEnvironmentInfoCommand}",
+        "{Binding ShowEnvironmentInfoCommand}", "{Binding ShowClientDownloadCommand}",
     }
-    entry_grid = _find(about, "UniformGrid")[0]
-    assert entry_grid.attrib["Columns"] == "3"
-    assert entry_grid.attrib["Margin"] == "0,24,0,0"
-    assert [button.attrib["Command"] for button in _find(entry_grid, "Button")] == [
-        "{Binding ShowRepositoryCommand}", "{Binding ShowIssuesCommand}",
-        "{Binding ShowEnvironmentInfoCommand}",
+    named = {item.attrib.get("{" + XAML + "}Name"): item for item in about.iter()}
+    support = named["ClientSupportGrid"]
+    assert [button.attrib["Command"] for button in _find(support, "Button")] == [
+        "{Binding ShowClientDownloadCommand}", "{Binding ShowEnvironmentInfoCommand}", "{Binding ShowIssuesCommand}",
     ]
+    assert named["ClientDownloadButton"].attrib["Grid.RowSpan"] == "2"
+    entry_grid = named["ProjectLinksGrid"]
+    assert entry_grid.attrib["Columns"] == "3"
+    assert entry_grid.attrib["Margin"] == "0,16,0,0"
+    assert [button.attrib["Command"] for button in _find(entry_grid, "Button")] == [
+        "{Binding ShowRepositoryCommand}", "{Binding ShowLicensesCommand}", "{Binding ShowThanksCommand}",
+    ]
+    assert [button.attrib["TabIndex"] for button in _find(about, "Button")] == [str(index) for index in range(8, 15)]
+    assert [button.attrib["Margin"] for button in _find(entry_grid, "Button")] == ["0,0,8,0", "4,0,4,0", "8,0,0,0"]
     repository_button = _find(entry_grid, "Button")[0]
     assert repository_button.attrib["AutomationProperties.Name"] == "项目源代码仓库"
     assert _find(repository_button, "TextBlock")[0].attrib["Text"] == "项目源代码仓库"
     texts = {block.attrib.get("Text") for block in _find(about, "TextBlock")}
     assert {"关于", "{Binding ProjectName}", "{Binding ProjectDescription}", "{Binding ShortHash}"} <= texts
     assert "常用入口" not in texts
+    assert named["AboutContent"].attrib["SizeChanged"] == "OnContentSizeChanged"
+    assert named["AboutScroll"].attrib["HorizontalScrollBarVisibility"] == "Disabled"
+    assert named["AboutScroll"].attrib["VerticalScrollBarVisibility"] == "Auto"
+    assert len(_find(about, "UniformGrid")) == 1
+
+
+def test_about_client_download_card_explains_external_source():
+    about = _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml")
+    named = {item.attrib.get("{" + XAML + "}Name"): item for item in about.iter()}
+    card = named["ClientDownloadButton"]
+    assert card.attrib["Command"] == "{Binding ShowClientDownloadCommand}"
+    assert card.attrib["AutomationProperties.Name"] == "客户端下载"
+    assert card.attrib["ToolTip"] == "{Binding ClientDownloadAddress}"
+    assert card.attrib["AutomationProperties.HelpText"] == "{Binding Text, ElementName=ClientDownloadDisclaimer}"
+    assert card.attrib["TabIndex"] == "9"
+    assert _find(card, "TextBlock")[0].attrib["Text"] == "客户端下载"
+    disclaimer = named["ClientDownloadDisclaimer"]
+    assert disclaimer in card.iter()
+    assert disclaimer.attrib["Style"] == "{StaticResource MutedText}"
+    assert disclaimer.attrib["TextWrapping"] == "Wrap"
+    assert all(text in disclaimer.attrib["Text"] for text in ("第三方", "版权", "仅提供页面链接", "使用授权"))
+
+
+def test_about_client_download_card_inherits_shared_interaction_colors():
+    about = _xaml(ROOT / "src/Desktop/Views/AboutPage.xaml")
+    card = next(button for button in _find(about, "Button")
+                if button.attrib.get("Command") == "{Binding ShowClientDownloadCommand}")
+    assert card.attrib["Style"] == "{StaticResource AboutActionCard}"
+    assert "Background" not in card.attrib
+    assert "BorderBrush" not in card.attrib
 
 
 def test_environment_information_has_a_local_dialog_and_copy_action():
@@ -167,7 +207,7 @@ def test_environment_information_has_a_local_dialog_and_copy_action():
     entry = next(button for button in _find(about, "Button")
                  if button.attrib.get("Command") == "{Binding ShowEnvironmentInfoCommand}")
     assert entry.attrib["AutomationProperties.Name"] == "环境信息"
-    assert entry.attrib["TabIndex"] == "11"
+    assert entry.attrib["TabIndex"] == "10"
     root = _xaml(ROOT / "src/Desktop/Views/EnvironmentInfoDialog.xaml")
     report = _find(root, "TextBox")[0]
     assert report.attrib["IsReadOnly"] == "True"
@@ -186,7 +226,7 @@ def test_project_information_uses_the_public_repository():
     assert project.findtext("PropertyGroup/Product") == "铁骑·重燃（T7-Rekindle）"
     assert project.findtext("PropertyGroup/Description") == (
         "铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。"
-        "我们希望先完成本地人机对战，再逐步支持局域网联机。\n"
+        "我们希望先完成本地人机对战，再逐步支持局域网联机。\n\n"
         "项目不以营利为目的，欢迎开发者和玩家一起参与。"
     )
     assert project.findtext("PropertyGroup/RepositoryUrl") == "https://github.com/liaolivia72757317/t7-rekindle"

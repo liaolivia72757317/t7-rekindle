@@ -23,6 +23,7 @@ namespace T7.Rekindle.Desktop.Services
     public sealed class DesktopInteraction : IDesktopInteraction
     {
         internal void ShowRecentNotices(ViewModels.NoticeCenter notices) => ShowModal(new RecentNoticesDialog(notices));
+        internal void ShowDiagnostics(ViewModels.MainWindowViewModel model) => ShowModal(new TextDialog(model));
         public string SelectDirectory(string initialDirectory)
         {
             using (var dialog = new System.Windows.Forms.FolderBrowserDialog

@@ -19,7 +19,8 @@ GROUND_RUN_STATES = {(-1, 0): 10, (-1, 1): 11, (-1, -1): 12}
 def activate(flow):
     tick = nextGroundTick(flow)
     flow.send(2, move_flow.encode_move_notify_active(
-        server_tick=tick, target_instance_id=1, active=1), "instance-move-notify-active-after-in-scene")
+        server_tick=tick, target_instance_id=1, active=int(groundEnabled(flow))),
+        "instance-move-notify-active-after-in-scene")
     ground = groundState(flow)
     ground["tick"] = ground["timingTick"] = tick
 
@@ -62,7 +63,7 @@ def localReport(flow, selector, body):
         position = list(struct.unpack_from(">fff", body, 12))
     if not all(math.isfinite(value) for value in position):
         raise ValueError("non-finite runtime local position")
-    if not flow.session.get("battleEntered"):
+    if not groundEnabled(flow):
         return True
     cancelMotionTimers(flow)
     ground = groundState(flow)
@@ -89,7 +90,10 @@ def groundEnabled(flow) -> bool:
 def enableGround(flow) -> None:
     if runtimeMovement(flow):
         cancelMotionTimers(flow)
+        wasEnabled = groundEnabled(flow)
         flow.session["groundEnabled"] = True
+        if not wasEnabled:
+            activate(flow)
         return
     if not groundEnabled(flow):
         ground = groundState(flow)

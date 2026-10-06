@@ -1,6 +1,10 @@
 #include "../../src/Runtime/launcher/MovementResources.h"
 #include "../../src/Runtime/core/Common.h"
+#include "../../src/Runtime/launcher/ClientResourceXml.h"
+#include "MovementTreeFixture.h"
+#include <functional>
 #include <iostream>
+#include <set>
 
 namespace {
 void require(bool valid, const char* message) {
@@ -18,6 +22,42 @@ void rejected(t7::MovementResource resource, const std::string& source) {
     try { t7::transformMovementResource(resource, source); }
     catch (const std::runtime_error&) { failed = true; }
     require(failed, "changed resource structure was accepted");
+}
+
+std::vector<std::string> inputActions(const std::string& source, int playerState,
+        bool local, bool battle, const std::string& key, bool pressed) {
+    using namespace t7::resourceXml;
+    const auto nodes = elements(source);
+    std::vector<std::string> actions;
+    std::function<bool(size_t)> execute = [&](size_t index) {
+        const auto& node = nodes[index];
+        const auto type = attribute(node, "Type"), name = attribute(node, "Name");
+        if (type == "ACTION") { actions.push_back(name); return true; }
+        if (type == "CONDITION") {
+            if (name == gbk(L"是否为本地单位")) return local;
+            if (name == gbk(L"是否为战斗角色")) return battle;
+            if (name == gbk(L"本地玩家状态")) {
+                const auto param = unique(nodes, index, "Param", "Name", gbk(L"玩家当前状态"));
+                require(attribute(nodes[param], "Type") == "enum", "player state parameter type");
+                return playerState == std::stoi(attribute(nodes[param], "Value"));
+            }
+            require(name == gbk(L"按键被按下") || name == gbk(L"按键被松开"), "unknown input condition");
+            const auto param = unique(nodes, index, "Param", "Name", gbk(L"按键"));
+            return key == attribute(nodes[param], "Value") && pressed == (name == gbk(L"按键被按下"));
+        }
+        require(type == "SEL" || type == "SEQ", "unknown input node type");
+        for (size_t child = index + 1; child < nodes.size(); ++child) {
+            if (nodes[child].parent != index || nodes[child].name != "Node") continue;
+            const auto result = execute(child);
+            if (type == "SEQ" && !result) return false;
+            if (type == "SEL" && result) return true;
+        }
+        return type == "SEQ";
+    };
+    const auto event = pressed ? "GeEventKeyDown" : "GeEventKeyUp";
+    for (size_t i = 0; i < nodes.size(); ++i)
+        if (attribute(nodes[i], "Event").find(event) != std::string::npos) execute(i);
+    return actions;
 }
 }
 
@@ -63,16 +103,34 @@ bool verifyMovementResources() {
         rejected(Resource::Birth, turned);
         rejected(Resource::Birth, "<BTree><Node ID=\"1\"/><Node ID=\"1\"/></BTree>");
 
-        const auto router = t7::transformMovementResource(Resource::Router, "<BTree Version=\"4\"/>");
+        const auto movement = gbk(movementTreeFixture());
+        const auto router = t7::transformMovementResource(Resource::Router, movement);
         const auto lifecycle = gbk(L"<Node Type=\"SEL\" ID=\"1\">"
             L"<Node Type=\"SEL\" ID=\"2\" Description=\"进入节点\"/>"
             L"<Node Type=\"SEL\" ID=\"3\" Description=\"退出节点\"/>"
-            L"<Node Type=\"SEL\" ID=\"4\" Description=\"执行节点\">"
-            L"<Node Type=\"SEQ\" ID=\"5\" Event=\"INIT_FINISH\">");
+            L"<Node Type=\"SEL\" ID=\"4\" Description=\"执行节点\">");
         require(router.find(lifecycle) != std::string::npos,
                 "router lifecycle selectors need GBK Description labels, not just IDs");
-        for (auto token : {gbk(L"是否为本地单位"), gbk(L"是否为战斗角色"), gbk(L"移动_步兵_离线_慢"), std::string("INIT_FINISH")})
-            require(router.find(token) != std::string::npos, "router lacks local battle gate or original tree");
+        for (const auto& key : {"W", "Space", "Ctrl"}) {
+            for (int state : {0, 1, 2, 3})
+                require(inputActions(router, state, true, true, key, true).empty(),
+                        "movement input ran before the player entered combat");
+            require(inputActions(router, 4, false, true, key, true).empty(), "remote actor accepted local input");
+            require(inputActions(router, 4, true, false, key, true).empty(), "non-battle actor accepted input");
+        }
+        for (const auto& input : {std::pair{"W", "fixture-move"}, {"Space", "fixture-jump"}, {"Ctrl", "fixture-crouch"}})
+            require(inputActions(router, 4, true, true, input.first, true) == std::vector<std::string>{input.second},
+                    "first combat key event did not reach the original action");
+        require(inputActions(router, 2, true, true, "Ctrl", false).empty(), "preparation allowed standing input");
+        require(inputActions(router, 4, true, true, "Ctrl", false) == std::vector<std::string>{"fixture-stand"},
+                "combat standing input was lost");
+        require(router.find("Name=\"fixture-land\"") != std::string::npos, "original landing action was lost");
+        require(router.find(gbk(L"切换行为树")) == std::string::npos, "router can switch into an ungated movement tree");
+        std::set<std::string> ids;
+        for (const auto& node : t7::resourceXml::elements(router))
+            if (node.name == "Node") require(ids.insert(t7::resourceXml::attribute(node, "ID")).second, "duplicate movement node ID");
+        rejected(Resource::Router, router);
+        rejected(Resource::Router, "<BTree Version=\"4\"/>");
         require(t7::movementResourceForPath("..\\DATA\\BTREE\\T7_RUNTIME_MOVEMENT.BTREE") == Resource::Router,
                 "resource path normalization failed");
         require(t7::movementResourceForPath(t7::movementOfflineTreePath()) == Resource::None,

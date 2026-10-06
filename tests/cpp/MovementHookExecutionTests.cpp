@@ -4,6 +4,7 @@
 #include "../../src/Runtime/launcher/StartupAnimation.h"
 #include "../../src/Runtime/launcher/DebugClient.h"
 #include "StartupAnimationFixture.h"
+#include "MovementTreeFixture.h"
 #include <atomic>
 #include <cstring>
 #include <fstream>
@@ -42,8 +43,8 @@ struct Fixture {
     void write(const t7::fs::path& path, bool malformed, bool malformedLogin) {
         using Resource = t7::MovementResource;
         inputs = {
-            {"..\\DATA\\BTREE\\T7_RUNTIME_MOVEMENT.BTREE", "<BTree Version=\"4\"/>"},
-            {t7::movementResourcePath(Resource::Router), "<BTree Version=\"4\"/>"},
+            {"..\\DATA\\BTREE\\T7_RUNTIME_MOVEMENT.BTREE", gbk(movementTreeFixture())},
+            {t7::movementResourcePath(Resource::Router), gbk(movementTreeFixture())},
             {t7::movementOfflineTreePath(), "original tree remains untouched"},
             {t7::movementResourcePath(Resource::Birth), gbk(L"<BTree Version=\"4\"><Node ID=\"1\">"
                 L"<Node ID=\"2\"><Node Type=\"ACTION\" ID=\"3\" Name=\"设置步兵转向\"/></Node></Node></BTree>")},

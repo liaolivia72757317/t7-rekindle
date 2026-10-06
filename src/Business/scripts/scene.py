@@ -34,12 +34,12 @@ def battleEntry(flow):
     if flow.session.get("battleEntered") or not flow.session.get("heroChosen"):
         return
     flow.session["battleEntered"] = True
-    flow.send(0x36, wire.actorState(flow.now, 6), "actor-in-scene-after-battle-confirm")
+    actorState = 6 if controls.groundEnabled(flow) else 8
+    flow.send(0x36, wire.actorState(flow.now, actorState), "actor-state-after-battle-confirm")
     flow.send(0xE, vision_flow.encode_vision_del_event(), "actor-vision-del-after-battle-confirm")
     flow.send(0xE, wire.actorVision(flow.session["camp"], flow.session["heroId"], flow.playerName,
                                     runtimeMovement=controls.runtimeMovement(flow)),
               "actor-vision-add-after-battle-confirm")
-    flow.send(0x36, wire.actorState(flow.now, 8), "actor-ready-play-after-battle-confirm")
     if flow.session.get("controlBaseline") == wire.BASELINE_ID:
         if not controls.runtimeMovement(flow):
             ground = controls.groundState(flow)
@@ -80,6 +80,7 @@ def timer(flow, name):
         flow.later("round-game", wire.START_MS)
     elif name == "round-game":
         flow.send(0xA, wire.roundState(flow.now, 4, wire.GAME_MS), "instance-round-state-game")
+        flow.send(0x36, wire.actorState(flow.now, 6), "actor-in-scene-after-round-game")
         controls.enableGround(flow)
         flow.phase("game-sent")
     elif name == "time-sync":

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -26,9 +27,19 @@ std::string currentDirectory() {
     return utf8(buffer);
 }
 
+std::string localTimestamp() {
+    SYSTEMTIME time{};
+    GetLocalTime(&time);
+    char buffer[20];
+    sprintf_s(buffer, "%04u-%02u-%02u %02u:%02u:%02u", time.wYear, time.wMonth, time.wDay,
+              time.wHour, time.wMinute, time.wSecond);
+    return buffer;
+}
+
 }
 
 int main() {
+    const auto earliestLogTime = localTimestamp();
     uint32_t abi = 0, snapshotSize = 0;
     assert(t7_native_get_abi(&abi, &snapshotSize) == T7NB_OK);
     assert(abi == T7NB_ABI_VERSION && snapshotSize == sizeof(T7NativeSnapshot));
@@ -134,6 +145,16 @@ int main() {
     assert(t7_native_read_logs(session, &cursor, logs.data(), static_cast<uint32_t>(logs.size()),
                                &required, &flags) == T7NB_OK);
     assert(cursor > 0 && std::string(reinterpret_cast<char*>(logs.data()), logs.size()).find("operation failed") != std::string::npos);
+    const auto latestLogTime = localTimestamp();
+    std::istringstream logLines(std::string(reinterpret_cast<char*>(logs.data()), logs.size()));
+    std::string line;
+    while (std::getline(logLines, line)) {
+        const auto separator = line.find('\t');
+        assert(separator != std::string::npos && line.size() > separator + 22);
+        const auto timestamp = line.substr(separator + 1, 19);
+        assert(timestamp >= earliestLogTime && timestamp <= latestLogTime);
+        assert(line.substr(separator + 20, 2) == "  ");
+    }
 
     // Force the bounded in-memory log window to rotate.  A stale cursor must
     // report a gap, and the flag must remain visible when the first read used

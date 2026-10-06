@@ -23,8 +23,12 @@ namespace T7.ManagedHarness
         private static async Task RunAsync(string root)
         {
             await TestPausedStartAsync(root);
-            await TestPauseDuringDownloadAsync(root, false);
-            await TestPauseDuringDownloadAsync(root, true);
+            foreach (var completeWhilePaused in new[] { false, true })
+            {
+                await TestPauseDuringDownloadAsync(root, false, completeWhilePaused);
+                await TestPauseDuringDownloadAsync(root, true, completeWhilePaused);
+            }
+            await TestTimeoutAfterResumeAsync(root);
             var progress = new RecordedProgress();
             using (var handler = new UpdateResponseHandler((request, token) => Task.FromResult(UpdateFixtures.Bytes())))
             using (var client = new HttpClient(handler))
@@ -165,11 +169,12 @@ namespace T7.ManagedHarness
             }
         }
 
-        private static async Task TestPauseDuringDownloadAsync(string root, bool cancel)
+        private static async Task TestPauseDuringDownloadAsync(string root, bool cancel, bool completeWhilePaused)
         {
             var control = new UpdateDownloadControl();
             var enteredSecondRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var finishSecondRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pendingReadToken = CancellationToken.None;
             var reads = 0;
             var progress = new RecordedProgress();
             using (var cancellation = new CancellationTokenSource())
@@ -180,21 +185,25 @@ namespace T7.ManagedHarness
                     var read = Interlocked.Increment(ref reads);
                     if (read == 1) { buffer[offset] = UpdateFixtures.Payload[0]; return 1; }
                     if (read != 2) return 0;
+                    pendingReadToken = readToken;
                     enteredSecondRead.TrySetResult(true);
-                    await finishSecondRead.Task;
+                    using (readToken.Register(() => finishSecondRead.TrySetCanceled()))
+                        await finishSecondRead.Task;
                     Buffer.BlockCopy(UpdateFixtures.Payload, 1, buffer, offset, UpdateFixtures.Payload.Length - 1);
                     return UpdateFixtures.Payload.Length - 1;
                 }))
             })))
             using (var client = new HttpClient(handler))
             {
-                var task = new UpdateDownloadService(client, root, TimeSpan.FromMilliseconds(100))
+                var task = new UpdateDownloadService(client, root, TimeSpan.FromMilliseconds(200))
                     .DownloadAsync(UpdateFixtures.Asset(), progress, cancellation.Token, control);
                 await enteredSecondRead.Task;
                 control.Pause();
-                finishSecondRead.TrySetResult(true);
-                await Task.Delay(250);
+                if (completeWhilePaused) finishSecondRead.TrySetResult(true);
+                await Task.Delay(450);
                 Assert(!task.IsCompleted && reads == 2 && handler.RequestCount == 1
+                    && !pendingReadToken.IsCancellationRequested
+                    && Directory.GetFiles(root, "*.part", SearchOption.AllDirectories).Length == 1
                     && progress.Values[progress.Values.Count - 1].Percent < 100,
                     "paused download kept reading, completed or counted pause time as a network timeout");
                 if (cancel)
@@ -206,6 +215,7 @@ namespace T7.ManagedHarness
                 else
                 {
                     control.Resume();
+                    finishSecondRead.TrySetResult(true);
                     var path = await task;
                     Assert(handler.RequestCount == 1 && reads == 3
                         && Convert.ToBase64String(File.ReadAllBytes(path)) == Convert.ToBase64String(UpdateFixtures.Payload),
@@ -213,6 +223,59 @@ namespace T7.ManagedHarness
                 }
                 Assert(Directory.GetFiles(root, "*.part", SearchOption.AllDirectories).Length == 0,
                     "paused download left a partial installer after completion or cancellation");
+            }
+        }
+
+        private static async Task TestTimeoutAfterResumeAsync(string root)
+        {
+            var control = new UpdateDownloadControl();
+            var enteredRead = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reads = 0;
+            var progress = new RecordedProgress();
+            using (var cancellation = new CancellationTokenSource())
+            using (var handler = new UpdateResponseHandler((request, token) => Task.FromResult(
+                request.RequestUri.Host == "github.com" ? UpdateFixtures.Bytes()
+                    : new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StreamContent(new AsyncReadStream(async (buffer, offset, readToken) =>
+                        {
+                            if (Interlocked.Increment(ref reads) == 1)
+                            {
+                                buffer[offset] = UpdateFixtures.Payload[0];
+                                return 1;
+                            }
+                            enteredRead.TrySetResult(readToken);
+                            await Task.Delay(Timeout.Infinite, readToken);
+                            return 0;
+                        }))
+                    })))
+            using (var client = new HttpClient(handler))
+            {
+                var task = new UpdateDownloadService(client, root, TimeSpan.FromSeconds(2))
+                    .DownloadAsync(UpdateFixtures.Asset(), progress, cancellation.Token, control);
+                try
+                {
+                    var readToken = await enteredRead.Task;
+                    await Task.Delay(1200);
+                    control.Pause();
+                    await Task.Delay(2200);
+                    Assert(!readToken.IsCancellationRequested && handler.RequestCount == 1
+                        && Directory.GetFiles(root, "*.part", SearchOption.AllDirectories).Length == 1,
+                        "pausing a stalled read cancelled the request or discarded partial data");
+                    control.Resume();
+                    Assert(await Task.WhenAny(task, Task.Delay(1400)) == task,
+                        "resuming a stalled read reset or disabled its remaining timeout budget");
+                    var path = await task;
+                    Assert(handler.RequestCount == 2 && File.Exists(path)
+                        && progress.Values.Exists(value => value.Source == "GitHub" && value.BytesReceived == 0),
+                        "a real timeout after resume did not restart from the fallback source");
+                }
+                finally
+                {
+                    cancellation.Cancel();
+                    try { await task; }
+                    catch (OperationCanceledException) { }
+                }
             }
         }
 
