@@ -12,6 +12,17 @@ from .codec import login_flow, room_flow, vision_flow
 
 BASELINE_ID = "vm-human-20260913"
 
+# --- 宿主注入的「客户端权威移动」开关（对齐 t7-rekindle 上游） -------------------
+# 原生启动器会在内存客户端 overlay 装好后把它写进 Python context：
+#   Runtime/core/Common.h           bool runtimeMovement = true;
+#   Runtime/server/PythonHost.cpp   put(dict, "runtimeMovement", PyBool_FromLong(...))
+# 自建的 T7.Server.exe 不注入 ⇒ 取默认 False ⇒ 全链行为与改动前逐位相同。
+# ⚠️ 上游还把这个开关绑到固定武将 RUNTIME_HERO_IDS(110001) 与 VISION 的 gravity
+#    偏移上（见其 actorVision / battleHeroes）——那是它单人离线固定场景用的，
+#    与本项目 87 张名册不兼容。此处**只取开关本身**，不搬武将绑定。
+CLIENT_RUNTIME_MOVEMENT = False
+RUNTIME_MOVEMENT_MODE = "client-runtime-offline-v1"
+
 # --- 关卡（地图）选择（2026-09-19 新增；**默认与改动前逐位相同**） ---------------
 #
 # ⚠️ pattern_id 与 level_id 是**两个不同的 ID 空间**，别混：

@@ -69,13 +69,23 @@ def epochMs():
 
 
 def createState(context):
-    return {"phase": "waiting", "sessions": {}, "roomId": 1, "actorId": 1}
+    # 宿主（T7.NativeBridge）在内存客户端 overlay 装好后会往 context 注入
+    # runtimeMovement（见 Runtime/core/Common.h 与 Runtime/server/PythonHost.cpp）。
+    # 自建的 T7.Server.exe 不注入 ⇒ 取默认 False ⇒ 与改动前逐位相同。
+    runtimeMovement = context.get("runtimeMovement", wire.CLIENT_RUNTIME_MOVEMENT)
+    if type(runtimeMovement) is not bool:
+        raise ValueError("runtimeMovement must be a bool")
+    return {"phase": "waiting", "sessions": {}, "roomId": 1, "actorId": 1,
+            "runtimeMovement": runtimeMovement}
 
 
 def validateState(state):
     if (type(state) is not dict or type(state.get("sessions")) is not dict
             or type(state.get("phase")) is not str or state.get("roomId") != 1
             or state.get("actorId") != 1):
+        return False
+    # 旧状态没有这个键 ⇒ .get 取默认 False（仍是 bool）⇒ 不会把老存档判死。
+    if type(state.get("runtimeMovement", wire.CLIENT_RUNTIME_MOVEMENT)) is not bool:
         return False
     return all(type(key) is str and type(session) is dict
                and session.get("role") in ("login", "logic", "instance")

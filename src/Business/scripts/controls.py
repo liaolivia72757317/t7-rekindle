@@ -711,7 +711,95 @@ def groundEnabled(flow) -> bool:
     return flow.session.get("phase") == "game-sent"
 
 
+def runtimeMovement(flow) -> bool:
+    """宿主注入的「客户端权威移动」开关（对齐 t7-rekindle 上游）。
+
+    原生启动器在内存客户端 overlay 装好后把 ``runtimeMovement`` 写进 context
+    （``Runtime/core/Common.h`` 的 ``bool runtimeMovement = true`` 与
+    ``Runtime/server/PythonHost.cpp`` 的 ``put(dict, "runtimeMovement", ...)``），
+    ``app.createState`` 再把它落到 state。自建的 ``T7.Server.exe`` 不注入
+    ⇒ 默认 False ⇒ 本模块行为与加这个闸门之前**逐位相同**。
+
+    ⚠️ 这里走 ``getattr`` 而不是上游的 ``flow.state.get(...)``：离线仿真桩
+    （``verify_mount_turn.Flow``）没有 ``state`` 属性，直接取会 AttributeError。
+    取不到就按「宿主未注入」处理 ⇒ 与改动前同口径。
+    """
+    state = getattr(flow, "state", None)
+    if not isinstance(state, dict):
+        return wire.CLIENT_RUNTIME_MOVEMENT is True
+    return state.get("runtimeMovement", wire.CLIENT_RUNTIME_MOVEMENT) is True
+
+
+def movementMode(flow) -> str:
+    return wire.RUNTIME_MOVEMENT_MODE if runtimeMovement(flow) else "server-ground-v1"
+
+
+def cancelMotionTimers(flow) -> None:
+    """停掉全部**服务端驱动**的运动定时器。
+
+    上游只取消前三个（它没有跳跃状态机）。本项目多了 ``JUMP_TIMER``，
+    客户端权威模式下跳跃由客户端自己算，服务端不该再逐拍推进。
+    """
+    for name in ("ground-step", "direction-prime-start", "direction-prime-stop",
+                 JUMP_TIMER):
+        flow.cancel(name)
+
+
+def localReport(flow, selector, body) -> bool:
+    """客户端权威模式：只**接受**客户端上报的位置/朝向/按键，不回写任何运动。
+
+    与上游 ``controls.localReport`` 同口径。字段布局照抄上游：
+      selector 3  = 朝向 + 位置（21B；heading@7 int16，position@9 三只 float32）
+      selector 52 = 按键 + 位置（24B；category@2 int32，keys@6..11，position@12）
+
+    ⚠️ 上游的 selector 集合只有 (3, 52)；本项目还多一个快跑 selector(63)，
+    那不在本函数职责内（见 ``handleFastRun`` 里的 runtimeMovement 分支）。
+    """
+    if selector == 3:
+        wire.exact(body, 21, "runtime-local-heading")
+        heading = struct.unpack_from(">h", body, 7)[0]
+        if not -180 <= heading <= 180:
+            raise ValueError("runtime local heading must be in -180..180")
+        position = list(struct.unpack_from(">fff", body, 9))
+    elif selector == 52:
+        wire.exact(body, 24, "runtime-local-key-state")
+        category = struct.unpack_from(">i", body, 2)[0]
+        keys = body[6:12]
+        if category != MOVE_KEY_CATEG_WASD:
+            # 上游同样把非 WASD 类别原样退回 False（落到 unhandled 兜底），
+            # 也就是客户端权威模式下服务端**不再**接管跳跃/蹲起。
+            return False
+        if any(value not in (0, 1) for value in keys):
+            raise ValueError("runtime local key state must be 0 or 1")
+        position = list(struct.unpack_from(">fff", body, 12))
+    else:
+        return False
+    if not all(math.isfinite(value) for value in position):
+        raise ValueError("non-finite runtime local position")
+    if not groundEnabled(flow):
+        return True
+    cancelMotionTimers(flow)
+    ground = groundState(flow)
+    if ground["position"] is None:
+        flow.result["logs"].append(
+            "client-runtime-position-accepted; no-motion-echo")
+    ground["position"] = position
+    if selector == 3:
+        ground["heading"] = heading
+    else:
+        ground["mask"] = sum(keys[index] << index for index in range(4))
+    return True
+
+
 def enableGround(flow) -> None:
+    if runtimeMovement(flow):
+        # 客户端权威：只翻开关 + 广播一次 active，**不启动**任何服务端运动定时器。
+        cancelMotionTimers(flow)
+        wasEnabled = groundEnabled(flow)
+        flow.session["groundEnabled"] = True
+        if not wasEnabled:
+            activate(flow)
+        return
     if not groundEnabled(flow):
         ground = groundState(flow)
         if ground["mask"] != -1:
@@ -2367,6 +2455,10 @@ def handleFastRun(flow, body) -> bool:
         + " hex=" + body.hex())
     if previous == isStart:
         return True
+    if runtimeMovement(flow):
+        # 客户端权威：只记快跑标志，**不发**任何服务端运动帧。否则每按一次 SHIFT
+        # 就会有一条 move-ground-fast-run-state-echo 去顶客户端自己积的轨迹。
+        return True
     if not groundEnabled(flow) or ground["mask"] < 0 or ground["position"] is None:
         return True
     if jumpActive(flow):
@@ -2390,6 +2482,11 @@ def handleFastRun(flow, body) -> bool:
 def timer(flow, name):
     if name not in ("direction-prime-start", "direction-prime-stop", "ground-step", JUMP_TIMER):
         return False
+    if runtimeMovement(flow):
+        # 客户端权威：一条服务端驱动的运动帧都不发（含跳跃推进）。
+        # 对应上游 ``timer()`` 里的 ``if runtimeMovement(flow): cancelMotionTimers(); return True``。
+        cancelMotionTimers(flow)
+        return True
     if (flow.session.get("leaving") or not flow.session.get("battleEntered")
             or not groundEnabled(flow)):
         if name == JUMP_TIMER:
@@ -2492,6 +2589,11 @@ def message(flow, command, selector, body):
         return False
     if flow.session.get("controlBaseline") != wire.BASELINE_ID:
         return False
+    if runtimeMovement(flow) and selector in (3, 52):
+        # 客户端权威：这两个 selector 只**接受**客户端上报，无条件 return，
+        # 不回落进服务端的周期回声 / 跳跃 / 转向路径（与上游同口径）。
+        # ⚠️ 快跑 selector(63) 上游没有，仍走下面的原路径（见 handleFastRun）。
+        return localReport(flow, selector, body)
     if selector == FAST_RUN_SELECTOR:
         # sel=63 在改动前落到 app.py 的 unhandled 兜底里（日志可见
         # `unhandled command=2 selector=63`），也就是“按了 SHIFT 服务端不认”。
