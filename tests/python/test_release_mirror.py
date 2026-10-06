@@ -212,6 +212,18 @@ def test_release_uses_tag_notes_instead_of_generated_notes():
     assert "gh release create" in release and "--verify-tag" in release
     assert "--notes-from-tag" in release
     assert "--generate-notes" not in release
+    command = release.split("gh release create", 1)[1].split()
+    assert "--repo" not in command and "-R" not in command
+
+
+def test_release_checks_out_tags_before_downloading_artifacts():
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    release = workflow.split("\n  release:\n", 1)[1].split("\n  mirror:\n", 1)[0]
+    checkouts = [step for step in release.split("\n      - name:") if "uses: actions/checkout@" in step]
+    assert len(checkouts) == 1
+    assert "fetch-depth: 0" in checkouts[0]
+    assert "persist-credentials: false" in checkouts[0]
+    assert release.index("uses: actions/checkout@") < release.index("uses: actions/download-artifact@")
 
 
 def test_mirror_preserves_markdown_release_notes(tmp_path):

@@ -166,6 +166,12 @@ jobs:
       RELEASE_TAG: ${{ github.ref_name }}
 
     steps:
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Download verified application package
         uses: actions/download-artifact@v8
         with:
@@ -192,7 +198,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create --repo "$env:GITHUB_REPOSITORY"
+          gh release create
           --verify-tag --notes-from-tag --title "$env:RELEASE_TAG"
           -- "$env:RELEASE_TAG" "dist/T7-Rekindle-windows-x64-${env:RELEASE_TAG}.zip"
           "dist/T7-Rekindle-${env:RELEASE_TAG}-Setup.exe"
