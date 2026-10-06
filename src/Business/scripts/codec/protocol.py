@@ -40,6 +40,10 @@ _INT8 = struct.Struct(">b")
 
 _QUEST_DATA_ZERO_SIZE = 144
 _USER_BASIC_INFO_SIZE = 296
+# USER_BASIC_INFO = image i32 + level i32 + 288B 尾段；尾段里这四个 i32 是
+# 金币 / 银币 / 兑换券 / 点券（字段序出处：sh_proto_cs metalib 的
+# USER_BASIC_INFO）。全 0 时解锁面板永远显示「需要金币 0/9000」，按钮灰。
+_CURRENCY_TAIL_OFFSETS = (20, 24, 28, 32)
 _PVE_DATA_ZERO_SIZE = 2
 _HERO_PRODUCE_DATA_ZERO_SIZE = 8
 
@@ -68,6 +72,12 @@ class MinimalLoginIdentity:
     gm_privilege: int = 0
     level: int = 1
     url: bytes = b""
+    # USER_BASIC_INFO 里的四种货币。全 0 时解锁按钮一律灰（金币/点券不够），
+    # 位置见 _CURRENCY_TAIL_OFFSETS。
+    copper_coin: int = 0
+    silver_coin: int = 0
+    coupon: int = 0
+    point_ticket: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,6 +364,13 @@ def encode_minimal_login_success(identity: MinimalLoginIdentity) -> bytes:
         (identity.user_image_id, identity.level),
         ("basic user_image_id", "level"),
     )
+    basic_tail = bytearray(_USER_BASIC_INFO_SIZE - len(basic_prefix))
+    for value, offset in zip(
+        (identity.copper_coin, identity.silver_coin, identity.coupon,
+         identity.point_ticket),
+        _CURRENCY_TAIL_OFFSETS,
+    ):
+        _INT32.pack_into(basic_tail, offset, value)
     return b"".join(
         (
             header,
@@ -361,7 +378,7 @@ def encode_minimal_login_success(identity: MinimalLoginIdentity) -> bytes:
             image_and_privilege,
             bytes(_QUEST_DATA_ZERO_SIZE),
             basic_prefix,
-            bytes(_USER_BASIC_INFO_SIZE - len(basic_prefix)),
+            bytes(basic_tail),
             bytes(_PVE_DATA_ZERO_SIZE + _HERO_PRODUCE_DATA_ZERO_SIZE),
             _encode_tdr_string(identity.url, maximum_size=512, field_name="url"),
         )
@@ -392,7 +409,16 @@ def decode_minimal_login_success(data: bytes) -> MinimalLoginIdentity:
     if basic_end > len(data):
         raise ValueError("minimal login-success user_basic_info is truncated")
     basic_image_id, level = struct.unpack_from(">ii", data, offset)
-    if basic_image_id != user_image_id or data[offset + 8:basic_end] != bytes(_USER_BASIC_INFO_SIZE - 8):
+    if basic_image_id != user_image_id:
+        raise ValueError("minimal login-success user_basic_info image mismatch")
+    tail = bytearray(data[offset + 8:basic_end])
+    if len(tail) != _USER_BASIC_INFO_SIZE - 8:
+        raise ValueError("minimal login-success user_basic_info is truncated")
+    currency = []
+    for position in _CURRENCY_TAIL_OFFSETS:
+        currency.append(_INT32.unpack_from(tail, position)[0])
+        tail[position:position + 4] = bytes(4)
+    if tail != bytes(_USER_BASIC_INFO_SIZE - 8):
         raise ValueError("minimal login-success user_basic_info is not the supported fixture")
     offset = basic_end
     zero_tail_size = _PVE_DATA_ZERO_SIZE + _HERO_PRODUCE_DATA_ZERO_SIZE
@@ -402,7 +428,8 @@ def decode_minimal_login_success(data: bytes) -> MinimalLoginIdentity:
     url, offset = _decode_tdr_string(data, offset, maximum_size=512, field_name="url")
     if offset != len(data):
         raise ValueError(f"minimal login-success packet has {len(data) - offset} trailing bytes")
-    return MinimalLoginIdentity(user_id, user_name, user_image_id, gm_privilege, level, url)
+    return MinimalLoginIdentity(user_id, user_name, user_image_id, gm_privilege,
+                                level, url, *currency)
 
 
 def encode_tpdu_base(value: TpduBase) -> bytes:
