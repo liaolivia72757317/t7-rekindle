@@ -111,6 +111,9 @@ class Flow:
     def __init__(self, heroId):
         self.now = 1000
         self.sent = []
+        # 无 state 的桩会退回 ``CLIENT_RUNTIME_MOVEMENT`` 默认值；本脚本要测的是
+        # 「服务端权威骑乘转向帧」，因此显式钉 False。
+        self.state = {"runtimeMovement": False}
         self.session = {"heroId": heroId, "camp": 1, "battleEntered": True,
                         "groundEnabled": True, "leaving": False, "role": "instance",
                         "pending": {}, "controlBaseline": c.BASELINE_ID}

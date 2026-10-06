@@ -115,8 +115,11 @@ class NoStateFlow(Flow):
         del self.state
 
 
-check("取不到 state ⇒ 退回服务端权威（不抛 AttributeError）",
-      controls.runtimeMovement(NoStateFlow(True)) is False)
+# 无 state 的离线桩退回 ``CLIENT_RUNTIME_MOVEMENT`` 默认值（独立跑 fixture 时
+# 即服务端权威）；不抛 AttributeError 的口径不变。真实开关是宿主注入的
+# ``runtimeMovement``，见 ``controls.runtimeMovement``。
+check("取不到 state ⇒ 退回 CLIENT_RUNTIME_MOVEMENT 默认(False)（不抛 AttributeError）",
+      controls.runtimeMovement(NoStateFlow(True)) is c.CLIENT_RUNTIME_MOVEMENT)
 
 print("ALL OK" if all(RESULTS) else "FAIL " + str(RESULTS.count(False)))
 sys.exit(0 if all(RESULTS) else 1)

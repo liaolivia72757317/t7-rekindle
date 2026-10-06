@@ -2,7 +2,7 @@
 from copy import deepcopy
 import struct
 
-from . import contracts as wire, scene, controls, battle, dungeon, mo, npc_ai, tracelog
+from . import contracts as wire, scene, controls, battle, dungeon, mo, npc_ai, tracelog, voice
 from .codec import login_flow, protocol, room_flow
 from .codec.method3 import Method3UplinkMessage
 
@@ -459,6 +459,12 @@ def handleMessage(flow, event):
     if dungeon.message(flow, command, selector, body):
         return
     if controls.message(flow, command, selector, body):
+        return
+    # F1/F2 队伍快捷喊话（``cmd=10 sel=300`` 上行 → ``sel=301`` 广播）。
+    # 语义边界（哪些是 TDR 证据、哪些还是推断）见 voice.py 顶部。
+    # 取证优先：每次上行整条 hex 落盘（tracelog tag=voice），结构不符就返回
+    # False 落 unhandled，不猜字段。
+    if voice.message(flow, command, selector, body):
         return
     # ⭐ 2026-09-23：C 键上/下马（``cmd=4 sel=12/13``）。接线前它落到下面的
     #    unhandled 兜底（``unhandled command=4 selector=13``）—— 客户端骑马按 C

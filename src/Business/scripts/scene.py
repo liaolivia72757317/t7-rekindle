@@ -218,7 +218,8 @@ def sendVisionObject(flow, mid):
     """
     if mid == wire.ACTOR_ID:
         flow.send(0xE, wire.actorVision(flow.session["camp"], heroIdOf(flow),
-                                        withMount=bool(flow.session.get("battleEntered"))),
+                                        withMount=bool(flow.session.get("battleEntered")),
+                                        runtimeMovement=controls.runtimeMovement(flow)),
                   "instance-fixed-local-actor-vision-add-event")
         return True
     scene = controls.airWallScene(flow)
@@ -274,6 +275,9 @@ def begin(flow):
     flow.send(0x2C, flow.syncBody(), "instance-sync-login-rsp-after-auth")
     flow.send(0xA, wire.instanceInfo(flow.now), "instance-minimal-update-after-auth")
     flow.session["instanceStartedAt"] = flow.now
+    # 同时打上 movable 时钟标记，让 controls 的 ``validMoveClock`` /
+    # ``nextGroundTick`` 走「进图起递增毫秒」口径（与上游同款）。
+    flow.session["moveClock"] = controls.MOVE_CLOCK
     flow.session["initialized"] = True
     flow.session["controlBaseline"] = wire.BASELINE_ID
     flow.session["groundEnabled"] = False
@@ -406,7 +410,8 @@ def battleEntry(flow):
     flow.session.pop("ccObjectsSent", None)
     flow.session.pop("guideObjectsSent", None)
     flow.session.pop("npcObjectsSent", None)
-    flow.send(0xE, wire.actorVision(flow.session["camp"], heroIdOf(flow)),
+    flow.send(0xE, wire.actorVision(flow.session["camp"], heroIdOf(flow),
+                                    runtimeMovement=controls.runtimeMovement(flow)),
               "actor-vision-add-after-battle-confirm")
     sendCcObjects(flow)
     sendTutorialObjects(flow)
@@ -587,7 +592,8 @@ def message(flow, command, selector, body):
         #    ``0x36/0x32`` 那条才到的），按 ini 默认将发马 ⇒ 他改选步兵之后，
         #    人身边那匹空马还留着（实机：赵云、黄忠各带一匹白马）。
         #    马改到 ``battleEntry()``（选将已定）那一份里发，一局只出现一次。
-        flow.send(0xE, wire.actorVision(camp, heroIdOf(flow), withMount=False),
+        flow.send(0xE, wire.actorVision(camp, heroIdOf(flow), withMount=False,
+                                        runtimeMovement=controls.runtimeMovement(flow)),
                   "instance-fixed-local-actor-vision-add-before-basic-info")
         sendCcObjects(flow)
         sendTutorialObjects(flow)

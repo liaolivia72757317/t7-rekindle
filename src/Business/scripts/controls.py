@@ -16,6 +16,15 @@ from .codec import move_flow
 
 GROUND_RUN_DELAY_MS = 2000
 MAX_GROUND_ELAPSED_MS = 100
+# movable 时钟口径，对齐上游 ``MOVE_CLOCK``：下发/上报的 ``server_tick``
+# **不是墙钟毫秒，而是「进图起递增毫秒」**（上游注释：「客户端给 MOVE tick 加
+# 实例起点；同毫秒消息共享时间，不额外积分」）。``activate()`` /
+# ``unlockOrientation()`` / ``activateMount()`` 三处原本硬写 ``server_tick=1``，
+# 等于告诉客户端「这个 movable 是在进图第 1 毫秒激活的」，与真实实例时钟脱节。
+# 边界：只有 ``instanceStartedAt`` 已落库（``scene.begin``）时才走该口径；
+# 离线仿真桩 / 进图前**退回墙钟口径**，不改既有回归行为。
+MOVE_CLOCK = "instance-relative-ms-v1"
+MAX_MOVE_TICK = 0x7FFFFFFF
 # 2026-09-19 高度跟随：一步最多改变的 Z（米）。楼梯在高度场里是垂直通道，
 # 相邻格差 11~12 m（实测 939 处大跳变全在楼梯口），不限速会瞬移。
 # ⚠️ 别调太小：advanceGround() 只在**移动时**调用，玩家在楼梯上停手就会
@@ -691,8 +700,25 @@ _JUMP_DEFAULT = {"active": 0, "phase": 0, "pressed": 0, "z": 0.0, "vz": 0.0,
 
 
 def activate(flow):
+    """进场后激活玩家 movable（``MOVE_NOTIFY_ACTIVE``，cmd=2 / sel=0x1F）。
+
+    ``server_tick`` 用 ``nextGroundTick(flow)``（进图起递增毫秒），并回写
+    ``ground["tick"]`` / ``["timingTick"]`` —— 与上游 ``controls.activate`` 同口径。
+    语义依据：该字段是客户端 movable 的**时钟基准**；硬写 1 等于宣称
+    「本 movable 在进图第 1ms 激活」，与真实实例时钟脱节。
+
+    ⚠️ 与上游的**唯一**分歧：``active`` 仍写死 1，不用上游的
+    ``int(groundEnabled(flow))``。理由：本项目 ``scene.py`` 会在
+    ``VISION_GET_OBJECTS``（0xE/7）里**直接**调 ``activate``，那时
+    ``battleEntered`` 还没置位 ⇒ ``groundEnabled`` 为 False ⇒ 上游写法会发出
+    ``active=0``（**取消**激活）。这里保持既有行为，不动这个字节。
+    """
+    tick = nextGroundTick(flow)
     flow.send(2, move_flow.encode_move_notify_active(
-        server_tick=1, target_instance_id=1, active=1), "instance-move-notify-active-after-in-scene")
+        server_tick=tick, target_instance_id=1, active=1),
+        "instance-move-notify-active-after-in-scene")
+    ground = groundState(flow)
+    ground["tick"] = ground["timingTick"] = tick
 
 
 def project(mask, heading, stepDistance=None):
@@ -1233,10 +1259,33 @@ def groundZFollow(flow, ground) -> bool:
     return True
 
 
+def validMoveClock(session: dict) -> bool:
+    """会话是否已带上「进图起递增毫秒」时钟（上游 ``app.validateState`` 同口径）。"""
+    return (session.get("moveClock") == MOVE_CLOCK
+            and type(session.get("instanceStartedAt")) is int
+            and session["instanceStartedAt"] >= 0)
+
+
+def instanceTick(flow):
+    """进图起递增毫秒；时钟未建立时返回 ``None``（调用方决定退路）。"""
+    startedAt = flow.session.get("instanceStartedAt")
+    if type(startedAt) is not int or startedAt < 0:
+        return None
+    return flow.now - startedAt
+
+
 def nextGroundTick(flow):
-    tick = max(flow.now & 0xFFFFFFFF, groundState(flow)["tick"] + 1)
-    if tick > 0xFFFFFFFF:
-        raise ValueError("ground server tick exhausted UInt32 range")
+    tick = instanceTick(flow)
+    if tick is None:
+        # 退路：离线仿真桩 / ``scene.begin`` 之前，退回墙钟口径。
+        tick = max(flow.now & 0xFFFFFFFF, groundState(flow)["tick"] + 1)
+        if tick > 0xFFFFFFFF:
+            raise ValueError("ground server tick exhausted UInt32 range")
+        return tick
+    if not 0 <= tick <= MAX_MOVE_TICK:
+        raise ValueError("MOVE elapsed time outside nonnegative Int32 range")
+    if tick < groundState(flow)["tick"]:
+        raise ValueError("MOVE time moved backwards; new instance required after clock change")
     return tick
 
 
@@ -2198,8 +2247,11 @@ def unlockOrientation(flow):
     注释「正常服务器会在进场后解除角色方向锁」。出处项目据此对照过「能走 vs 不能走」。
     ⚠️ 发送时机（进场一次）是兼容推断，不是原版证据。
     """
-    flow.send(2, move_flow.encode_move_lock_orientation(server_tick=1),
-              "move-lock-orientation-unlock")
+    # server_tick 按实例时钟下发；取不到时钟（离线仿真桩 / 进图前）退回 1。
+    tick = instanceTick(flow)
+    flow.send(2, move_flow.encode_move_lock_orientation(
+        server_tick=1 if tick is None else tick),
+        "move-lock-orientation-unlock")
 
 
 def activateMount(flow):
@@ -2210,8 +2262,11 @@ def activateMount(flow):
     """
     if not wire.heroHasMount(flow.session.get("heroId", 0)):
         return
+    # server_tick 按实例时钟下发；取不到时钟退回 1。
+    tick = instanceTick(flow)
     flow.send(2, move_flow.encode_move_notify_active(
-        server_tick=1, target_instance_id=wire.MOUNT_VISION_INSTANCE_ID, active=1),
+        server_tick=1 if tick is None else tick,
+        target_instance_id=wire.MOUNT_VISION_INSTANCE_ID, active=1),
         "instance-move-notify-active-mount")
 
 

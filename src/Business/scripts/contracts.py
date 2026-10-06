@@ -1399,6 +1399,15 @@ HP_NOW = _battleIniInt("hp_now", 100)
 # ⚠️ 只写 actor 这一份：坐骑/攻城器械那两份姿态不传这个参数，恒 0。
 ACTOR_GRAVITY = _battleIniInt("actor_gravity", 0)
 
+# 客户端权威移动模式下的重力。上游 ``contracts.actorVision(..., runtimeMovement=True)``
+# 在 ``gravityOffset = 79`` 处硬写 ``struct.pack(">h", -10000)``（= -10.0 m/s²）；
+# 本项目 ``vision_flow.encode_fixed_local_actor_vision_add_event`` 的 ``gravity``
+# 形参落点**同为偏移 79..80**（gravity=0 → ``0000``，-10000 → ``d8f0``），
+# 因此不需要像上游那样按偏移打补丁，直接传值即可。
+# 语义边界：**只在 runtimeMovement 模式生效**；服务端权威模式仍走
+# ``ACTOR_GRAVITY``（默认 0），不改变服务端权威模式的行为。
+RUNTIME_GRAVITY = _battleIniInt("runtime_gravity", -10000)
+
 
 def _throwAmmo(weapon_tid):
     default = _THROW_AMMO_DEFAULTS.get(weapon_tid)
@@ -2060,7 +2069,19 @@ def heroHasMount(heroId):
     return bool(battleLoadout(heroId)[1])
 
 
-def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True):
+def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True, runtimeMovement=False):
+    """本地玩家视野对象（``0xE`` / ``VISION_ADD``）。
+
+    新增 ``runtimeMovement`` 形参。客户端权威移动模式下，角色重力必须下发
+    （否则客户端拿到的重力是 0，离开支撑物不往下掉 ⇒ 台阶/落差/跳跃都不成立）。
+    口径与上游 ``contracts.actorVision`` 一致：``runtimeMovement=True`` ⇒
+    ``gravity = RUNTIME_GRAVITY``（默认 -10000 = -10.0 m/s²）。
+
+    ⚠️ 与上游的**唯一**分歧：上游在这里断言 ``heroId == RUNTIME_HERO_IDS[0]``
+    （固定将 110001）并对 body 做偏移打补丁；本项目直接走 ``vision_flow`` 的
+    ``gravity`` 形参（落点同为偏移 79），因此**任何武将**都能开客户端权威移动，
+    不必把阵容锁死成单将。
+    """
     # 骑兵专用出生点（默认关，见 applyCavalrySpawn）。放这里是为了三个调用点
     # 都覆盖到，且保证下发的 pos 与服务端 POSITION 始终一致；步兵路径无副作用。
     if heroId is None:
@@ -2084,7 +2105,8 @@ def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True):
         camp=camp, position=POSITION, hero_resource_id=heroId, actor_name=actorName,
         weapons=weapons, mount_tid=mount_tid,
         mount_rid=MOUNT_VISION_RID if mount else 0, mount_object=mount,
-        current_hp=HP_NOW, gravity=ACTOR_GRAVITY)
+        current_hp=HP_NOW,
+        gravity=RUNTIME_GRAVITY if runtimeMovement else ACTOR_GRAVITY)
 
 
 def enemyVision():
