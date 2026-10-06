@@ -173,6 +173,30 @@ check("服务端权威：人物对象坐标仍是出生点（对照）",
       repr(actorPositionBytes(bodyS)))
 
 
+print("★ round-game：必须补发「控制解锁」帧 actorState(6)")
+# 上游 tests/python/test_runtime_movement.py::test_runtime_controls_unlock_only_
+# after_start_countdown_and_without_respawn 断言 [0xA, 0x36, 2]。
+# ⚠️ 缺这条帧 ⇒ actor 永远停在 battleEntry 结尾的 state 8（不可操控）
+#    ⇒ 实机「WASD / F1F2 / 空格 / ~ 切空手 / Ctrl 下蹲」全部无响应。
+f5 = Flow(True)
+f5.session.update(groundEnabled=False, instanceStartedAt=0,
+                  moveClock=controls.MOVE_CLOCK)
+scene.timer(f5, "round-game")
+check("客户端权威：round-game 发 [0xA, 0x36, 2]（控制解锁）",
+      [command for command, _, _ in f5.sent] == [0xA, 0x36, 2],
+      repr([(command, reason) for command, reason, _ in f5.sent]))
+check("解锁帧的 body 是 actorState(now, 6)",
+      f5.sent[1][2] == scene.wire.actorState(f5.now, 6)
+      or f5.sent[1][2][2:10] == scene.wire.actorState(f5.now, 6)[2:10],
+      repr(f5.sent[1][2][:12]))
+f6 = Flow(False)
+f6.session.update(groundEnabled=False, instanceStartedAt=0,
+                  moveClock=controls.MOVE_CLOCK)
+scene.timer(f6, "round-game")
+check("服务端权威：同样发 actorState(6)（对照）",
+      [command for command, _, _ in f6.sent] == [0xA, 0x36],
+      repr([command for command, _, _ in f6.sent]))
+
 print("★ 无 state 的离线桩（verify_mount_turn.Flow 那种）")
 
 

@@ -526,6 +526,13 @@ def timer(flow, name):
         flow.later("round-game", wire.START_MS)
     elif name == "round-game":
         flow.send(0xA, wire.roundState(flow.now, 4, wire.GAME_MS), "instance-round-state-game")
+        # ⚠️⚠️ **控制解锁帧**（上游同款，位置在 enableGround **之前**）。
+        #    actor_state 语义：6 = 已在场景中、可操控；8 = 仅就绪待播。
+        #    battleEntry 结尾会把 actor 停在 8，若开局不补发 6，客户端就**永远不解锁
+        #    控制** —— 实机症状：WASD / F1F2 / 空格 / ~ 切空手 / Ctrl 下蹲全部无响应
+        #    （服务端此时已进入客户端权威移动模式，本就不该由它驱动移动，
+        #     所以「服务端不发移动帧」是正常的，缺的正是这条状态帧）。
+        flow.send(0x36, wire.actorState(flow.now, 6), "actor-in-scene-after-round-game")
         controls.enableGround(flow)
         flow.phase("game-sent")
     elif name == "time-sync":

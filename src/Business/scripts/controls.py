@@ -814,6 +814,11 @@ def localReport(flow, selector, body) -> bool:
         ground["heading"] = heading
     else:
         ground["mask"] = sum(keys[index] << index for index in range(4))
+        # 上游同款记账：keys[4] = 下蹲、keys[5] = 跳跃。客户端权威模式下服务端
+        # 不据此发包，只留给日志/诊断用（缺了会让上游 pytest 的
+        # test_runtime_reports_update_local_snapshot_without_server_echo 报 KeyError）。
+        ground["crouched"] = bool(keys[4])
+        ground["jumpPressed"] = bool(keys[5])
     return True
 
 
