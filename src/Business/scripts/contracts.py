@@ -2069,13 +2069,18 @@ def heroHasMount(heroId):
     return bool(battleLoadout(heroId)[1])
 
 
-def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True, runtimeMovement=False):
+def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True, runtimeMovement=False,
+                position=None):
     """本地玩家视野对象（``0xE`` / ``VISION_ADD``）。
 
     新增 ``runtimeMovement`` 形参。客户端权威移动模式下，角色重力必须下发
     （否则客户端拿到的重力是 0，离开支撑物不往下掉 ⇒ 台阶/落差/跳跃都不成立）。
     口径与上游 ``contracts.actorVision`` 一致：``runtimeMovement=True`` ⇒
     ``gravity = RUNTIME_GRAVITY``（默认 -10000 = -10.0 m/s²）。
+
+    ``position``：客户端权威移动模式下传**客户端上报的实时坐标**；``None`` 表示
+    用 ``POSITION``。服务端权威模式必须保持 ``POSITION``，否则会把服务端算出的
+    落点覆盖掉。
 
     ⚠️ 与上游的**唯一**分歧：上游在这里断言 ``heroId == RUNTIME_HERO_IDS[0]``
     （固定将 110001）并对 body 做偏移打补丁；本项目直接走 ``vision_flow`` 的
@@ -2087,6 +2092,8 @@ def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True, runtimeM
     if heroId is None:
         heroId = _ACTIVE_HERO
     applyCavalrySpawn(heroId)
+    if position is None:
+        position = POSITION
     weapons, mount_tid = battleLoadout(heroId)
     # ⚠️ 2026-10-05：**选将还没定下来之前不要发马**（`withMount=False`）。
     #   实机取证：进图时这份包按 ini 默认将（姜维 2121）发过一次，之后玩家选了
@@ -2102,7 +2109,7 @@ def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True, runtimeM
         instance_id=MOUNT_VISION_INSTANCE_ID)
         if mount_tid else b"")
     return vision_flow.encode_fixed_local_actor_vision_add_event(
-        camp=camp, position=POSITION, hero_resource_id=heroId, actor_name=actorName,
+        camp=camp, position=position, hero_resource_id=heroId, actor_name=actorName,
         weapons=weapons, mount_tid=mount_tid,
         mount_rid=MOUNT_VISION_RID if mount else 0, mount_object=mount,
         current_hp=HP_NOW,

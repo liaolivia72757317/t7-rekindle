@@ -217,9 +217,18 @@ def sendVisionObject(flow, mid):
     返回 ``True`` 表示 mid 认得；``False`` 表示不认识（调用方决定怎么处理）。
     """
     if mid == wire.ACTOR_ID:
+        runtimeMovement = controls.runtimeMovement(flow)
+        # 客户端权威：视野里回**客户端上报的实时坐标**（上游同口径）。回出生点
+        # 等于每次刷新都把本地角色拉回去，撤销掉客户端刚走的位移。
+        position = None
+        if runtimeMovement:
+            reported = controls.groundState(flow).get("position")
+            if reported is not None:
+                position = tuple(reported)
         flow.send(0xE, wire.actorVision(flow.session["camp"], heroIdOf(flow),
                                         withMount=bool(flow.session.get("battleEntered")),
-                                        runtimeMovement=controls.runtimeMovement(flow)),
+                                        runtimeMovement=runtimeMovement,
+                                        position=position),
                   "instance-fixed-local-actor-vision-add-event")
         return True
     scene = controls.airWallScene(flow)
@@ -418,9 +427,13 @@ def battleEntry(flow):
     sendNpcObjects(flow)
     flow.send(0x36, wire.actorState(flow.now, 8), "actor-ready-play-after-battle-confirm")
     if flow.session.get("controlBaseline") == wire.BASELINE_ID:
-        ground = controls.groundState(flow)
-        controls.broadcast(flow, wire.POSITION, ground["heading"], 1, 0, 0,
-                           "instance-ground-initial-stop")
+        # ⚠️ 客户端权威模式下**不能**发这条「位置=出生点、速度=0」的静止帧：
+        #    移动由客户端 overlay 自己驱动，服务端再发一次静止坐标 = 互搏，
+        #    人物会被钉死在出生点（实机症状：WASD 完全不动）。上游同款闸门。
+        if not controls.runtimeMovement(flow):
+            ground = controls.groundState(flow)
+            controls.broadcast(flow, wire.POSITION, ground["heading"], 1, 0, 0,
+                               "instance-ground-initial-stop")
         initializeBattleState(flow)
         controls.notifyInAir(flow, is_in_air=0)
         # 顺序有讲究：这两条都要求视野实体已经建好（上面那条 vision ADD 才有坐骑）。
