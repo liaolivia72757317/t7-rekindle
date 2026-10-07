@@ -10,7 +10,7 @@
 
 | 项目 | 要求 |
 | --- | --- |
-| 系统 | Windows 10 22H2（build 19045）或 Windows 11，x64 |
+| 系统 | Windows 10 2004（build 19041）及以上版本或 Windows 11，x64 |
 | 托管运行时 | .NET Framework 4.8 或兼容的更高版本；仅运行程序不需要 Developer Pack |
 | 图形能力 | 预检要求 Direct3D 9 硬件设备支持 Pixel Shader 3.0 和 Vertex Shader 3.0 |
 | 游戏客户端 | 自行准备与下述基线匹配的原版 x86 客户端及完整资源 |

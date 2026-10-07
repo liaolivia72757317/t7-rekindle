@@ -49,6 +49,7 @@ def test_package_manifest_excludes_client(tmp_path, business_directory):
     assert manifest["schemaVersion"] == 1
     assert manifest["product"] == "T7-Rekindle"
     assert manifest["architecture"] == "x64"
+    assert manifest["minimumWindowsBuild"] == "10.0.19041"
     assert manifest["rawWireCaptureDefault"] is False
     assert manifest["clientIncluded"] is False
     assert "T7.NativeBridge.dll" in manifest["files"]
@@ -352,6 +353,7 @@ def test_release_packaging_accepts_complete_fixture(tmp_path):
     module.ROOT = source
     output = module.package(tmp_path / "output", archive, release=True)
     manifest = module.verify_package(output, require_runtime=True, require_license=True)
+    assert manifest["minimumWindowsBuild"] == "10.0.19041"
     assert manifest["release"] is True
     assert manifest["licenseIncluded"] is True
 

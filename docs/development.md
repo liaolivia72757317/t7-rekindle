@@ -8,7 +8,7 @@
 
 | 组件 | 要求与获取方式 |
 | --- | --- |
-| 系统 | Windows 10 22H2 / Windows 11 x64 |
+| 系统 | Windows 10 2004（build 19041）及以上版本 / Windows 11 x64 |
 | 原生工具 | [VS 2022 Build Tools](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history)，安装“使用 C++ 的桌面开发”、v143 工具集和 Windows SDK |
 | Python | [CPython 3.14.4](https://www.python.org/downloads/release/python-3144/) 的 Windows installer (64-bit)，包含头文件、导入库、运行时 DLL 和标准库 |
 | 托管工具 | [.NET SDK 8.0.425](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)，以及 [.NET Framework 4.8 Developer Pack](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48) |

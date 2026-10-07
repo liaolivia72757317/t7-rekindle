@@ -314,7 +314,7 @@ def verify_package(output: Path, require_runtime: bool = False, require_license:
     if (manifest.get("schemaVersion") != 1
             or manifest.get("product") != "T7-Rekindle"
             or manifest.get("architecture") != "x64"
-            or manifest.get("minimumWindowsBuild") != "10.0.19045"
+            or manifest.get("minimumWindowsBuild") != "10.0.19041"
             or manifest.get("requiresDotNet") != "net48"
             or manifest.get("rawWireCaptureDefault") is not False):
         raise ValueError("package manifest schema, platform or runtime policy is invalid")
@@ -426,7 +426,7 @@ def _package(output: Path, python_archive: Path | None = None, release: bool = F
         "schemaVersion": 1,
         "product": "T7-Rekindle",
         "architecture": "x64",
-        "minimumWindowsBuild": "10.0.19045",
+        "minimumWindowsBuild": "10.0.19041",
         "requiresDotNet": "net48",
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "python": "3.14.4-amd64" if python_archive else "external-runtime-required",

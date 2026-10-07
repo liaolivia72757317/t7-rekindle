@@ -345,7 +345,7 @@ def test_inno_contract_is_x64_per_user_and_does_not_ship_client_assets():
     text = (ROOT / "installer" / "T7-Rekindle.iss").read_text(encoding="utf-8")
     assert "ArchitecturesAllowed=x64os\n" in text
     assert "ArchitecturesInstallIn64BitMode=x64os\n" in text
-    assert "MinVersion=10.0.19045" in text
+    assert "MinVersion=10.0.19041" in text
     assert "PrivilegesRequired=lowest" in text
     assert "DefaultDirName={localappdata}\\Programs\\T7-Rekindle" in text
     assert "DisableDirPage=no" in text

@@ -21,7 +21,7 @@ Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
-MinVersion=10.0.19045
+MinVersion=10.0.19041
 
 [Languages]
 Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
