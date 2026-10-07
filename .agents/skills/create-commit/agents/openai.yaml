@@ -1,0 +1,3 @@
+interface:
+  display_name: "创建 Git Commit"
+  short_description: "按逻辑边界拆分改动，生成规范中文提交信息并逐个创建本地 Git commit"
