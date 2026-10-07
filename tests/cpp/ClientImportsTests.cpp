@@ -74,6 +74,7 @@ bool verifyClientImports() {
         require(d3dx != fixed.end(), "D3DX module missing");
         require(d3dx->symbols.at((0x016F6BBC - d3dx->iatRva) / 4) == "D3DXCreateBuffer", "D3DX buffer allocation binding");
         require(d3dx->symbols.at((0x016F6BFC - d3dx->iatRva) / 4) == "D3DXGetShaderConstantTable", "D3DX shader constant table binding");
+        require(d3dx->symbols.at((0x016F6C38 - d3dx->iatRva) / 4) == "D3DXVec3Transform", "D3DX homogeneous vector transform binding");
         std::cout << "Client import layout and transactional rejection cases passed\n";
         return true;
     } catch (const std::exception& error) {
