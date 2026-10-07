@@ -857,6 +857,10 @@ else:
     RESOURCE_ID = PATTERN_BY_LEVEL.get(LEVEL_ID, LEVEL_ID)
 START_PATTERN = 2
 USER_ID = 10000
+# 玩家等级 —— **大厅登录、实例 actor、视野 actor 三处唯一来源**。
+# 曾经三处各写各的（大厅 99 / 实例 1 / 视野 1，后两处是编码器默认值），
+# 于是同一个玩家在大厅和在局内显示成两个等级。
+USER_LEVEL = 100
 ACTOR_ID = 1
 # 玩家自己操作的那个武将（进图手里拿他的武器、人物模型也是他）。
 # 默认 1101 赵云 = 改动前写死的那个值，不设就是现状逐位不变。
@@ -987,7 +991,52 @@ def activeHeroId():
 
 # 战斗侧（进图匹配面板）的可选武将在下面 HERO_IDS，跟着名册出战阵容走。
 # 这里只留大厅出战卡的默认值。
-USER_NAME = "刀锋铁骑复活研究中心".encode("gbk")
+#
+# 昵称（``USER_NAME`` / ``encodePlayerName`` / ``defaultPlayerName``）
+# ------------------------------------------------------------------
+# 昵称**不是常量**：宿主在 context 里传 ``playerName``（启动器里配的那个）。
+# ``createState()`` 存进 state，``Flow.playerName`` 取出来，登录应答和所有角色
+# 消息都用它。``USER_NAME`` 只是「没配昵称时」的默认值。
+#
+# 存储口径是 **GBK，最多 31 字节**（客户端 ``user_name`` 字段按 GBK 解、超长会
+# 被截断成乱码），所以统一走 ``encodePlayerName()`` 收口：strip、拒控制字符、
+# 拒空、限长。别再让某条报文直接用原始字符串。
+USER_NAME = "新玩家".encode("gbk")
+
+
+def encodePlayerName(value):
+    """昵称 -> 线上字节（GBK，≤31 字节）。校验不通过直接抛。
+
+    ``strip()`` 之后为空、含控制字符（含 DEL 与 C1）、GBK 编不出来、超长 —— 都算无效。
+    """
+    if type(value) is not str:
+        raise TypeError("playerName must be a string")
+    value = value.strip()
+    if not value or any(ord(char) < 32 or 127 <= ord(char) < 160 for char in value):
+        raise ValueError("playerName must be nonempty and contain no control characters")
+    encoded = value.encode("gbk", errors="strict")
+    if len(encoded) > 31:
+        raise ValueError("playerName exceeds the 31-byte GBK limit")
+    return encoded
+
+
+def defaultPlayerName():
+    """没配昵称时的默认值：``level.ini [server] player_name=`` > ``USER_NAME``。
+
+    走 ini 而不是环境变量：宿主进程由启动器拉起，终端 ``set`` 的变量进不去。
+    """
+    raw = str(iniSection("server").get("player_name", "")).strip()
+    if not raw:
+        return USER_NAME.decode("gbk")
+    try:
+        encodePlayerName(raw)
+    except (ValueError, TypeError) as error:
+        print("[contracts] [server] player_name=" + raw + " 无效（" + str(error)
+              + "），按默认昵称走", flush=True)
+        return USER_NAME.decode("gbk")
+    return raw
+
+
 POSITION, ENEMY_POSITION = SPAWN_BY_LEVEL[LEVEL_ID]
 
 # camp -> 用 ``SPAWN_BY_LEVEL[level]`` 那**一对点**里的第几个。
@@ -1345,6 +1394,17 @@ _HERO_ROSTER_SOURCE = _ROSTER["source"]
 # 以前这里写死 (110001, 110003, 110004)（赵云/关羽/孙尚香，照 VM 抓包的 fixture），
 # 和大厅名册各走各的，于是「外面出战四个、进图匹配是另外三个」。
 HERO_IDS = tuple(card[2] for card in HERO_BATTLE_FORMATION)
+
+# 客户端权威移动模式下，出战阵容收敛成**当前武将一人**：移动由客户端 overlay
+# 自己驱动，服务端不再维护其他人的位置，多出来的槽位只会让选将面板多出几张
+# 选不动的卡。取「当前武将」而不是写死某个 tid —— 写死会让按关卡自动换将失效。
+RUNTIME_HERO_IDS = (_ACTIVE_HERO,)
+
+
+def heroIds(runtimeMovement=False):
+    """当前模式下的出战武将元组。``runtimeMovement`` 见 ``RUNTIME_HERO_IDS``。"""
+    return RUNTIME_HERO_IDS if runtimeMovement else HERO_IDS
+
 
 # --- 战斗侧（进图）的武器与坐骑 -----------------------------------------------------
 # ``CS_BATTLE_HERO_DEF`` 的 weapon_slots、instance actor 的 mount_tid、VISION actor 的
@@ -2073,8 +2133,15 @@ def instanceInfo(now, startedAt=None):
         resource_id=RESOURCE_ID, start_pattern=START_PATTERN)
 
 
-def actorInfo(now, camp, heroId=None, withMount=True):
-    """⚠️ ``now`` 被忽略，统一走 ``serverNowMs()``。
+def actorInfo(now, camp, playerName=USER_NAME, withMount=True, heroId=None):
+    """实例 actor 基本信息（``0xA``）。
+
+    ``now`` 忽略，统一走 ``serverNowMs()``（``flow.now`` 是原生层单调时钟，
+    发到线上客户端会算出 1970）。
+
+    ``playerName`` 是**第 3 个位置参数**（与上游同序）：昵称由宿主注入、经
+    ``state["playerName"]`` 传下来，不是常量。``level`` 恒取 ``USER_LEVEL``，
+    与大厅登录、视野 actor 同源。
 
     ``withMount=False`` 把 ``mount_tid`` 抹成 0（选将还没定下来时不发骑兵信号，
     见 ``actorVision()`` 同名参数）。
@@ -2084,7 +2151,7 @@ def actorInfo(now, camp, heroId=None, withMount=True):
     weapons, mount_tid = battleLoadout(heroId)
     return room_flow.encode_instance_update_actor_basic_info(
         server_time_ms=serverNowMs(), instance_id=1, actor_mid=ACTOR_ID, user_id=USER_ID,
-        user_name=USER_NAME, user_image_id=7, level=1, actor_state=4,
+        user_name=playerName, user_image_id=7, level=USER_LEVEL, actor_state=4,
         hero_resource_id=heroId, camp=camp, start_pattern=START_PATTERN,
         weapons=weapons, mount_tid=mount_tid if withMount else 0)
 
@@ -2165,6 +2232,7 @@ def actorVision(camp, heroId=None, actorName=USER_NAME, withMount=True, runtimeM
         if mount_tid else b"")
     return vision_flow.encode_fixed_local_actor_vision_add_event(
         camp=camp, position=position, hero_resource_id=heroId, actor_name=actorName,
+        level=USER_LEVEL,
         weapons=weapons, mount_tid=mount_tid,
         mount_rid=MOUNT_VISION_RID if mount else 0, mount_object=mount,
         current_hp=HP_NOW,
@@ -2194,7 +2262,7 @@ def enemyVision():
         camp=2, actor_name=b"bot", position=ENEMY_POSITION)
 
 
-def battleHeroes(sequence):
+def battleHeroes(sequence, runtimeMovement=False):
     """出战本体容器（instance ``0x29``/selector ``0x65``，每将一份再拼头）。
 
     ``guid`` 用大厅那张卡的**真 guid**：阵容应答 ``0x22``/4 就是靠 guid 把「阵容里
@@ -2204,12 +2272,17 @@ def battleHeroes(sequence):
     ``CS_BATTLE_HERO_WEAPON_SLOT_DEF``（``{槽位 1B, 武器信息 105B}``），让 1/2/3
     换武器在客户端点亮。``CS_BATTLE_HERO_DEF`` 的单条是 106B、装整份武器信息，
     不是大厅那套 9B 引用；按 9B 填会让容器变长、客户端卡在选将（09-21 实机）。
+
+    ``runtimeMovement=True`` ⇒ 只发 ``heroIds(True)`` 那一张卡（客户端权威移动下
+    服务端不维护其他人）；默认 ``False`` ⇒ 全阵容，与改动前逐字节相同。
     """
+    formation = battleFormationNow()
+    if runtimeMovement:
+        wanted = set(heroIds(True))
+        formation = tuple(entry for entry in formation if entry[2] in wanted) \
+            or formation[:1]
     bodies = []
-    # ⭐ 2026-10-01（第十五轮）：用 ``battleFormationNow()`` 现算，让「按关卡换将」
-    #    生效后选将面板第 1 格就是配好的将。不切图时它 == HERO_BATTLE_FORMATION，
-    #    逐字节不变。
-    for slot, (_position, guid, hero) in enumerate(battleFormationNow(), 1):
+    for slot, (_position, guid, hero) in enumerate(formation, 1):
         weapons, mount_tid = battleLoadout(hero)
         body = login_flow.encode_fixed_battle_hero_sync_item_container_response(
             sequence=sequence, position=slot, guid=guid,

@@ -75,7 +75,11 @@ def createState(context):
     runtimeMovement = context.get("runtimeMovement", wire.CLIENT_RUNTIME_MOVEMENT)
     if type(runtimeMovement) is not bool:
         raise ValueError("runtimeMovement must be a bool")
+    # 昵称由宿主注入（启动器里配的那个）；没配就用默认值。存**字符串**在 state 里，
+    # 取出来编码成 GBK 字节发给客户端 —— 编码与校验统一走 ``wire.encodePlayerName``。
+    playerName = context.get("playerName") or wire.defaultPlayerName()
     return {"phase": "waiting", "sessions": {}, "roomId": 1, "actorId": 1,
+            "playerName": wire.encodePlayerName(playerName).decode("gbk"),
             "runtimeMovement": runtimeMovement}
 
 
@@ -83,6 +87,11 @@ def validateState(state):
     if (type(state) is not dict or type(state.get("sessions")) is not dict
             or type(state.get("phase")) is not str or state.get("roomId") != 1
             or state.get("actorId") != 1):
+        return False
+    # 老状态没有这个键 ⇒ 走默认昵称，不把存档判死。
+    try:
+        wire.encodePlayerName(state.get("playerName") or wire.defaultPlayerName())
+    except (ValueError, TypeError):
         return False
     # 旧状态没有这个键 ⇒ .get 取默认 False（仍是 bool）⇒ 不会把老存档判死。
     if type(state.get("runtimeMovement", wire.CLIENT_RUNTIME_MOVEMENT)) is not bool:
@@ -132,6 +141,9 @@ def selfTest():
 class Flow:
     def __init__(self, event, state, context):
         self.state, self.context = state, context
+        # 昵称的**字节形态**（GBK）—— 登录应答与所有角色消息都用它。
+        self.playerName = wire.encodePlayerName(
+            state.get("playerName") or wire.defaultPlayerName())
         self.connection = event["connection"]
         self.now = context["nowMs"]
         self.session = state["sessions"].get(str(self.connection))
@@ -185,7 +197,7 @@ def handleTimer(flow, name):
         flow.send(1, protocol.encode_version_check_response(0), "version-response")
     elif name == "login":
         identity = protocol.MinimalLoginIdentity(
-            wire.USER_ID, wire.USER_NAME, user_image_id=7, level=99,
+            wire.USER_ID, flow.playerName, user_image_id=7, level=wire.USER_LEVEL,
             copper_coin=wire.HERO_CURRENCY.get("copper", 0),
             silver_coin=wire.HERO_CURRENCY.get("silver", 0),
             coupon=wire.HERO_CURRENCY.get("coupon", 0),
@@ -687,11 +699,13 @@ def handleEvent(event, state, context):
         # ⚠️ 2026-09-19：三次实机失败都伴随**一个空会话目录**（连握手都没有）。
         # 客户端到底开了几条连接、各是什么角色，以前只能靠目录猜。
         # 这条让「实例连接到底起来没有」直接可读。
-        flow.result["logs"].append(
-            f"connection-opened connection={key} role={event['role']}"
-            f" sessions={len(state['sessions'])}"
-            f" roles={sorted({s['role'] for s in state['sessions'].values()})}"
-            f" phase={state['phase']}")
+        # 只在 ``[trace] enabled`` 打开时打：常态下每条连接都刷一行会把日志淹掉。
+        if tracelog.enabled():
+            flow.result["logs"].append(
+                f"connection-opened connection={key} role={event['role']}"
+                f" sessions={len(state['sessions'])}"
+                f" roles={sorted({s['role'] for s in state['sessions'].values()})}"
+                f" phase={state['phase']}")
     elif eventType == "closed":
         state["sessions"].pop(key, None)
         if not state["sessions"]:

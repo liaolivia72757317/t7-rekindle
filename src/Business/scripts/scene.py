@@ -5,6 +5,19 @@ from . import ccobject, contracts as wire, controls, dungeon, mo, npc, npc_ai, t
 from .codec import audio_flow, battle_flow, leave_flow, login_flow, room_flow, vision_flow
 
 
+def actorNameOf(flow):
+    """本会话的昵称字节（GBK）—— **唯一取昵称入口**。
+
+    宿主在 context 里传 ``playerName``，``createState()`` 存进 state，
+    ``Flow`` 取出编码好。视野实体、实例 actor、登录应答必须用同一份，
+    否则同一个玩家在大厅和局内会显示成两个名字。
+
+    ⚠️ 走 ``getattr`` 兜底：离线仿真桩（``verify_*.py`` 里的 ``Flow``）没有
+    这个属性，直接取会 AttributeError；取不到就按默认昵称走。
+    """
+    return getattr(flow, "playerName", None) or wire.USER_NAME
+
+
 def heroIdOf(flow):
     """本会话实际使用的武将 —— **唯一取将入口**，并顺手同步回 ``session``。
 
@@ -226,6 +239,7 @@ def sendVisionObject(flow, mid):
             if reported is not None:
                 position = tuple(reported)
         flow.send(0xE, wire.actorVision(flow.session["camp"], heroIdOf(flow),
+                                        actorName=actorNameOf(flow),
                                         withMount=bool(flow.session.get("battleEntered")),
                                         runtimeMovement=runtimeMovement,
                                         position=position),
@@ -429,6 +443,7 @@ def battleEntry(flow):
     flow.session.pop("guideObjectsSent", None)
     flow.session.pop("npcObjectsSent", None)
     flow.send(0xE, wire.actorVision(flow.session["camp"], heroIdOf(flow),
+                                    actorName=actorNameOf(flow),
                                     runtimeMovement=controls.runtimeMovement(flow)),
               "actor-vision-add-after-battle-confirm")
     sendCcObjects(flow)
@@ -623,13 +638,14 @@ def message(flow, command, selector, body):
         #    ``0x36/0x32`` 那条才到的），按 ini 默认将发马 ⇒ 他改选步兵之后，
         #    人身边那匹空马还留着（实机：赵云、黄忠各带一匹白马）。
         #    马改到 ``battleEntry()``（选将已定）那一份里发，一局只出现一次。
-        flow.send(0xE, wire.actorVision(camp, heroIdOf(flow), withMount=False,
+        flow.send(0xE, wire.actorVision(camp, heroIdOf(flow),
+                                        actorName=actorNameOf(flow), withMount=False,
                                         runtimeMovement=controls.runtimeMovement(flow)),
                   "instance-fixed-local-actor-vision-add-before-basic-info")
         sendCcObjects(flow)
         sendTutorialObjects(flow)
         sendNpcObjects(flow)
-        flow.send(0xA, wire.actorInfo(flow.now, camp, withMount=False),
+        flow.send(0xA, wire.actorInfo(flow.now, camp, actorNameOf(flow), withMount=False),
                   "instance-fixed-local-actor-after-camp-choice")
         flow.send(0x23, wire.campExchange(flow.now, camp), "instance-camp-exchange-notify")
         flow.session["actorImported"] = True
