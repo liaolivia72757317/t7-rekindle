@@ -6,6 +6,7 @@ import struct
 from dataclasses import dataclass
 
 from .method3 import Method3UplinkMessage
+from . import vision_flow
 from .protocol import (
     encode_plain_tpdu_downlink,
     encode_raw_application_payload,
@@ -45,7 +46,7 @@ ACTOR_PLAY_TYPE_SYSTEM = 1
 
 FIXED_LOCAL_USER_ID = 10000
 FIXED_LOCAL_ACTOR_MID = 1
-FIXED_LOCAL_HERO_RESOURCE_ID = 110001
+FIXED_LOCAL_HERO_RESOURCE_ID = 1101
 
 _REQUEST = struct.Struct(">Hb")
 _RESPONSE_PREFIX = struct.Struct(">HiQ")
@@ -479,11 +480,14 @@ def encode_instance_update_with_local_actor(
     hero_resource_id: int,
     camp: int,
     start_pattern: int = INSTANCE_START_PATTERN_PRACTICE,
+    weapons: tuple[tuple[int, int, int], ...] = (),
+    mount_tid: int = 0,
 ) -> bytes:
     """Encode UPDATE_INST with one fixed local actor and omitted optional storage.
 
-    The actor subset follows CS_PROTO_INSTANCE_ACTOR_BASIC_INFO. Scores and
-    weapons use zero counts, the fixed hero-data payload uses the selected
+    The actor subset follows CS_PROTO_INSTANCE_ACTOR_BASIC_INFO. Scores use a
+    zero count, ``mount_tid`` and the ``weapon_use_data`` records follow the
+    hero's lobby equipment card, the fixed hero-data payload uses the selected
     hero resource as herocard_id, and PRACTICE has no selected union arm.
     """
 
@@ -511,9 +515,9 @@ def encode_instance_update_with_local_actor(
                     0,
                 ),
                 struct.pack(">i", 0),
-                struct.pack(">iiI", 0, 0, 0),
+                struct.pack(">iiI", 0, 0, mount_tid),
                 struct.pack(">ibi" + "i" * 8, hero_resource_id, 0, 0, *([0] * 8)),
-                struct.pack(">h", 0),
+                vision_flow.encode_weapon_use_data(weapons),
                 struct.pack(">iiiiiii", *([0] * 7)),
                 struct.pack(">ii", 0, start_pattern),
             )
@@ -554,6 +558,8 @@ def encode_instance_update_actor_basic_info(
     hero_resource_id: int,
     camp: int,
     start_pattern: int = INSTANCE_START_PATTERN_PRACTICE,
+    weapons: tuple[tuple[int, int, int], ...] = (),
+    mount_tid: int = 0,
 ) -> bytes:
     """Encode the incremental actor import message used after UPDATE_INST.
 
@@ -561,6 +567,8 @@ def encode_instance_update_actor_basic_info(
     instance id, and the same actor record used by ``CS_SI_ACTOR_LIST``.
     Keeping actor import separate lets UPDATE_INST establish the instance and
     camp/loading pipeline before the client constructs the local actor.
+    ``weapons``/``mount_tid`` are the hero's lobby equipment, see
+    ``encode_instance_update_with_local_actor``.
     """
 
     encoded_user_name = _encode_tdr_string(
@@ -583,9 +591,9 @@ def encode_instance_update_actor_basic_info(
                     0,
                 ),
                 struct.pack(">i", 0),
-                struct.pack(">iiI", 0, 0, 0),
+                struct.pack(">iiI", 0, 0, mount_tid),
                 struct.pack(">ibi" + "i" * 8, hero_resource_id, 0, 0, *([0] * 8)),
-                struct.pack(">h", 0),
+                vision_flow.encode_weapon_use_data(weapons),
                 struct.pack(">iiiiiii", *([0] * 7)),
                 struct.pack(">ii", 0, start_pattern),
             )

@@ -14,6 +14,7 @@
 | 了解原版客户端无 TP 启动的验证结果与实施前置 | [TP 纯内存启动方案](planning/tp-memory-launch.md) |
 | 查找源码、测试、构建产物或内置文档 | [目录与源码范围](source-layout.md) |
 | 修改原生接口、生命周期、日志或设置格式 | [运行契约](runtime-contracts.md) |
+| 调整服务端是否回写客户端移动状态 | [移动开关](movement-knobs.md) |
 | 了解人机对战和局域网联机的推进顺序 | [实施与验收计划](planning/implementation-plan.md) |
 | 选择可以参与的工作，查看剩余验收事项 | [任务清单](planning/task-list.md) |
 
