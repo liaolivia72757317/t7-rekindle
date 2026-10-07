@@ -26,6 +26,7 @@
 
 任何一条不满足就退出码 1 —— 改移动路径后先跑它。
 """
+import os
 import struct
 import sys
 import types
@@ -39,6 +40,11 @@ from scripts import scene  # noqa: E402
 from scripts.codec import move_flow  # noqa: E402
 
 RESULTS = []
+
+# ⚠️ 2026-10-07 定档：``cc_move_mirror`` 的代码默认值改成了 **off**（实机跑通的那套
+# 「服务端零回写」，判据见 docs/movement-knobs.md）。本脚本下面「按 W 补一条走档镜像 /
+# 快跑补一条跑档镜像」这两条断言要的是打开回退档之后的行为，所以先把环境显式设成 on。
+os.environ["T7_CC_MOVE_MIRROR"] = "1"
 
 
 def check(name, ok, detail=""):
@@ -94,7 +100,8 @@ check("selector 52：接受客户端上报的位置", g.get("position") == POS,
       repr(g.get("position")))
 # ⭐ 第四十一轮：不再是「一条都不发」—— 按 W（掩码变化沿）要补一条**走档**镜像，
 #   但那是「镜像驱动状态」而不是「服务端驱动位移」：位置仍是客户端报的，且**没有**
-#   服务端运动定时器在跑。回退：``cc_move_mirror=off`` ⇒ 逐位回到旧行为。
+#   服务端运动定时器在跑。默认档是 ``cc_move_mirror=off``（一条驱动帧都不发），
+#   所以本脚本开头显式把它设成 on，才有下面这两条镜像断言。
 _mirror = [x for x in f.sent if x[1] == "client-authority-move-mirror"]
 check("selector 52：只补一条走档镜像（不驱动位移）",
       len(f.sent) == 1 and len(_mirror) == 1, "sent=%d %r" % (len(f.sent), [x[1] for x in f.sent]))

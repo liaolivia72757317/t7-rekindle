@@ -28,6 +28,26 @@ from scripts.codec import move_flow  # noqa: E402
 
 RESULTS = []
 
+# ⚠️ 本脚本断言的是**打开回退档**时的行为（跳跃/下蹲广播、松手 STOP、走/跑镜像都发）。
+# 2026-10-07 定档之后，这四个旋钮的代码默认值改成了实机跑通的那套「服务端零回写」
+# （默认档本身在文末第 5 节断言），所以这里显式把环境设成回退档；文末那四个默认档
+# 断言会临时清掉这些环境变量，读完再恢复。
+FALLBACK_ENV = {"T7_CC_MOVE_MIRROR": "1", "T7_CC_STOP_FRAME": "1",
+                "T7_CC_ACTION_FRAME": "1", "T7_CC_JUMP_STATE": "mirror"}
+
+
+def _useFallbackGear():
+    for _key, _value in FALLBACK_ENV.items():
+        os.environ[_key] = _value
+
+
+def _clearFallbackGear():
+    for _key in FALLBACK_ENV:
+        os.environ.pop(_key, None)
+
+
+_useFallbackGear()
+
 
 def check(name, ok, detail=""):
     RESULTS.append(ok)
@@ -275,7 +295,7 @@ report(flow10, False, False, mask=0)
 check("持续 keys=0 不重复补 STOP", len(flow10.frames) == _n10,
       "n=%d" % len(flow10.frames))
 
-# 4.5e 应急旋钮 ``cc_jump_state=stop`` ⇒ 跳跃广播永远发静止档。
+# 4.5e ``cc_jump_state=stop`` ⇒ 跳跃广播永远发静止档（**这就是默认档**，见下一行断言）。
 flow10b = Flow()
 flow10b.now = 100000
 report(flow10b, False, False, mask=1)
@@ -287,8 +307,10 @@ try:
     check("T7_CC_JUMP_STATE=stop ⇒ 跳跃广播发静止档",
           _d10b.state == move_flow.MOVE_GROUND_STATE_STOP, "state=%d" % _d10b.state)
 finally:
-    del os.environ["T7_CC_JUMP_STATE"]
-check("旋钮默认 mirror", controls.jumpStateMirrorMode() == "mirror")
+    _clearFallbackGear()
+check("默认档 cc_jump_state=stop（服务端不写客户端移动状态）",
+      controls.jumpStateMirrorMode() == "stop")
+_useFallbackGear()
 
 # 4.5f 服务端权威回归：账本里没有上报痕迹 ⇒ 外推一个字节都不生效。
 flow11 = Flow()
@@ -388,8 +410,7 @@ try:
           and _d14.forward_back == 0 and _d14.left_right == 0,
           "state=%d fb=%d lr=%d" % (_d14.state, _d14.forward_back, _d14.left_right))
 finally:
-    del os.environ["T7_CC_MOVE_MIRROR"]
-check("镜像开关默认开", controls.ccMoveMirrorEnabled() is True)
+    _useFallbackGear()
 
 # ---- 4.8 第四十二轮：**只有跳跃广播**用客户端显示约定（55 号 W ⇒ +1000）-------
 # 一手证据（prior_art《2026年8月9日四方向反向与移动过快三倍修正》原文）：
@@ -466,6 +487,30 @@ try:
           "n=%d" % len(flow3.frames))
 finally:
     del os.environ["T7_CC_INPUT_SYNC"]
+
+# ---- 5b. 默认档（2026-10-07 实机定档）：除 54 号滞空闸门外零回写 ----------------
+# 判据来自收包记录：一局 5 分钟里 55 号 84 条 + 39 号 160 条 + 坐骑 17 条 = 289 次
+# 把客户端按回账本里最多 350 ms 前的点，表现就是「走一下退一下」。默认档全不发，
+# 只留不带位置的 54 号（治「按住空格人一直往上飘」）。取值判据见 docs/movement-knobs.md。
+_clearFallbackGear()
+try:
+    check("默认档 cc_move_mirror=off", controls.ccMoveMirrorEnabled() is False)
+    check("默认档 cc_stop_frame=off", controls.ccStopFrameEnabled() is False)
+    check("默认档 cc_action_frame=off", controls.ccActionFrameEnabled() is False)
+    flow17 = Flow()
+    flow17.now = 120000
+    report(flow17, False, False, mask=1)              # W 按下
+    report(flow17, False, True, mask=1)               # 按空格起跳
+    report(flow17, False, False, mask=0)              # 松手落地
+    _t17 = tags_of(flow17)
+    _writeBack = [t for t in _t17 if any(k in t for k in (
+        "move-mirror", "run-delay-mirror", "stop-mirror",
+        "bc-actor-with-jump", "bc-special-animation", "move-mount-bc"))]
+    check("默认档：走/跳/松手全程零条带位置的回写帧", not _writeBack, str(_writeBack))
+    check("默认档：54 号滞空闸门仍然发",
+          any("in-air-state-bc-air" in t for t in _t17), str(_t17))
+finally:
+    _useFallbackGear()
 
 passed = sum(1 for ok in RESULTS if ok)
 print("\nverify_input_sync: %d/%d OK" % (passed, len(RESULTS)))

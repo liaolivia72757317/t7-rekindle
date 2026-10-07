@@ -766,7 +766,11 @@ JUMP_AIR_NONE_TIMER = "jump-air-none"
 #   * 按键/快跑**变化** ⇒ 镜像一条走/跑/停的 MOVE_BC；
 #   * 起步沿 ⇒ 排 ``cc-run-delay`` 定时器，``GROUND_RUN_DELAY_MS`` 后补一条「跑」
 #     （这就是「按 W 一会就进跑」那条，老版靠 50ms 周期帧实现）。
-# 回退（10 秒）：``[move] cc_move_mirror=off`` 或环境变量 ``T7_CC_MOVE_MIRROR=0``。
+# ⚠️ 2026-10-07 定档：这套镜像**默认关**（``[move] cc_move_mirror`` /
+#   ``T7_CC_MOVE_MIRROR``，打开才发）。38 号是带位置的**持续驱动命令**，发一条就把
+#   客户端按回账本里最多 350 ms 前的点 ⇒ 开着它实机就是「走一下退一下」。
+#   上面那段「冲刺/空手跑出不来」要解决不能靠打开它，得走不写位置的路子。
+#   取值与判据见 docs/movement-knobs.md。
 CC_RUN_TIMER = "cc-run-delay"
 
 # --- ⭐⭐⭐ 2026-10-07 第四十轮：客户端权威广播的位置外推 -------------------------
@@ -794,42 +798,53 @@ def inputSyncEnabled() -> bool:
 def jumpStateMirrorMode() -> str:
     """跳跃/下蹲广播里的 ``state`` 怎么填（第四十轮应急旋钮）。
 
-    ``mirror``（默认）= 镜像客户端上报的按键掩码（老版服务端权威的口径：
-    按着 W 起跳就发「走」档，松手那一拍由 ``_mirrorStop`` 补 STOP）。
-    ``stop``         = 永远发静止档 —— 如果实机发现「跳跃广播一写移动驱动状态
-    客户端就停不下来」，一行切到这个，服务端就完全不碰客户端的移动状态。
+    ``stop``（默认）  = 永远发静止档 —— 客户端权威下服务端**不碰**客户端的移动
+    状态。实机口径：按着 W 起跳时镜像成「走」档，客户端会把这个驱动状态**持久**
+    保持 ⇒ 落地后停不下来、往后退（2026-10-07 用户口供「按完空格往后退」）。
+    ``mirror``        = 镜像客户端上报的按键掩码（老版服务端权威的口径：按着 W
+    起跳就发「走」档，松手那一拍由 ``_mirrorStop`` 补 STOP）。
 
     旋钮：``[move] cc_jump_state`` / 环境变量 ``T7_CC_JUMP_STATE``。
     """
     override = os.environ.get("T7_CC_JUMP_STATE")
     if override in ("mirror", "stop"):
         return override
-    value = _moveIniText("cc_jump_state", "mirror")
-    return value if value in ("mirror", "stop") else "mirror"
+    value = _moveIniText("cc_jump_state", "stop")
+    return value if value in ("mirror", "stop") else "stop"
 
 
 def ccMoveMirrorEnabled() -> bool:
-    """客户端权威「移动状态镜像」开关（第四十一轮）。默认 on。
+    """客户端权威「移动状态镜像」开关（第四十一轮）。默认 off。
+
+    关掉 = 服务端平时一条带方向的 MOVE_BC 都不发，走路完全交给客户端 ——
+    这正是官方 v0.2.0 骨架 ``controls.localReport`` 的口径，也是实机唯一
+    不出现「走一下退一下」的取值（38 号是**持续驱动命令**且带位置，发一条就
+    把客户端按回账本里最多 350 ms 前的点）。
+
+    打开是为了 Shift 冲刺 / 空手跑这类「步态表现」由服务端带出来的老口径，
+    代价就是移动被打乱；要加那两个功能请走不写位置的路子，别默认打开。
 
     旋钮 ``[move] cc_move_mirror`` / 环境变量 ``T7_CC_MOVE_MIRROR``。
-    关掉 = 回到「服务端平时一条 MOVE_BC 都不发」的旧行为（逐位相同）。
     """
     override = os.environ.get("T7_CC_MOVE_MIRROR")
     if override == "0":
         return False
     if override == "1":
         return True
-    return _moveIniFlag("cc_move_mirror", True)
+    return _moveIniFlag("cc_move_mirror", False)
 
 
 def ccStopFrameEnabled() -> bool:
-    """松手那一拍补发的「停」帧开关（2026-10-07 第四十四轮）。默认 on = 现状不变。
+    """松手那一拍补发的「停」帧开关（2026-10-07 第四十四轮）。默认 off。
 
     实机证据（会话 21:56 那局）：这一帧是 ``input_sync=on`` 之后**唯一**还在写
     客户端位置的帧 —— 那一局发了 26 条，紧挨着它客户端上报的位置横跳 12 次
     （−5.1 m / −6.2 m / 13.4 m）。发的是账本值：客户端上报之间账本不推进，
     所以这一帧等于把它**拽回最多一个上报间隔前**的点。
     关掉 = 松手时服务端一个字都不发，移动完全交给客户端。
+
+    打开 = 回到第四十轮「一直在跑停不下来」那条修复的口径（只在客户端确实
+    需要服务端把驱动状态清零时才需要）。
 
     旋钮：``[move] cc_stop_frame`` / 环境变量 ``T7_CC_STOP_FRAME``。
     """
@@ -838,7 +853,7 @@ def ccStopFrameEnabled() -> bool:
         return False
     if override == "1":
         return True
-    return _moveIniFlag("cc_stop_frame", True)
+    return _moveIniFlag("cc_stop_frame", False)
 
 
 def ccActionFrameEnabled() -> bool:
@@ -851,10 +866,11 @@ def ccActionFrameEnabled() -> bool:
     最多 350 ms 前、朝向也可能旧了的点 ⇒ 表现就是「走一下退一下 / W 变后退」。
     纯走路（不碰空格、不碰 CTRL/T）时日志里一条都不发 —— 与该判断一致。
 
-    ``off`` = **只保留** sel=54 滞空闸门（8 字节、不带位置，治「按住空格一直升」
-    靠的就是它），55/39/坐骑帧一条不发。本地人物的蹲/跳动画由客户端自己的按键驱动；
-    代价是**别人**看不到你的蹲/跳（要多人时再打开）。
-    ``on``（默认）= 现状逐字节不变。
+    ``off``（默认）= **只保留** sel=54 滞空闸门（8 字节、不带位置，治「按住空格
+    一直升」靠的就是它），55/39/坐骑帧一条不发。本地人物的蹲/跳动画由客户端自己
+    的按键驱动。注意这些帧此前**只回发给上报者本人**、并不发给同场景其他人，
+    所以关掉不会损失「别人看你的蹲/跳」；要做到那一点得改成按连接广播。
+    ``on`` = 连这三类带位置的动作帧一起发（老口径）。
 
     旋钮：``[move] cc_action_frame`` / 环境变量 ``T7_CC_ACTION_FRAME``。
     """
@@ -863,7 +879,7 @@ def ccActionFrameEnabled() -> bool:
         return False
     if override == "1":
         return True
-    return _moveIniFlag("cc_action_frame", True)
+    return _moveIniFlag("cc_action_frame", False)
 
 
 def footAxisMode() -> str:
@@ -1100,6 +1116,8 @@ def localReport(flow, selector, body, *, mirror=True) -> bool:
         #   那条 —— 它是第四十轮「一直在跑停不下来」的修复。现在：
         #     · 镜像 on  ⇒ 走原路（``_mirrorMoveState`` 内部自己会在松手沿补 STOP）；
         #     · 镜像 off ⇒ 仍然只补那条松手 STOP，一个带方向的帧都不发。
+        #   ⚠️ 2026-10-07 定档：``cc_stop_frame`` 默认也是 off，所以上面第二条在默认档
+        #   下同样不发（服务端零回写）。要恢复第四十轮那条修复得显式打开它。
         if mirror and inputSyncEnabled() and ground["mask"] != prevMask:
             try:
                 if ccMoveMirrorEnabled():
@@ -2738,11 +2756,15 @@ def _mirrorStop(flow, ground) -> None:
     重发一次驱动状态，松手那一拍自然带 STOP；迁移到客户端权威后这条**丢了**，
     本轮把「松手 → STOP」补回来。
 
+    ⚠️ 上面这段成立的前提是「跳跃/下蹲/镜像那几类帧在发」。默认档
+    ``cc_move_mirror`` / ``cc_action_frame`` / ``cc_stop_frame`` 全 off ⇒ 服务端从没
+    写过驱动状态，也就没有需要清零的东西，本函数不发。
+
     位置取**账本值**、不外推：客户端报「全松开」时它已经站住了，账本值就是真值
     （外推反而会把它往前送一截）。账本还没有位置时直接不发 —— 绝不能拿
     ``wire.POSITION``（出生点）去发 STOP，那正是「把人拽回出生点」的成因。
 
-    旋钮：``[move] cc_stop_frame`` / 环境变量 ``T7_CC_STOP_FRAME``（默认 on）。
+    旋钮：``[move] cc_stop_frame`` / 环境变量 ``T7_CC_STOP_FRAME``（默认 off）。
     """
     if not ccStopFrameEnabled():
         return
