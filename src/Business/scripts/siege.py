@@ -330,6 +330,13 @@ MO_EVENT_CALL_BORN_SCRIPT = 1023
 # （wire 实测：4/27/牛/6001 全发到位，客户端零反应）→ 这才是「按 C 上不去车」的根因。
 MO_EVENT_BE_OP = 1001
 MO_EVENT_START_CONTROL = 1012
+# ⭐ 2026-10-07 第三十七轮：协议里一直有、但从没用过的一号事件。
+#   上车链把客户端切进「移动_投石车」控制树（靠 6001+武器 29001），
+#   下车却只发 6000 状态、**不带任何事件** ⇒ 客户端没有「离开控制树」的触发，
+#   表现为 HUD 还写着「退出投石车 C」、人物原地不动（会话 -10 截图实证）。
+#   ``MO_EVENT_STOP_CONTROL``(1013) 的官方语义就是「停止操控」，
+#   与 ``MO_EVENT_START_CONTROL``(1012) 配对（见 mo_flow 常量表）。
+MO_EVENT_STOP_CONTROL = 1013
 
 # --- ``CropTime`` 动画参数通道（2026-09-27 新增）-----------------------------
 #
@@ -1064,6 +1071,10 @@ def catapultControlEvents(flow, rid, state):
     try:
         if not controlEnabled():
             return ()
+        if int(state) == CATAPULT_WAIT:
+            # ⭐ 第三十七轮：下车那条 6000 也带上 1013（与脉冲双保险 ——
+            #   客户端若按「状态+事件」一起处理，这条就够）。
+            return (MO_EVENT_STOP_CONTROL,) if catStopEventEnabled() else ()
         if int(state) != controlState():
             return ()
         raw = str(_knob("cat_events", "T7_CC_CAT_EVENTS", "")[0]).strip()
@@ -1077,6 +1088,46 @@ def catapultControlEvents(flow, rid, state):
         return tuple(out)
     except Exception:  # noqa: BLE001
         return ()
+
+
+def catStopEventEnabled():
+    """下车时补 ``MO_EVENT_STOP_CONTROL``(1013)（第三十七轮实验）。
+
+    旋钮 ``cat_stop_event``（env ``T7_CC_CAT_STOP_EVENT``），**默认 on**。
+    背景（会话 -10 实机截图）：按 C 下车后模型变了但 HUD 仍是投石车面板
+    （「退出投石车 C」）、人物**原地不动** ⇒ 客户端没离开「移动_投石车」
+    控制树。两处下发：
+      * ``sendStopControlPulse`` —— **6000 之前**在 6001 状态下补一发纯事件
+        报文（客户端此刻还在控制树里，事件才有人接）；
+      * ``catapultControlEvents`` 给 6000 那条也带上 1013（双保险）。
+    回退（10 秒）：``cat_stop_event=off`` 或 ``T7_CC_CAT_STOP_EVENT=0``。
+    """
+    return _flag("cat_stop_event", "T7_CC_CAT_STOP_EVENT", True)
+
+
+def sendStopControlPulse(flow, rid):
+    """下车第一步：在**仍是 6001** 的状态下补一发 ``STOP_CONTROL`` 事件。
+
+    ⚠️ 必须**直发报文**，不能走 ``mo.setMoState`` —— 那条会回调
+    ``siege.onStateChange(6001)`` → ``onCatapultState(6001)`` → 重发整套上车链
+    （CONTROL_ON + 武器 29001），把人又按回车上。这里只发这一条
+    ``update_state``，服务端状态机一个字节都不动（紧跟着的 6000 才是真状态切换）。
+    """
+    if not catStopEventEnabled():
+        return False
+    try:
+        from .codec import mo_flow
+        flow.send(mo_flow.MO_COMMAND,
+                  mo_flow.encode_update_state(target=int(rid), state=controlState(),
+                                              state_change_ms=wire.serverNowMs(),
+                                              state_time_ms=0,
+                                              events=(MO_EVENT_STOP_CONTROL,)),
+                  "mo-update-state-siege-catapult-stop-control+1013")
+        _log(flow, "siege-catapult-stop-control-pulse rid=%d" % int(rid))
+        return True
+    except Exception as error:  # noqa: BLE001 —— 附加能力，坏了不许拖垮下车链
+        _log(flow, "siege-catapult-stop-control-pulse-failed rid=%s %r" % (rid, error))
+        return False
 
 
 def ladderBornEvents(flow, rid, state):
@@ -2105,6 +2156,46 @@ def ladderClimbRise():
     return _num("ladder_climb_rise", "T7_CC_LADDER_CLIMB_RISE", 0.0)
 
 
+# ⭐⭐⭐ 2026-10-07：回落路径专用长坡旋钮（找墙不命中时生效）。
+#
+# 实测依据（樊城 tszz 第三十一轮 ``ladder-climb-probe`` 点云 + acollision 标定）：
+#   * 云梯1（pid 10015，不在倾斜表）的墙与梯轴**平行斜贴**（t=+18..26、横向
+#     n=+3.9~5.9，每桶 1~3 格）—— 严格判据（格数≥4 且横向跨度≥4m）永不命中，
+#     只能走回落；而旧回落（``LADDER_FOOT_X + shift=16.008``、45° 几何
+#     run=11.26）的坡在 t∈[+7.97,+19.2]、用户探测点全在梯身 t'∈[-9.6,-3.5]
+#     —— **一个都罩不住**，且坡顶 n=0 处是空地（真墙在横向 4.7m 外）。
+#   * 用户实机行为：按 C 立起后**沿梯身走、在梯身 ±3m 内试爬**，不会走 8m
+#     去找坡脚。
+# ⇒ 回落坡改为「躺地梯脚 → 墙带」长坡：foot 钉在模型梯脚（-8.038），
+#    ``fb_run`` 给总长（28 = 顶到 t≈+20 墙带），``fb_rise`` 给总升（13.0 =
+#    墙顶 55.63 − foot_z 42.95 + 0.45 余量）。默认 0/0 = 旧行为逐位不变。
+def ladderClimbFbRun():
+    """回落坡总长（米）。``0`` = 旧行为（45° 几何）。默认 0。"""
+    return _num("ladder_climb_fb_run", "T7_CC_LADDER_CLIMB_FB_RUN", 0.0)
+
+
+def ladderClimbFbRise():
+    """回落坡总升（米）。``0`` = 旧行为（45° 几何）。默认 0。"""
+    return _num("ladder_climb_fb_rise", "T7_CC_LADDER_CLIMB_FB_RISE", 0.0)
+
+
+# ⭐⭐ 2026-10-07 14:5x：落地段两个旋钮（实机「一上去就卡进墙里/掉进去，上不到二层」）。
+#   会话 -7 实测：用户沿坡爬到顶（z=54.87，face=54.76，why=reached ✓）但坡在墙脸
+#   处结束、墙体 footprint 有 1-2m 厚 —— 跨越时余量只有 0.4m（坡顶 54.98 vs 墙顶
+#   走道 54.58），客户端碰撞把人推进墙体 ⇒ 掉进墙里卡住。
+#   * ``cross_ext`` —— 坡越过墙脸再延伸多少米（跨越 footprint 期间仍有支撑）；
+#   * ``land_clear`` —— 坡顶高出墙顶走道多少米（余量加大，落上去不磕头）。
+#   默认 0 / 0.4 = 修复前行为逐位不变。
+def ladderClimbCrossExt():
+    """坡越过墙脸的延长（米）。默认 0。"""
+    return _num("ladder_climb_cross_ext", "T7_CC_LADDER_CROSS_EXT", 0.0)
+
+
+def ladderClimbLandClear():
+    """坡顶高出墙顶走道的余量（米）。默认 0.4。"""
+    return _num("ladder_climb_land_clear", "T7_CC_LADDER_LAND_CLEAR", 0.4)
+
+
 # ⭐⭐⭐ 2026-09-29 19:5x：爬升面的**平移**旋钮（用户实机「斜坡和梯子一个方向、
 # 位置不对，移过去就对上了」）。
 #
@@ -2140,9 +2231,11 @@ def ladderClimbDrop():
 def _ladderWallFace(scene, x, y, ux, uy, run, top_z):
     """在场景 ``acollision`` 里沿梯轴找「这架梯子靠的那面墙」。
 
-    返回 ``(face_t, dir)``：``face_t`` = 墙脸在轴线上的距离（从梯子原点 pos 起，
-    ``+u`` 为正）；``dir`` = 梯子往哪边立（``+1`` 顶朝 ``+u`` / ``-1`` 顶朝 ``-u``）。
-    找不到 ⇒ ``None``（调用方回落旧的 ``LADDER_FOOT_X + shift`` 公式）。
+    返回 ``(face_t, dir, wall_top)``：``face_t`` = 墙脸在轴线上的距离（从梯子
+    原点 pos 起，``+u`` 为正）；``dir`` = 梯子往哪边立（``+1`` 顶朝 ``+u`` /
+    ``-1`` 顶朝 ``-u``）；``wall_top`` = 命中桶的墙顶中位数（米，2026-10-07 加，
+    供 ``ladderClimbFace`` 把 ``rise`` 定到「坡顶高出墙顶走道半格」）。
+    找不到 ⇒ ``None``（调用方回落旧公式）。
 
     ⭐ 为什么必须找：有的梯子顶朝 +u 立、有的朝 **-u**（对上了
     ``ladder_org_tilt_table=40028:-0.7905, 40040:+0.7905`` 两个相反倾斜号）——
@@ -2192,7 +2285,9 @@ def _ladderWallFace(scene, x, y, ux, uy, run, top_z):
     # 用 key 显式写出意图：格数↓（多者优先）→ 高度差↑ → |t|↑。
     cands.sort(key=lambda c: (-c[0], c[1], c[2]))    # 格数↓ → 高度差↑ → |t|↑
     face_t = float(cands[0][3])
-    return face_t, (1 if face_t >= 0.0 else -1)
+    win_tops = sorted(c[1] for c in bins[int(face_t)])
+    wall_top = float(win_tops[len(win_tops) // 2])
+    return face_t, (1 if face_t >= 0.0 else -1), wall_top
 
 
 def _ladderWallFaceSpan(scene, x, y, ux, uy, face_t, tol=1.0):
@@ -2236,9 +2331,12 @@ def ladderClimbFace(item, scene=None):
     梯子往哪边立由墙在哪边决定，坡从「墙脸 − dir·run」处起、沿 ``dir·u`` 升，
     坡顶正好贴墙脸。``side`` 仍是横向微调；``shift`` **只属于回落公式**
     （找到墙时不读它 —— 那是全局反转值 16.008，叠上来必错）。
-    不给 ``scene`` / 找不到墙 ⇒ 回落旧公式（``LADDER_FOOT_X + shift``，沿 +u）——
-    tszz 10001 的墙与梯轴平行斜贴（横向 +3.9~5.9、纵向铺 7m，单桶横向跨度 <4m）
-    找墙判据不命中，正是靠这条回落保住已验证的旧行为。
+    ⭐⭐ 2026-10-07（第三十二轮，probe 点云定案）：
+    * 命中墙时 run 拉长到 ``|face_t| + |LADDER_FOOT_X|`` —— 坡脚自动落到躺地
+      梯脚端，梯身全程可踩（用户沿梯身走、在梯身 ±3m 内试爬）；rise 按
+      墙顶中位数定（坡顶高出墙顶走道 0.4m），不再受 45° 假角限制。
+    * 找不到墙 ⇒ ``ladder_climb_fb_run/fb_rise`` 旋钮驱动的「躺地梯脚 → 墙带」
+      长坡（foot 钉回 −8.038）；fb_run=0 ⇒ 旧公式（``LADDER_FOOT_X + shift``）。
     """
     if not isinstance(item, dict):
         return None
@@ -2261,14 +2359,36 @@ def ladderClimbFace(item, scene=None):
     hit = (_ladderWallFace(scene, x, y, ux, uy, run, z + ladderClimbDrop() + rise)
            if scene else None)
     if hit is not None:
-        face_t, dr = hit
+        face_t, dr, wall_top = hit
         # ⚠️ **不加 shift**：坡脚由墙脸直接反推（face_t − dir·run，坡顶贴墙脸）。
-        #    ini 的 shift=16.008 是**回落公式专用的全局反转值** —— 叠上来会把坡脚
-        #    推过墙脸整整一个梯长（2026-09-29 推演：10010 会从 +7.7 变 +23.7）。
-        #    沿坡微调的需求出现时再加独立旋钮，别复用这个。
+        # ⭐⭐ 2026-10-07：坡从「躺地梯脚」一直铺到「墙脸」——
+        #    run = |face_t| + |LADDER_FOOT_X|。实测（第三十一轮 probe 点云）：
+        #    用户按 C 立起后沿**梯身**走、在梯身 ±3m 内试爬，根本不会走 8m 去
+        #    找坡脚；旧 run=11.26 的坡 t∈[+8.7,+20] 对梯身上的探测点一个都罩
+        #    不住。拉长后坡脚自动落到 −8.038（躺地梯脚端），坡顶仍贴墙脸。
+        #    ⭐⭐ 14:5x：+ cross_ext —— 坡越过墙脸再延伸一段（实机：坡在墙脸
+        #    结束 ⇒ 跨越 1-2m 厚的墙体 footprint 时失去支撑掉进墙里）。
+        run = max(run, abs(face_t) + abs(LADDER_FOOT_X) + ladderClimbCrossExt())
         foot_t = face_t - dr * run
+        # ⭐⭐ 2026-10-07：rise 按墙顶定（坡顶高出墙顶走道 land_clear，落上去
+        #    不磕头）。显式旋钮（ladder_climb_rise > 0）优先，维持旧行为可覆盖。
+        if ladderClimbRise() <= 0.0 and wall_top > 0.0:
+            rise = max(rise, wall_top - (z + ladderClimbDrop())
+                       + ladderClimbLandClear())
         wux, wuy = dr * ux, dr * uy                # 坡的延伸方向（= 梯顶朝向）
-        _climb_dbg = (face_t, dr)
+        _climb_dbg = (face_t, dr, wall_top)
+    elif ladderClimbFbRun() > 0.0:
+        # ⭐⭐ 2026-10-07：找墙不命中（樊城云梯1 的墙与梯轴平行斜贴，每桶 1~3 格）
+        #    ⇒ 「躺地梯脚 → 墙带」长坡：foot 钉回模型梯脚（-8.038，旧行为的
+        #    ``+shift=16.008`` 把坡脚推到 +7.97，用户探测点 t'∈[-9.6,-3.5] 全在
+        #    坡后，一个都罩不住），总长/总升由 fb 旋钮给（level.ini：fb_run=28
+        #    顶到 t≈+20 墙带、fb_rise=13.0 顶过墙顶 55.63）。fb_run=0 ⇒ 旧行为。
+        run = ladderClimbFbRun()
+        foot_t = LADDER_FOOT_X
+        if ladderClimbFbRise() > 0.0:
+            rise = ladderClimbFbRise()
+        wux, wuy = ux, uy
+        _climb_dbg = None
     else:
         foot_t = LADDER_FOOT_X + ladderClimbShift()
         wux, wuy = ux, uy
@@ -2374,11 +2494,11 @@ def setClimbFace(flow, rid, item):
                      if _span else "")
         _climbTrace(flow, "siege-ladder-climb rid=%d foot=(%.2f,%.2f,%.2f) u=(%.3f,%.3f)"
                           " run=%.2f rise=%.2f half=%.2f cap=%.2f"
-                          " dir=%+d face_t=%.2f%s"
+                          " dir=%+d face_t=%.2f wall_top=%.2f%s"
                           " shift=%.3f side=%.3f drop=%.3f"
                     % (int(rid), geom[0], geom[1], geom[2], geom[3], geom[4],
                        geom[5], geom[6], geom[7], geom[8],
-                       hit[1], hit[0], _span_txt,
+                       hit[1], hit[0], hit[2], _span_txt,
                        ladderClimbShift(), ladderClimbSide(), ladderClimbDrop()))
     else:
         _climbTrace(flow, "siege-ladder-climb rid=%d foot=(%.2f,%.2f,%.2f) u=(%.3f,%.3f)"
@@ -2653,17 +2773,134 @@ def sendControlOn(flow, rid):
     _log(flow, "siege-catapult-control-on rid=%d actor=%d" % (int(rid), actor))
 
 
+def catActorReleaseEnabled():
+    """下车补发 ``ACTOR_CONTROL_NTF(mo_mid=0)`` 解绑（env ``T7_CC_CAT_ACTOR_RELEASE``）。
+
+    ⚠️ **实验**（2026-10-07）：用户实测下车后视角仍固定 —— 43 号方向锁不够。
+    上车时发了 sel=27 ``(actor, mo)`` 把相机绑到器械，但下车**从没发过解除**；
+    协议表里没有配对的「解除」号，这里按「再发一条 sel=27、mo_mid=0」当解绑实验
+    （语义未实测）。回退（10 秒）：``set T7_CC_CAT_ACTOR_RELEASE=0``。
+    """
+    return _flag("cat_actor_release", "T7_CC_CAT_ACTOR_RELEASE", True)
+
+
 def sendControlOff(flow, rid, reason="off"):
     """``CONTROL_OFF``(sel=5) —— 不解除的话玩家会卡在器械上。"""
     actor = _actorMid()
     flow.send(mo_flow.MO_COMMAND, mo_flow.encode_control_off(actor, int(rid)),
               "mo-control-off-actor%d-mo%d" % (actor, int(rid)))
+    # ⭐⭐ 2026-10-07：**解绑实验** —— 补一条 ``ACTOR_CONTROL_NTF(mo_mid=0)``。
+    #   上车 ``sendControlOn`` 发了 sel=27 ``(actor, mo)``（客户端据此把相机绑到
+    #   器械），但下车从未发过对应的解除 ⇒ 实机「下车后视角固定不能转」。
+    #   协议表没有配对的解除号，按「sel=27 + mo_mid=0」当解绑（语义未实测，
+    #   见 ``catActorReleaseEnabled`` 的说明）。放 CONTROL_OFF 之后、43 号之前。
+    if catActorReleaseEnabled():
+        flow.send(mo_flow.MO_COMMAND, mo_flow.encode_actor_control_ntf(actor, 0),
+                  "mo-actor-control-release-actor%d" % actor)
     _log(flow, "siege-catapult-control-off rid=%d actor=%d why=%s"
          % (int(rid), actor, reason))
+    # ⭐⭐ 2026-10-07：**下车补一条 43 号「方向/相机锁」解锁**。
+    #   为什么需要（实机口供：「投石车按 C 下来，视角没法切换了」）：
+    #   上车时 ``mo-actor-control-ntf`` 把客户端相机绑到投石车，而下车只发
+    #   ``CONTROL_OFF`` ⇒ 相机锁留在投石车上。``controls.unlockOrientation()``
+    #   发的正是 43 号（``lock=0`` / ``lock_camera=0``），但它此前**只在进场时
+    #   发一次**（见该函数自己的说明：「发送时机（进场一次）是兼容推断」）。
+    #   ⚠️ 本函数是投石车**唯一**的下车出口（``siege-catapult-exit`` /
+    #   ``-control-off`` 两条日志都从这儿出），所以补在这里即覆盖全部路径。
+    #   回退（10 秒）：删掉本块，逐字节回到改动前。
+    #   包 try：附加能力，坏了不该让「下车」这条主链崩。
+    try:
+        from . import controls
+        controls.unlockOrientation(flow)
+    except Exception:  # noqa: BLE001
+        pass
+    # ⭐⭐⭐ 2026-10-07 第三轮：补发 31 号 ``MOVE_NOTIFY_ACTIVE(active=1)`` 给
+    #   **玩家本体**（inst 1）。前两轮（43 号解锁 / sel=27 mo_mid=0 解绑）日志
+    #   证实都发出了但实机仍「视角固定」⇒ 换靶子：31 号是客户端 movable 的
+    #   「可位移」总闸（原版中文硬约束：「unactive 的时候，移动物体是不能在
+    #   地图上进行位移操作的」）。上车链（``sendControlOn`` → mo 状态机）可能
+    #   把玩家本体的 movable 置回 unactive（操控权移交器械）；下车只发
+    #   CONTROL_OFF 没把它置回 active ⇒ 视角/操控留在器械上。参数与进场
+    #   ``activate()``（``instance-move-notify-active-after-in-scene``）同款，
+    #   仅时机不同。回退（10 秒）：``T7_CC_CAT_ACTIVE_RESYNC=0``。
+    if catActiveResyncEnabled():
+        try:
+            from . import controls
+            _tick = controls.instanceTick(flow)
+            flow.send(2, move_flow.encode_move_notify_active(
+                server_tick=1 if _tick is None else _tick,
+                target_instance_id=1, active=1),
+                "instance-move-notify-active-after-dismount")
+        except Exception:  # noqa: BLE001
+            pass
+    # ⭐⭐⭐ 2026-10-07 第四轮：补「回步兵」两帧。
+    #   实机（会话 -5）：相机已解锁 ✓（第三轮 31 号生效），但英雄模型停在
+    #   「骑兵赵云（无马）」、不能走 —— 器械操控态把人物留在了操作者变体上，
+    #   且没有告诉客户端「英雄已回到场上步行档」。
+    #   ① ``0x36 actorState(6)`` —— battleEntry 的「actor-in-scene」解锁帧
+    #      （scene.py:415/535），语义 = 人物在场上、可操控；
+    #   ② 步兵静止档 ground-stop 广播 —— 与骑马下马链 ③ 同款
+    #      （``controls.broadcast`` + ``stopState``），把人物的步行静止姿态
+    #      补给全场。
+    #   回退（10 秒）：``T7_CC_CAT_FOOT_RESYNC=0``。
+    if catFootResyncEnabled():
+        try:
+            from . import controls
+            from . import contracts as _w
+            flow.send(0x36, _w.actorState(flow.now, 6),
+                      "actor-in-scene-after-dismount")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            from . import controls
+            _g = controls.groundState(flow)
+            _pos = _g["position"]
+            if _pos is None:
+                # ⭐⭐⭐ 2026-10-07 第三十五轮（会话 -9 实证）：骑乘期地面账本
+                #   可能是**空的**（客户端权威下骑乘/短距移动时 sel=3/52 一条
+                #   都没进来 —— 下车后 6ms 才有第一条 no-motion-echo），旧代码
+                #   回退 ``POSITION``（出生点）⇒ ground-stop 广播把人当场拽回
+                #   出生点（「下车就回城」的根因）。改成用投石车自己的坐标
+                #   （人下车就在车旁，位置基本重合，同 catapultShoot 的兜底）。
+                _record = _object(flow, rid)
+                if _record is not None:
+                    _raw = _record[1].get("pos")
+                    try:
+                        _pos = [float(_raw[0]), float(_raw[1]), float(_raw[2])]
+                    except (TypeError, ValueError, IndexError):
+                        _pos = None
+            if _pos is None:
+                _log(flow, "siege-catapult-dismount-no-pos skip-ground-stop")
+            else:
+                controls.broadcast(flow, _pos, _g["heading"], controls.stopState(flow),
+                                   0, 0, "catapult-dismount-ground-stop")
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def catapultWeaponEnabled():
     return _flag("cat_weapon", "T7_CC_CAT_WEAPON", False)
+
+
+def catActiveResyncEnabled():
+    """下车重发 31 号 ``MOVE_NOTIFY_ACTIVE(active=1)`` 给玩家本体（第三轮实验）。
+
+    旋钮 ``cat_active_resync``（env ``T7_CC_CAT_ACTIVE_RESYNC``）。**默认 on**。
+    实验史：第一轮 43 号（lock=0）实机无效；第二轮 sel=27 ``(actor, mo_mid=0)``
+    实机无效 —— 两条日志都证实发出。第三轮换 31 号靶玩家本体（inst 1），
+    **实机生效**（会话 -5：相机解锁 ✓）。
+    """
+    return _flag("cat_active_resync", "T7_CC_CAT_ACTIVE_RESYNC", True)
+
+
+def catFootResyncEnabled():
+    """下车补「回步兵」两帧（第四轮：0x36 actorState(6) + 步兵静止档广播）。
+
+    旋钮 ``cat_foot_resync``（env ``T7_CC_CAT_FOOT_RESYNC``）。**默认 on**。
+    实机（会话 -5）：相机解锁后英雄模型停在「骑兵赵云（无马）」且不能走 ——
+    缺「人物已回场上步行档」的通知。
+    """
+    return _flag("cat_foot_resync", "T7_CC_CAT_FOOT_RESYNC", True)
 
 
 def catapultStateWaitMs():
@@ -3215,7 +3452,27 @@ def releaseCatapultWeapon(flow, rid, reason="siege-catapult-weapon-off"):
         from . import contracts as wire
         wire.clearVirtualWeapons()
         wire.setCurrentSlot(1)
-        flow.send(5, wire.weaponUseUpdate(), "%s-use-update" % reason)
+        # ⭐⭐⭐ 2026-10-07 第三十五轮（会话 -9 实证）：下车后人物停在
+        #   「骑兵赵云（无马）」变体，**按 1 才变回赵云** ⇒ 被动的
+        #   USE_UPDATE+状态对不够，客户端认的是与「按 1」同款的完整应答链。
+        #   这里照 app.py cmd=5 sel=1 的实现主动补 RSP（回**槽位 1 真武器
+        #   tid**，选将感知 —— 会话 -9 按 1 时回的就是 1030411 龙牙刀）。
+        _hero = None
+        try:
+            from . import scene as _scene
+            _hero = _scene.heroIdOf(flow)
+            _held = wire.battleLoadout(_hero)[0]
+            _slotTids = {entry[0]: entry[1] for entry in _held}
+            _right = int(_slotTids.get(1, 0))
+            if _right:
+                flow.send(5, wire.changeWeaponRspBody(_right, 0),
+                          "%s-rsp slot=1 tid=%d" % (reason, _right))
+        except Exception:  # noqa: BLE001
+            _hero = None
+        if _hero is not None:
+            flow.send(5, wire.weaponUseUpdate(_hero), "%s-use-update" % reason)
+        else:
+            flow.send(5, wire.weaponUseUpdate(), "%s-use-update" % reason)
         pushStateChange(flow, rid, reason)
         _log(flow, "siege-catapult-weapon-release rid=%d" % int(rid))
         return True
@@ -4200,9 +4457,13 @@ def onInteract(flow, rid, tid, state):
         if catapultToggleEnabled() and on_catapult:
             if catStopFirst():
                 sendInteractStop(flow, rid)
-                mo.setMoState(flow, rid, CATAPULT_WAIT, anim, "siege-catapult-off")
-            else:
-                mo.setMoState(flow, rid, CATAPULT_WAIT, anim, "siege-catapult-off")
+            # ⭐ 第三十七轮：6000 之前，趁客户端还在 6001 控制树里补一发
+            #   「停止操控(1013)」—— 这是「下车后 HUD 还挂在投石车、人不能走」
+            #   唯一的候选缺口（协议里有事件、代码从没用过）。
+            #   回退：cat_stop_event=off。
+            sendStopControlPulse(flow, rid)
+            mo.setMoState(flow, rid, CATAPULT_WAIT, anim, "siege-catapult-off")
+            if not catStopFirst():
                 sendInteractStop(flow, rid)
             _log(flow, "siege-catapult-exit rid=%d -> state=%d" % (int(rid), CATAPULT_WAIT))
             return True

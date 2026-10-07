@@ -280,7 +280,10 @@ MO_STATE_LADDER_DOWN = MO_STATE_LADDER_FALLING               # 「正在拆除�
 
 MO_STATE_ATTACK_CITY_CAR_IDLE = 1020   # 攻城车
 MO_STATE_SWITCH_CLOSED = 2000          # 门机关（关）
+MO_STATE_SWITCH_CLOSING = 2001         # 门机关（关门中）⚠️ 语义**未实测**（与 2003 对称推断）
 MO_STATE_SWITCH_OPEN = 2002            # 门机关（开）
+MO_STATE_SWITCH_OPENING = 2003         # 门机关（开门中）—— 依据：`STATE_FAMILIES` 处的注释
+                                       #   「门机关 2000 CLOSED → 2003 OPENING → 2002 OPEN」
 MO_STATE_MAIN_DOOR_CLOSED = 3010       # 正门
 MO_STATE_MAIN_DOOR_OPENING = 3011      # 正门开门中
 MO_STATE_MAIN_DOOR_OPENED = 3012       # 正门已开
@@ -672,6 +675,159 @@ def nextDoorState(state):
     return None
 
 
+def isSwitch(state):
+    """状态值是否落在**门机关**那一段（2000..2003）。
+
+    ⚠️ 机关与门是**两个物件**：门本体 3010..3017，机关 2000..2003。
+    客户端 kv 的 ``relate_cc_name`` 把它们**双向配对**（正门机关↔正门、
+    侧门机关↔侧门、内门机关↔内门），联动由客户端自己的行为树负责。
+    """
+    return MO_STATE_SWITCH_CLOSED <= state <= MO_STATE_SWITCH_OPENING
+
+
+MO_SWITCH_ENV = "T7_MO_SWITCH"
+
+
+def switchEnabled() -> bool:
+    """门机关状态机开关（**默认开** —— 这是补协议缺口，不是实验能力）。
+
+    为什么默认开：用户原始诉求就是「按 C 开城门」，而实机上按 C 交互的
+    **就是机关**（``mo-interact target=10005 state=2000``，10005 = 侧门机关
+    tid=9）。关掉它等于回到「只确认收到、不改状态」。
+    回退（10 秒）：``set T7_MO_SWITCH=0``。
+    """
+    override = os.environ.get(MO_SWITCH_ENV)
+    if override is not None:
+        text = override.strip().lower()
+        if text in ("0", "off", "false", "no", ""):
+            return False
+        if text in ("1", "on", "true", "yes"):
+            return True
+    return True
+
+
+def nextSwitchState(state):
+    """按一次 C，门机关该进哪个状态。返回 ``(新状态, 动画毫秒)`` / ``None`` 不响应。
+
+    状态走向（依据 ``STATE_FAMILIES`` 处那条注释
+    「门机关 2000 CLOSED → **2003 OPENING** → 2002 OPEN」）：
+
+    * 2000 CLOSED  →(2003 OPENING)→ 落 2002 OPEN
+    * 2002 OPEN    →(2001 CLOSING)→ 落 2000 CLOSED
+    * 过渡态（2003/2001）按 C **不响应**，与云梯/门的规矩一致。
+
+    ⚠️ ``2001`` 是**与 2003 对称推断**出来的，**没有实测证据** ——
+    它只在「关门」这条路上用得到；开门那条路（2000→2003→2002）的两个值都有出处。
+    实机若发现关门方向不对，先怀疑这个数（回退：``T7_MO_SWITCH=0``）。
+    """
+    if state == MO_STATE_SWITCH_CLOSED:
+        return MO_STATE_SWITCH_OPENING, DEFAULT_ANIMATION_MS
+    if state == MO_STATE_SWITCH_OPEN:
+        return MO_STATE_SWITCH_CLOSING, DEFAULT_ANIMATION_MS
+    return None
+
+
+MO_DOOR_LINK_ENV = "T7_MO_DOOR_LINK"
+
+
+def switchDoorLinkEnabled() -> bool:
+    """机关 ⇒ 门**联动**开关（**默认开**）。
+
+    为什么默认开（2026-10-07 实机定案）：机关状态机接进去之后，用户实测
+    「**铁链有动画，门没有开**」—— 即客户端**不会**因为机关 2000→2002 就自动开门，
+    ``relate_cc_name`` 的联动必须由服务端把门的 update_state 也发一遍。
+    回退（10 秒）：``set T7_MO_DOOR_LINK=0``（回到「只切机关」）。
+    """
+    override = os.environ.get(MO_DOOR_LINK_ENV)
+    if override is not None:
+        text = override.strip().lower()
+        if text in ("0", "off", "false", "no", ""):
+            return False
+        if text in ("1", "on", "true", "yes"):
+            return True
+    return True
+
+
+def _doorPeerRid(flow, rid):
+    """机关 rid → 配对门 rid（按客户端 kv 的 ``relate_cc_name`` **双向配对**）。
+
+    配对表（``data/scene/tszz/ccobject.json``，2026-10-07 实测）：
+    正门机关↔正门 / 侧门机关↔侧门 / 内门机关↔内门。
+    找不到配对（名字空 / 自指 / 场景里没有同名物件）⇒ ``None``。
+    """
+    try:
+        from . import controls
+        items = ccobject.loadScene(controls.airWallScene(flow))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    if not items:
+        return None
+    myName = None
+    peerName = None
+    for index, item in enumerate(items, start=1):
+        if ccobject.ridFor(index) == int(rid):
+            myName = str(item.get("name") or "")
+            peerName = str((item.get("kv") or {}).get("relate_cc_name") or "")
+            break
+    if not myName or not peerName or peerName == myName:
+        return None
+    for index, item in enumerate(items, start=1):
+        if str(item.get("name") or "") == peerName:
+            return ccobject.ridFor(index)
+    return None
+
+
+def _linkDoor(flow, switchRid, switchNewState, info):
+    """机关切状态 ⇒ **配对的门跟着切**（用户实测客户端不自动联动，见开关说明）。
+
+    * 机关 → OPENING(2003) ⇒ 门 → OPENING（正门族 3011 / 侧门·内门族 3015）
+    * 机关 → CLOSING(2001) ⇒ 门 → CLOSING（正门族 3013 / 侧门·内门族 3017）
+    * 门的族由门**当前状态**判断（3010..3013 = 正门族，3014..3017 = 侧门·内门族）；
+    * 门的动画时长取门自己 kv 的 ``animation_time_ms``（正门 2200 / 侧门 2800），
+      落点交给既有的 ``mo-settle-<doorRid>`` 定时器（``settledState`` 已支持门段）。
+    * 任何异常只记日志，**绝不**影响机关自己的状态链。
+    """
+    doorRid = _doorPeerRid(flow, switchRid)
+    if doorRid is None:
+        flow.result["logs"].append(
+            "mo-door-link-skip switch=" + str(switchRid) + " no-peer")
+        return
+    doorState = getState(flow, doorRid)
+    if doorState is None:
+        doorState = initialFor(flow, doorRid)
+    if doorState is None or not isDoor(doorState):
+        flow.result["logs"].append(
+            "mo-door-link-skip door=" + str(doorRid) + " state=" + str(doorState))
+        return
+    mainFamily = doorState <= MO_STATE_MAIN_DOOR_CLOSING
+    if switchNewState == MO_STATE_SWITCH_OPENING:
+        doorNew = MO_STATE_MAIN_DOOR_OPENING if mainFamily else MO_STATE_SIDE_DOOR_OPENING
+    elif switchNewState == MO_STATE_SWITCH_CLOSING:
+        doorNew = MO_STATE_MAIN_DOOR_CLOSING if mainFamily else MO_STATE_SIDE_DOOR_CLOSING
+    else:
+        return
+    if doorState in (MO_STATE_MAIN_DOOR_OPENING, MO_STATE_SIDE_DOOR_OPENING,
+                     MO_STATE_MAIN_DOOR_CLOSING, MO_STATE_SIDE_DOOR_CLOSING):
+        flow.result["logs"].append(
+            "mo-door-link-skip door=" + str(doorRid) + " busy state=" + str(doorState))
+        return
+    if doorNew == doorState:
+        flow.result["logs"].append(
+            "mo-door-link-skip door=" + str(doorRid) + " already state=" + str(doorState))
+        return
+    doorAnim = animationMsFor(info, doorRid) or DEFAULT_ANIMATION_MS
+    _channelSave(flow, doorRid, wire.serverNowMs(), 0, doorState, doorNew, 1)
+    _apply(flow, doorRid, doorNew, doorAnim, "mo-door-link")
+    settleMs = _settleDelayFor(doorAnim, 0)
+    if settleMs:
+        _safeCancel(flow, _timerName(doorRid))
+        flow.later(_timerName(doorRid), settleMs)
+    flow.result["logs"].append(
+        "mo-door-link switch=%d(%d) door=%d %s->%s anim=%dms"
+        % (int(switchRid), int(switchNewState), int(doorRid),
+           doorState, doorNew, doorAnim))
+
+
 def settledState(state):
     """动画播完之后该落到哪个**稳定**状态；非过渡态原样返回。
 
@@ -696,6 +852,12 @@ def settledState(state):
         return MO_STATE_SIDE_DOOR_OPENED
     if state == MO_STATE_SIDE_DOOR_CLOSING:
         return MO_STATE_SIDE_DOOR_CLOSED
+    # ⭐ 2026-10-07：门机关也要落点 —— 少了这两行，机关会**卡在过渡态**，
+    #    下次按 C 落到 ``nextSwitchState`` 的 ``return None``（不响应）。
+    if state == MO_STATE_SWITCH_OPENING:
+        return MO_STATE_SWITCH_OPEN
+    if state == MO_STATE_SWITCH_CLOSING:
+        return MO_STATE_SWITCH_CLOSED
     return state
 
 
@@ -1011,17 +1173,33 @@ def _handleInteract(flow, target, cli_tick, interact_type):
     if siege.onInteract(flow, target, tid, state):
         return True
 
-    if not (isLadder(state) or isDoor(state)):
-        # 云梯/门以外的（投石车 / 攻城车 / 门机关…）状态机还没做：
+    if not (isLadder(state) or isDoor(state) or isSwitch(state)):
+        # 云梯/门/机关以外的（投石车 / 攻城车 / 哨塔…）状态机还没做：
         # 只确认收到，不改状态。
         _stopInteractNtf(flow, target)
         return True
 
     # ⭐ 2026-09-23：门段（3010/3014）接进状态机 —— 用户原始诉求「开城门按 C 开门」。
-    # 分派规则：云梯走 nextLadderState，门走 nextDoorState，其余（投石车/攻城车/
-    # 机关/哨塔等）维持旧行为「只确认收到、不改状态」。
-    transition = (nextDoorState(state) if isDoor(state)
-                  else nextLadderState(state))
+    # ⭐⭐ 2026-10-07：**门机关**（2000..2003）也接进来。为什么必须：
+    #    实机上用户按 C 交互的**不是门本体，而是机关** —— 会话
+    #    ``51992-1437159953-1``：``mo-interact target=10005 state=2000``，
+    #    而 10005 = **侧门机关**（tid=9，见 ``data/scene/tszz/ccobject.json``）。
+    #    机关此前落到上面那句「只确认收到、不改状态」⇒ 门一直开不了。
+    #    机关与门由客户端 kv 的 ``relate_cc_name`` **双向配对**（正门机关↔正门、
+    #    侧门机关↔侧门、内门机关↔内门），**联动由客户端自己的行为树负责**
+    #    ⇒ 服务端只切机关状态、不碰门（一次只动一个变量）。
+    if isSwitch(state) and not switchEnabled():
+        _stopInteractNtf(flow, target)
+        return True
+
+    # 分派规则：云梯走 nextLadderState，门走 nextDoorState，机关走 nextSwitchState，
+    # 其余（投石车/攻城车/哨塔等）维持旧行为「只确认收到、不改状态」。
+    if isSwitch(state):
+        transition = nextSwitchState(state)
+    elif isDoor(state):
+        transition = nextDoorState(state)
+    else:
+        transition = nextLadderState(state)
     if transition is None:
         # ⭐ 这就是「一直按C产生动画」的根因：动画中或已占用时**不再触发**。
         flow.result["logs"].append("mo-interact-ignored target=" + str(target)
@@ -1064,6 +1242,14 @@ def _handleInteract(flow, target, cli_tick, interact_type):
     _channelSave(flow, target, wire.serverNowMs(), channelMs or 0, state,
                  newState, 1)
     _apply(flow, target, newState, animMs, "mo-interact")
+    # ⭐⭐ 2026-10-07：机关切状态 ⇒ **配对的门跟着切**（用户实测：铁链动了门不动，
+    #    客户端不自动联动）。开关 ``T7_MO_DOOR_LINK``（默认 on），包 try：
+    #    联动是附加能力，坏了不许拖垮机关自己这条链。
+    if isSwitch(state):
+        try:
+            _linkDoor(flow, target, newState, info)
+        except Exception:  # noqa: BLE001
+            pass
     if settleMs:
         flow.later(_timerName(target), settleMs)
 
@@ -1075,7 +1261,7 @@ def _handleInteract(flow, target, cli_tick, interact_type):
     return True
 
 
-def _apply(flow, rid, state, state_time_ms, reason):
+def _apply(flow, rid, state, state_time_ms, reason, events=None):
     setState(flow, rid, state)
     # ⭐⭐ 2026-09-24：``event_var`` 从本模块诞生起**一直发空**（注释里那句
     #    「真实客户端是否期待非零 event/param 未实测」挂了三天）。现在接上：
@@ -1085,10 +1271,14 @@ def _apply(flow, rid, state, state_time_ms, reason):
     #    这一条事件就是「让客户端跑它实体自己挂的 ``云梯_出生.btree``」的开关，
     #    梯子怎么摆交给原生动画的 root motion —— 即用户选的「让它本来就是对的」。
     #    ⚠️ 包一层 try：器械是**附加**能力，坏了不能拖垮 mo 这条已验证的链。
-    try:
-        events = siege.ladderBornEvents(flow, rid, state)
-    except Exception:  # noqa: BLE001
-        events = ()
+    #    ⭐ 2026-10-07 第三十七轮：``events`` 参数可**显式覆盖**（投石车下车要
+    #       在 6001 控制树里补一发 ``MO_EVENT_STOP_CONTROL``，见 siege 同名函数）。
+    #       传 None = 走原来的推导链，逐字节不变。
+    if events is None:
+        try:
+            events = siege.ladderBornEvents(flow, rid, state)
+        except Exception:  # noqa: BLE001
+            events = ()
     # ⭐⭐⭐ 2026-09-27：``crop`` 通道 —— 同一条 ``update_state`` 的 ``event_var``
     #    里带 ``param(HAVOK_PARAM_TYPE_CROPTIME, 值)``，直接改客户端的
     #    ``CropTime`` 动画参数（= 行为图里 ``cropEndAmountLocalTime``）。
@@ -1145,12 +1335,15 @@ def _apply(flow, rid, state, state_time_ms, reason):
     siege.onStateChange(flow, rid, state)
 
 
-def setMoState(flow, rid, state, state_time_ms, reason):
+def setMoState(flow, rid, state, state_time_ms, reason, events=None):
     """``_apply`` 的**公开别名** —— 给 ``siege`` 用。
 
     同包内跨模块调用别去摸 ``_apply`` 这个私有名：改名时调用方会静默失效。
+
+    ``events``（2026-10-07 第三十七轮）：显式指定 ``event_var`` 事件号；
+    ``None`` = 走 ``siege.ladderBornEvents`` 推导（原行为，逐字节不变）。
     """
-    return _apply(flow, rid, state, state_time_ms, reason)
+    return _apply(flow, rid, state, state_time_ms, reason, events)
 
 
 def _timerName(rid):
