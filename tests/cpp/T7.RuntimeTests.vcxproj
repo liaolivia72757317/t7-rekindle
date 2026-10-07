@@ -35,6 +35,7 @@
     <ClCompile Include="../../src/Runtime/launcher/ClientAdaptation.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/RemoteImage.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/DebugClient.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/InputMethodRegistry.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/MovementOverlay.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/MovementResources.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/StartupAnimation.cpp" />

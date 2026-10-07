@@ -1,5 +1,6 @@
 #pragma once
 #include "RemoteImage.h"
+#include "InputMethodRegistry.h"
 #include <atomic>
 #include <future>
 #include <mutex>
@@ -20,6 +21,8 @@ struct ChildImageRule {
 
 class DebugClient final {
 public:
+    using InputMethodProvider = std::function<std::vector<InputMethodRegistration>()>;
+    explicit DebugClient(InputMethodProvider inputMethods = registeredInputMethods);
     ~DebugClient();
     void start(const fs::path& executable, const std::string& imageHash,
                const std::vector<DllEntryRule>& rules,
@@ -27,12 +30,14 @@ public:
                const std::function<void(std::string)>& log = {},
                const std::function<bool()>& cancelled = {},
                const std::vector<ChildImageRule>& children = {},
-               const std::function<bool(DWORD, uintptr_t)>& breakpoint = {});
+               const std::function<bool(DWORD, uintptr_t)>& breakpoint = {},
+               const std::function<void(std::string)>& warning = {});
     HANDLE process() const noexcept { return process_; }
     DWORD pid() const noexcept { return pid_; }
     void check() const;
     void stop();
 private:
+    InputMethodProvider inputMethods_;
     HANDLE process_ = nullptr;
     DWORD pid_ = 0;
     std::thread worker_;

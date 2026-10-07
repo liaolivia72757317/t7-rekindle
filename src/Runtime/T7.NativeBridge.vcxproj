@@ -45,6 +45,7 @@
     <ClCompile Include="launcher\ClientAdaptation.cpp" />
     <ClCompile Include="launcher\RemoteImage.cpp" />
     <ClCompile Include="launcher\DebugClient.cpp" />
+    <ClCompile Include="launcher\InputMethodRegistry.cpp" />
     <ClCompile Include="launcher\MovementOverlay.cpp" />
     <ClCompile Include="launcher\MovementResources.cpp" />
     <ClCompile Include="launcher\StartupAnimation.cpp" />
@@ -69,6 +70,7 @@
     <ClInclude Include="launcher\ClientAdaptation.h" />
     <ClInclude Include="launcher\RemoteImage.h" />
     <ClInclude Include="launcher\DebugClient.h" />
+    <ClInclude Include="launcher\InputMethodRegistry.h" />
     <ClInclude Include="launcher\ClientPath.h" />
     <ClInclude Include="launcher\EndpointLayout.h" />
     <ClInclude Include="launcher\ModuleLookup.h" />

@@ -10,12 +10,17 @@ bool verifyClientImports();
 bool verifyClientAdaptation();
 bool verifyRemoteImage();
 bool verifyDebugClient();
+bool verifyInputMethodRegistry();
+bool verifyInputMethodDebugClient();
 bool verifyEndpointStorage();
 bool verifyMovementResources();
 bool verifyStartupAnimation();
 int runDebugClientFixture();
+int runInputMethodDebugFixture();
 
 int main() {
+    const auto inputMethodFixture = runInputMethodDebugFixture();
+    if (inputMethodFixture >= 0) return inputMethodFixture;
     const auto fixture = runDebugClientFixture();
     if (fixture >= 0) return fixture;
     assert(sizeof(T7NativePath) == 24);
@@ -40,6 +45,7 @@ int main() {
     assert(t7::MovementOverlayInfo::kLocalHeroResourceId == 110001u);
     assert(t7::MovementOverlayInfo::kGravityMilli == -10000);
     return verifyModuleLookup() && verifyAp32() && verifyClientCode() && verifyClientImports()
-        && verifyClientAdaptation() && verifyRemoteImage() && verifyDebugClient() && verifyMovementResources()
+        && verifyClientAdaptation() && verifyRemoteImage() && verifyInputMethodRegistry() && verifyInputMethodDebugClient()
+        && verifyDebugClient() && verifyMovementResources()
         && verifyStartupAnimation() && verifyEndpointStorage() ? 0 : 1;
 }

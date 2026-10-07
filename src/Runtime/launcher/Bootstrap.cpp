@@ -193,7 +193,8 @@ void Bootstrap::check(const fs::path& directory, const Config& config, const std
     verifyGraphics();
 }
 void Bootstrap::launch(const fs::path& directory, const Config& config, const std::function<void(std::string)>& log,
-                       const std::function<bool()>& cancelled, const std::function<void()>& adapting) {
+                       const std::function<bool()>& cancelled, const std::function<void()>& adapting,
+                       const std::function<void(std::string)>& warning) {
     if (running()) throw std::runtime_error("this launcher already owns a running client");
     if (testAdapter_.launch) {
         validateConfig(config);
@@ -224,7 +225,7 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const st
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
             if (log) log("Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
         }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH}},
-        [this](DWORD threadId, uintptr_t address) { return movementOverlay_.handleBreakpoint(threadId, address); });
+        [this](DWORD threadId, uintptr_t address) { return movementOverlay_.handleBreakpoint(threadId, address); }, warning);
         process_ = debugClient_->process(); pid_ = debugClient_->pid();
         if (log) log("Prepared owned client PID=" + std::to_string(pid_) + "; waiting for network object");
         auto deadline = GetTickCount64() + 60000;

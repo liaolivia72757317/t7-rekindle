@@ -21,7 +21,8 @@ public:
     ~Bootstrap();
     void check(const fs::path& directory, const Config& config, const std::function<void(std::string)>& log = {});
     void launch(const fs::path& directory, const Config& config, const std::function<void(std::string)>& log,
-                const std::function<bool()>& cancelled = {}, const std::function<void()>& adapting = {});
+                const std::function<bool()>& cancelled = {}, const std::function<void()>& adapting = {},
+                const std::function<void(std::string)>& warning = {});
     bool running() const;
     DWORD exitCode() const;
     void stop();

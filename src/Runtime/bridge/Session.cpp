@@ -428,7 +428,8 @@ void Session::executeStart(const Command& command) {
         [this, id = command.id] { return cancelled(id); },
         [this, id = command.id] {
             setState(T7NB_STATE_ADAPTING_CLIENT, T7NB_OPERATION_START, id, "client-adaptation");
-        });
+        },
+        [this](std::string line) { log(line, "WARNING"); });
     if (cancelled(command.id)) throw std::runtime_error("start cancelled");
     if (!server_->running()) {
         auto runtime = server_->snapshot();

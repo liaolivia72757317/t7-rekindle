@@ -21,6 +21,9 @@
     <ClCompile Include="ClientAdaptationTests.cpp" />
     <ClCompile Include="RemoteImageTests.cpp" />
     <ClCompile Include="DebugClientTests.cpp" />
+    <ClCompile Include="InputMethodRegistryTests.cpp" />
+    <ClCompile Include="InputMethodDebugTests.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\InputMethodRegistry.cpp" />
     <ClCompile Include="EndpointStorageTests.cpp" />
     <ClCompile Include="..\..\src\Runtime\launcher\EndpointStorage.cpp" />
     <ClCompile Include="MovementResourcesTests.cpp" />
