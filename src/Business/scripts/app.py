@@ -15,7 +15,11 @@ def _readHallTimeCfg():
 
     脚本会被 `runtime/host_runtime.Revision` **复制**到
     ``data/<会话>/revisions/t7rev_xxx/`` 再加载，所以不能只认 ``__file__`` 同目录：
-    从那儿上溯 4 层正好回到 ``server/``。也顺手兜一个绝对路径。
+    从那儿上溯 4 层正好回到 ``server/``。
+
+    ⚠️ 这里**只**按 ``__file__`` 上溯，不写任何本机绝对路径 —— 仓库要求
+    「信息自包含」，代码里不得出现其他工程的本地路径（见 ``AGENTS.md`` §3）。
+    部署时把 ``_hall_time.txt`` 放在 ``server/`` 下即可被上溯命中。
     """
     import os
     here = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +28,6 @@ def _readHallTimeCfg():
     for _ in range(4):
         p = os.path.dirname(p)
         cands.append(os.path.join(p, "_hall_time.txt"))
-    cands.append(r"D:\流星\T7\server\_hall_time.txt")
     for c in cands:
         try:
             with open(c, "r", encoding="utf-8") as fp:
@@ -43,7 +46,7 @@ def epochMs():
     （本地日志实测 399639882 ms ≈ 4.6 天），客户端换算出来是 1970-01-05，
     照样判「此模式还未到开放时间」。
 
-    ``_hall_time.txt``（放在 ``D:\\流星\\T7\\server\\``，改完重启生效）：
+    ``_hall_time.txt``（放在**服务端根目录**，即 ``scripts/`` 的上一级，改完重启生效）：
         空 / ``now``   → 真实时间
         ``19:35``      → 今天的 19:35（会战窗口 19:30-20:59 内）
         ``<整数>``     → 直接当 epoch 秒（10 位）或毫秒（13 位）
@@ -147,7 +150,17 @@ class Flow:
         self.connection = event["connection"]
         self.now = context["nowMs"]
         self.session = state["sessions"].get(str(self.connection))
+        # ⭐ 热重载后把「当前关卡 / 出生点 / 生效武将 / 手持武器槽」从会话灌回
+        #    模块全局：宿主重建模块会让这些全局回到启动默认值，而会话还留着原
+        #    场景 ⇒ 关卡、武器槽两边对不上。以会话为准。
+        if self.session is not None:
+            wire.restoreRuntime(self.session.get("runtime"))
         self.result = {"state": state, "send": [], "timers": [], "logs": []}
+
+    def persistRuntime(self):
+        """事件处理完把模块全局写回会话，供下次（含热重载后）还原。"""
+        if self.session is not None:
+            self.session["runtime"] = wire.runtimeSnapshot()
 
     def phase(self, name):
         self.session["phase"] = name
@@ -738,4 +751,6 @@ def handleEvent(event, state, context):
                           message)
         except Exception:  # noqa: BLE001 —— 告警本身绝不许影响主链
             pass
+    # 关卡 / 出生点 / 生效武将 / 手持武器槽 落回会话，热重载后据此还原。
+    flow.persistRuntime()
     return flow.result

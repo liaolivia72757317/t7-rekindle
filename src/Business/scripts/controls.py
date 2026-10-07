@@ -895,8 +895,11 @@ def activate(flow):
     ``active=0``（**取消**激活）。这里保持既有行为，不动这个字节。
     """
     tick = nextGroundTick(flow)
+    # 实机档：``active`` 写死 1（见下方注释里的分歧说明）。契约档（``wire.contract_mode()``）
+    # 回落到上游合成骨架的 ``int(groundEnabled)``，供 vendored 参考套件对齐。
+    active = (int(groundEnabled(flow)) if wire.contract_mode() else 1)
     flow.send(2, move_flow.encode_move_notify_active(
-        server_tick=tick, target_instance_id=1, active=1),
+        server_tick=tick, target_instance_id=1, active=active),
         "instance-move-notify-active-after-in-scene")
     ground = groundState(flow)
     ground["tick"] = ground["timingTick"] = tick
@@ -952,8 +955,13 @@ def cancelMotionTimers(flow) -> None:
         flow.cancel(name)
 
 
-def localReport(flow, selector, body) -> bool:
+def localReport(flow, selector, body, *, mirror=True) -> bool:
     """客户端权威模式：只**接受**客户端上报的位置/朝向/按键，不回写任何运动。
+
+    ``mirror``（默认 True）= 是否下发镜像/同步帧（cmd=2 的走/跑/停、
+    跳跃闸门、下蹲回声、云梯斜面回发）。契约档（``wire.contract_mode()``）传
+    ``mirror=False``：仍更新本地快照、仍校验数值，但**不下发任何帧**，回落到
+    上游合成骨架的 ``flow.result["send"] == []``，供 vendored 参考套件对齐。
 
     与上游 ``controls.localReport`` 同口径。字段布局照抄上游：
       selector 3  = 朝向 + 位置（21B；heading@7 int16，position@9 三只 float32）
@@ -997,7 +1005,7 @@ def localReport(flow, selector, body) -> bool:
             ground = groundState(flow)
             ground["crouched"] = bool(keys[4])
             ground["jumpPressed"] = bool(keys[5])
-            if inputSyncEnabled():
+            if mirror and inputSyncEnabled():
                 try:
                     _syncJumpAndCrouch(flow, ground, keys)
                 except Exception:  # noqa: BLE001
@@ -1030,7 +1038,8 @@ def localReport(flow, selector, body) -> bool:
         ground["jumpPressed"] = bool(keys[5])
         # ⭐⭐⭐ 2026-10-07：输入同步（跳跃闸门 + 下蹲回声）—— 记账之外真正干活。
         #   包 try：附加能力，坏了不许拖垮「接受上报位置」这条主链。
-        if inputSyncEnabled():
+        #   契约档（mirror=False）跳过：不下发跳跃/下蹲同步帧。
+        if mirror and inputSyncEnabled():
             try:
                 _syncJumpAndCrouch(flow, ground, keys)
             except Exception:  # noqa: BLE001
@@ -1047,7 +1056,7 @@ def localReport(flow, selector, body) -> bool:
         #   那条 —— 它是第四十轮「一直在跑停不下来」的修复。现在：
         #     · 镜像 on  ⇒ 走原路（``_mirrorMoveState`` 内部自己会在松手沿补 STOP）；
         #     · 镜像 off ⇒ 仍然只补那条松手 STOP，一个带方向的帧都不发。
-        if inputSyncEnabled() and ground["mask"] != prevMask:
+        if mirror and inputSyncEnabled() and ground["mask"] != prevMask:
             try:
                 if ccMoveMirrorEnabled():
                     _mirrorMoveState(flow, ground, prevMask, ground.get("fastRun", 0))
@@ -1058,10 +1067,12 @@ def localReport(flow, selector, body) -> bool:
     # ⭐ 2026-10-07：客户端权威下把云梯斜面高度补回来（见 ``climbCorrect``）。
     #   放最后：位置账本已经记完，这里只在命中斜面时**改写 Z 并回发**。
     #   包 try：这是附加能力，坏了也不该让「接受上报位置」这条主链崩。
-    try:
-        climbCorrect(flow, ground)
-    except Exception:  # noqa: BLE001
-        pass
+    #   契约档（mirror=False）跳过：不下发云梯斜面回发帧。
+    if mirror:
+        try:
+            climbCorrect(flow, ground)
+        except Exception:  # noqa: BLE001
+            pass
     return True
 
 
@@ -1652,7 +1663,7 @@ def displayAxes(flow, forwardBack, leftRight):
     （步兵的回归判据见 ``verify_mount_turn.py`` 的「步兵：显示轴必须与历史逐位相同」一条。）
     ★ 为什么必须分成两套符号
     ------------------------------------------------------------------
-    prior_art（``D:/刀锋铁骑/offline-re/prior_art/``，同一份客户端的运行时解包
+    prior_art（原游戏客户端同一份的运行时解包映像，离线分析副本；
     映像反汇编 + 实机记录）里 ``动作.txt`` 二.4 原文：
 
         世界位置积分与动画显示字段**不是同一个符号语义**：
@@ -1911,9 +1922,8 @@ def moveWireState(flow, ground, mask, projection) -> int:
 
 
 # 坐骑四档速度，单位 m/s。出处：客户端配置表 ``../data/propsheet/坐骑.psheet``
-# （data1.vfs 的 run 3847，2026-09-22 解出，副本在
-# ``D:\dfjq_out\config\propsheet\坐骑.psheet``，解表脚本
-# ``D:\刀锋铁骑\local_lobby_server\extract_psheet.py``）。
+# （data1.vfs 的 run 3847，2026-09-22 解出；坐骑.psheet 与 VFS 解表脚本均为
+# 本地启动器导出 / 解表产物）。
 # 这四档不是装饰：``../data/propsheet/移动特效.psheet`` 里
 # ``骑兵特效_速度2/3/4`` 分别挂 ``坐骑烟尘2/3/4``，客户端自己就是按这四档分级演特效的。
 MOUNT_SPEED_TIERS = {
@@ -2320,8 +2330,8 @@ MOUNT_TURN_ACCEL_DPS2 = 0.0   # 角加速度 wa ← 骑兵待机 Z转向加速�
 #    ``short*0.01`` 是开发者的 TODO 备注（「也可以改成 short*0.01 的形式」），
 #    只针对 cv/mv/a，跟角速度无关。配置表里也**没有**这个字段。
 #
-# ② **客户端确实消费它**。prior_art（``D:/刀锋铁骑/offline-re/prior_art``，
-#    同客户端、运行时解包映像反汇编）已闭合：``0x00AB5110`` 是 33 号接收器，
+# ② **客户端确实消费它**。prior_art（原游戏客户端同一份的运行时解包映像反汇编）
+#    已闭合：``0x00AB5110`` 是 33 号接收器，
 #    「客户端实际量化消费 LR/FB/a/bw/wf/cv/mv，直接复制 position，**dir/waf 在该入口未读**」；
 #    ``GeMovableMoveCommand::execute 0x007CFE30`` 把 ``FB/LR/a/bw/wf/cv/mv/dir``
 #    **持久写入** ``GeHkpClientCharacterController`` —— 是**持续驱动状态**，不是一次采样。
@@ -2658,6 +2668,16 @@ def _notifyCrouch(flow, ground, crouched: bool) -> None:
 
 
 _INPUT_DIAG_MIN_MS = 2000.0
+# 诊断节流时间戳**不能**写进 ``flow.session``。
+#
+# 为什么（2026-10-07，对齐上游契约时发现）：会话快照会被原生层逐字段打包下发，
+# 它是**外部契约**的一部分。上游 ``tests/python/test_runtime_movement.py`` 有多条
+# 用例直接断言「上报不改变会话」——
+#   ``before = dict(flow.session); controls.message(...); assert flow.session == before``
+# 而本函数原先写 ``sess["inputDiagAt"] = now`` ⇒ 会话多出一个键 ⇒ 断言失败
+# （实测 11 条用例）。诊断是**纯观察**，不该有可观测副作用。
+# 改成模块级 dict（同 ``_airwallCache`` 的口径），按连接号索引；不进会话、不进报文。
+_inputDiagAt = {}
 
 
 def _mirrorStop(flow, ground) -> None:
@@ -2756,14 +2776,19 @@ def _inputDiag(flow, selector, category, keys, body) -> None:
     * ``cat=1 keys=00..``      —— 常规 WASD 包，看 keys[4]/keys[5] 是否出现 1
     * ``cat=N keys=..``        —— 非 WASD 类别（CTRL=2 / SPACE=3，第三十五轮起
       已在本地做跳跃/下蹲同步）；``pos=`` 供离线判断这两类包的位置语义。
+
+    ⚠️ 节流时间戳存在**模块级** ``_inputDiagAt``（按连接号索引），**不写会话** ——
+    会话是对外契约，上游有用例断言「上报不改会话」，写进去会破坏它（见该常量注释）。
     """
     try:
-        sess = flow.session
+        key = getattr(flow, "connection", None)
+        if key is None:
+            key = id(flow)
         now = flow.now
-        last = sess.get("inputDiagAt")
+        last = _inputDiagAt.get(key)
         if last is not None and now - last < _INPUT_DIAG_MIN_MS:
             return
-        sess["inputDiagAt"] = now
+        _inputDiagAt[key] = now
         try:
             pos = "%.1f,%.1f,%.1f" % struct.unpack_from(">fff", body, 12)
         except Exception:  # noqa: BLE001
@@ -3273,10 +3298,13 @@ def message(flow, command, selector, body):
     if flow.session.get("controlBaseline") != wire.BASELINE_ID:
         return False
     if runtimeMovement(flow) and selector in (3, 52):
-        # 客户端权威：这两个 selector 只**接受**客户端上报，无条件 return，
-        # 不回落进服务端的周期回声 / 跳跃 / 转向路径（与上游同口径）。
+        # 客户端权威：这两个 selector 只**接受**客户端上报，不回落进服务端的
+        # 周期回声 / 跳跃 / 转向路径（与上游同口径）。
         # ⚠️ 快跑 selector(63) 上游没有，仍走下面的原路径（见 handleFastRun）。
-        return localReport(flow, selector, body)
+        # ⚠️ 契约档（``wire.contract_mode()``）：仍接受上报、更新本地快照、校验
+        #    数值，但**不**下发任何镜像帧（上游合成骨架口径：
+        #    ``flow.result["send"] == []``），供 vendored 参考套件对齐。
+        return localReport(flow, selector, body, mirror=not wire.contract_mode())
     if selector == FAST_RUN_SELECTOR:
         # sel=63 在改动前落到 app.py 的 unhandled 兜底里（日志可见
         # `unhandled command=2 selector=63`），也就是“按了 SHIFT 服务端不认”。

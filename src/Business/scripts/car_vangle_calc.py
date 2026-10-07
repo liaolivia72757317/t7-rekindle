@@ -42,7 +42,55 @@ import os
 import re
 import sys
 
-SERVER = r"D:\流星\T7\server"
+def _findServerRoot():
+    """服务端根目录（放着 ``level.ini`` / ``data/scene`` 的那一层）。
+
+    解析顺序：
+      ① ``T7_SERVER_ROOT`` 环境变量；
+      ② 命令行 ``--server <路径>`` / ``--server=<路径>``；
+      ③ 从本文件所在目录**逐级上溯**（最多 6 级），取第一个含 ``level.ini`` 的目录。
+
+    ⚠️ 不写任何本机绝对路径 —— 仓库要求「信息自包含」，代码里不得出现其他工程的
+    本地路径（``AGENTS.md`` §3）。本脚本随服务端脚本一起部署时，③ 会直接命中。
+    """
+    env = os.environ.get("T7_SERVER_ROOT")
+    if env and os.path.isdir(env):
+        return os.path.abspath(env)
+    argv = list(sys.argv[1:])
+    for index, item in enumerate(argv):
+        if item == "--server" and index + 1 < len(argv):
+            return os.path.abspath(argv[index + 1])
+        if item.startswith("--server="):
+            return os.path.abspath(item.split("=", 1)[1])
+    node = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(6):
+        if os.path.isfile(os.path.join(node, "level.ini")):
+            return node
+        parent = os.path.dirname(node)
+        if parent == node:
+            break
+        node = parent
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _positionalArgs(argv):
+    """去掉 ``--server`` 这类「带值选项」后的位置参数。"""
+    out = []
+    skip = False
+    for item in argv:
+        if skip:
+            skip = False
+            continue
+        if item == "--server":
+            skip = True
+            continue
+        if item.startswith("--server="):
+            continue
+        out.append(item)
+    return out
+
+
+SERVER = _findServerRoot()
 SCENE_DIR = os.path.join(SERVER, "data", "scene")
 INI = os.path.join(SERVER, "level.ini")
 
@@ -239,7 +287,7 @@ def all_scenes():
 
 
 def main():
-    args = list(sys.argv[1:])
+    args = _positionalArgs(sys.argv[1:])
     if args and args[0] == "--all":
         scenes = all_scenes()
         print("=" * 88)

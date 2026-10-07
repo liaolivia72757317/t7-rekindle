@@ -1,6 +1,6 @@
 """骑兵转舵 / 骑乘 state 的离线仿真门（不进运行时，手动敲）。
 
-    cd /d/流星/T7/server && PYTHONIOENCODING=utf-8 python/python.exe scripts/verify_mount_turn.py
+    cd <原版 T7 服务端根目录> && PYTHONIOENCODING=utf-8 python/python.exe scripts/verify_mount_turn.py
 
 判据（2026-09-22 实机反馈之后的口径，详见 ``README.md`` 同名条目）：
 
@@ -43,7 +43,7 @@ assert not c.heroHasMount(INFANTRY_HERO), "步兵卡不该带坐骑"
 assert c.heroHasMount(MOUNTED_HERO), "骑兵卡该带坐骑，否则换一张卡"
 
 # ★★ 显示轴符号的**一手证据矩阵**（2026-09-23 新增）。
-# 出处：prior_art ``D:/刀锋铁骑/offline-re/prior_art/动作.txt`` 六 —— 做法是直接调
+# 出处：prior_art 中客户端动作消费记录（动作.txt）六 —— 做法是直接调
 # 客户端原 MOVE_BC 消费器、发一条持续命令再自动发 MOVE_STOP，**由用户盯着画面
 # 逐项确认**。原文确认项：
 #     state=2, LR=0, FB=+1000, cv=1000  →  「向前慢走」（连看多次，三次 10 秒）

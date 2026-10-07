@@ -94,8 +94,17 @@ handled = voice.message(f, voice.TRANS_COMMAND, voice.TRANS_MULTI_REQ, body)
 check("消费掉该上行", handled is True)
 peers = [item["connection"] for item in f.result["send"]]
 check("广播给同房间其他 instance（9 / 11），排除离场(13)与大厅(15)",
-      sorted(peers) == ["11", "9"], repr(peers))
-check("默认不回给发送方(7)（ECHO_TO_SENDER=False）", "7" not in peers, repr(peers))
+      sorted(peers) == [9, 11], repr(peers))
+check("默认不回给发送方(7)（ECHO_TO_SENDER=False）", 7 not in peers, repr(peers))
+# ⚠️ 2026-10-07（对齐上游宿主契约）：``connection`` **必须是整数**。
+#    会话字典的键是字符串（``"7"`` / ``"9"`` …），直接拿来当 connection 会被宿主
+#    ``host_runtime.validateTransition`` 拒掉 ——
+#    ``send targets a non-live connection``，**整次事件被丢弃**。
+#    本脚本原先只比对 ``["11", "9"]``（字符串），恰恰把这个缺陷固化成了「期望」，
+#    所以维护者实测报「有其他接收会话时整次事件被拒绝」而本地全绿。
+#    这一条断言类型，防止再次退化。
+check("connection 是整数（宿主 validateTransition 的硬要求）",
+      all(type(peer) is int for peer in peers) and peers, repr(peers))
 check("每条都是 cmd=10 / sel=301 / 26B",
       all(item["command"] == 10 and len(item["body"]) == 26
           and int.from_bytes(item["body"][:2], "big") == 301 for item in f.result["send"]),

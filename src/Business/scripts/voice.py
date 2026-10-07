@@ -92,13 +92,35 @@ def decodeSound(content):
     return struct.unpack_from(">IQ", content, 0)
 
 
+def connectionId(key):
+    """``state["sessions"]`` 的字符串键 -> 宿主要求的**整数**连接号。
+
+    宿主的 ``PythonHost`` 用 ``PyLong_AsUnsignedLongLong`` 解
+    ``result["send"][i]["connection"]``，拿到的号再去 ``live`` 连接表里查。
+    传字符串会直接抛 ``TypeError``，整次事件被拒（症状：
+    ``send targets a non-live connection``，喊话发不出去、同批其它报文也一起丢）。
+
+    键不是数字时返回 ``None``，由调用方跳过 —— 这种键只可能是状态被人手改坏了，
+    宁可少发一条，也不要让整次事件崩掉。
+    """
+    try:
+        return int(key)
+    except (TypeError, ValueError):
+        return None
+
+
 def broadcast(flow, body):
     """把 301 广播给同房间其他 instance 会话，返回实际发送的会话数。"""
     sent = 0
-    for connection, session in list(flow.state.get("sessions", {}).items()):
+    for key, session in list(flow.state.get("sessions", {}).items()):
         if session.get("role") != "instance" or session.get("leaving"):
             continue
-        if not ECHO_TO_SENDER and connection == str(flow.connection):
+        connection = connectionId(key)
+        if connection is None:
+            tracelog.emit("voice", session.get("scene", ""),
+                          "quick-talk-skip session key=%r 不是连接号" % (key,))
+            continue
+        if not ECHO_TO_SENDER and connection == flow.connection:
             continue
         flow.result["send"].append({"connection": connection, "command": TRANS_COMMAND,
                                     "body": body, "reason": "voice-quick-talk-broadcast"})

@@ -23,6 +23,31 @@ BASELINE_ID = "vm-human-20260913"
 CLIENT_RUNTIME_MOVEMENT = False
 RUNTIME_MOVEMENT_MODE = "client-runtime-offline-v1"
 
+# --- 契约 / 实机 双档位（2026-10-07） -----------------------------------------
+# 本 fork 在「客户端权威移动」模式下对上游合成骨架做了**有意的实机扩展**：
+#   发镜像帧 / 控制解锁帧、用「当前武将」作唯一出战、actorState/roundState 改用
+#   epoch 时间戳、activate 的 active 写死 1 —— 这些正是 WASD / 冲刺 / 控制解锁能在
+#   实机跑起来的修复（见 controls.py / scene.py 对应注释）。
+# 上游 tests/python 那套 vendored 参考套件按「合成骨架契约」写断言，与本 fork 的
+# 实机扩展冲突。用这个档位把两套口径分开：
+#   CONTRACT_MODE = False（默认，= 实机 / 本 fork 真实行为）：上面那些扩展全开。
+#   CONTRACT_MODE = True （= 上游合成骨架契约）：仅供 tests/python 参考套件对齐上游，
+#       证明「没有回归上游契约」。实机部署（t7-rekindle 宿主 / 自建 T7.Server.exe）
+#       永不置此档。
+# 切换：环境变量 T7_CONTRACT_MODE=1，或 contracts.set_contract_mode(True)。
+# ⚠️ 默认档 = 实机，所以改这个开关**不会**动到任何实机行为；只有测试套件会翻到契约档。
+_CONTRACT_MODE = os.environ.get("T7_CONTRACT_MODE", "").strip() not in (
+    "", "0", "false", "False", "no", "NO")
+
+
+def set_contract_mode(on):
+    global _CONTRACT_MODE
+    _CONTRACT_MODE = bool(on)
+
+
+def contract_mode():
+    return _CONTRACT_MODE
+
 # --- 关卡（地图）选择（2026-09-19 新增；**默认与改动前逐位相同**） ---------------
 #
 # ⚠️ pattern_id 与 level_id 是**两个不同的 ID 空间**，别混：
@@ -100,7 +125,7 @@ SCENE_BY_LEVEL = {
     #    实机日志（会话 44700-930691595）拍到客户端 room-create 发的是
     #    **`client=23` 和 `client=14`** —— 这两个数直接把我打醒了：
     #    客户端发的是**独立卡片号**，不是 13xx 整卡；而且 `pattern_level_map.csv`
-    #    一直就在 `D:/刀锋铁骑这个不用/local_lobby_server/_backup_20260905_vfs_extract/`。
+    #    一直就在本地启动器 VFS 解包备份目录（local_lobby_server/_backup_20260905_vfs_extract/）里。
     #
     #    ── 现在这份的出处（三重交叉，全部对齐）────────────────────────
     #    ① `pattern_level_map.csv`（权威卡片表，138 行）→ pattern/level/模式
@@ -1361,7 +1386,7 @@ def _heroWeapons(roster):
     ``group_id`` 是**装备组编号**（像 104029 这种 6 位数，不是 set 下标）——
     ``weapon_slots`` 条目里带的是它，客户端拿它去武将的 7 个装备组里找组，
     所以填 0（= 该武将没有这一组）会被当无效丢掉，槽位永远空着。
-    依据：《刀锋铁骑 武将装备链完整数据》§七「group 即本表组号；index 为组内序号」。
+    依据：武将装备链数据梳理 §七「group 即本表组号；index 为组内序号」。
     pos 不在名册里的行直接跳过——写一张不存在的卡会让整帧长度对不上。
     """
     known = {c[0] for c in roster["cards"]}
@@ -1402,7 +1427,14 @@ RUNTIME_HERO_IDS = (_ACTIVE_HERO,)
 
 
 def heroIds(runtimeMovement=False):
-    """当前模式下的出战武将元组。``runtimeMovement`` 见 ``RUNTIME_HERO_IDS``。"""
+    """当前模式下的出战武将元组。``runtimeMovement`` 见 ``RUNTIME_HERO_IDS``。
+
+    ⚠️ 契约档（``contract_mode()``）：客户端权威模式回落到上游合成骨架的固定单人
+    武将 ``(110001,)``，便于 vendored 参考套件对齐上游、证明没有回归。实机档仍是
+    动态「当前武将」``RUNTIME_HERO_IDS``。
+    """
+    if runtimeMovement and contract_mode():
+        return (110001,)
     return RUNTIME_HERO_IDS if runtimeMovement else HERO_IDS
 
 
@@ -1877,6 +1909,57 @@ def applyLevel(levelId, card=None) -> bool:
     return True
 
 
+# --- 运行期快照（热重载）-----------------------------------------------------------
+# 「当前关卡 / 出生点 / 生效武将 / 手持武器槽」都是**模块全局**，而宿主热重载
+# （``Runtime.prepare()`` + ``switch()``）会重建模块 ⇒ 全局回到启动默认值，
+# 但宿主管的 ``state``（会话）还留着原场景 ⇒ 两边自相矛盾：
+# 关卡从 10085 退回 10036、武器槽从 3 退回 1，而会话仍在原场景里。
+#
+# 修法：这些值**以会话为准**。``Flow`` 建立时用会话里存的快照灌回模块全局，
+# 事件处理结束再把全局写回会话 —— 改这些全局的地方一个都不用动。
+def runtimeSnapshot():
+    """当前运行期快照。字段都是宿主 ``state`` 能编码的标量。"""
+    return {"levelId": LEVEL_ID, "levelCustom": bool(LEVEL_CUSTOM),
+            "resourceId": RESOURCE_ID, "heroId": _ACTIVE_HERO,
+            "weaponSlot": _CURRENT_SLOT,
+            "campSpawnCamp": None if _appliedCampSpawn is None else _appliedCampSpawn[1]}
+
+
+def restoreRuntime(snapshot):
+    """把会话里的快照灌回模块全局。返回 ``False`` 表示快照不可用、保持现状。
+
+    逐字段校验：任何一项类型/范围不对就整体不采用（宁可退回启动默认，
+    也不要用半份脏数据把出生点或武器槽改坏）。
+    """
+    global LEVEL_ID, LEVEL_CUSTOM, RESOURCE_ID, POSITION, ENEMY_POSITION
+    global _ACTIVE_HERO, _CURRENT_SLOT, _appliedCampSpawn
+    if type(snapshot) is not dict:
+        return False
+    levelId = snapshot.get("levelId")
+    resourceId = snapshot.get("resourceId")
+    if type(levelId) is not int or levelId not in SPAWN_BY_LEVEL:
+        return False
+    if type(resourceId) is not int or not 0 < resourceId < (1 << 31):
+        return False
+    LEVEL_ID = levelId
+    LEVEL_CUSTOM = bool(snapshot.get("levelCustom", True))
+    RESOURCE_ID = resourceId
+    POSITION, ENEMY_POSITION = SPAWN_BY_LEVEL[levelId]
+    heroId = snapshot.get("heroId")
+    if type(heroId) is int and heroId > 0:
+        _ACTIVE_HERO = heroId
+    slot = snapshot.get("weaponSlot")
+    if type(slot) is int and 1 <= slot <= 9:
+        _CURRENT_SLOT = slot
+    camp = snapshot.get("campSpawnCamp")
+    # 先清空再交给 ``applyCampSpawn`` —— 它是幂等的（同 (关卡, camp) 直接返回
+    # False），自己赋值会让它以为「已经应用过」而跳过 ``_recomputeSpawn()``。
+    _appliedCampSpawn = None
+    if type(camp) is int and camp in (1, 2):
+        applyCampSpawn(camp)
+    return True
+
+
 # ❌ 2026-09-27 **已作废并删除**：此处曾短暂加过一个模块级标记 `_matchDecided`
 #    （「随机档下本局图已由 match-start 定下 ⇒ 后续 room-create 不许覆盖」）。
 #    **删掉的原因：它防的是一个不存在的威胁，而且有害。** 记录在此以免以后再踩：
@@ -2025,6 +2108,9 @@ GROUND_STEP_MS = 50
 #
 # ⚠️ 但不 import app（会循环依赖：app → scene → contracts）。
 #    这里复刻一份读取逻辑，**任何改动都要和 app.epochMs() 同步**。
+#
+# ⚠️ 与 ``app._readHallTimeCfg`` 一样**只**按 ``__file__`` 上溯，不写本机绝对路径
+#    （``AGENTS.md`` §3「信息自包含」）。
 def _hallTimePath():
     import os
     here = os.path.dirname(os.path.abspath(__file__))
@@ -2033,7 +2119,6 @@ def _hallTimePath():
     for _ in range(4):
         p = os.path.dirname(p)
         cands.append(os.path.join(p, "_hall_time.txt"))
-    cands.append(r"D:\流星\T7\server\_hall_time.txt")
     return cands
 
 
@@ -2089,15 +2174,17 @@ def exact(body, length, label):
 def roundState(now, current, duration):
     """回合状态（cmd=10 sel=0x67）。
 
-    ⚠️ ``now`` 形参**被忽略**，内部强制用 ``serverNowMs()``（epoch 毫秒）。
+    ⚠️ 实机档忽略 ``now``、强制用 ``serverNowMs()``（epoch 毫秒）。契约档
+    （``contract_mode()``）按上游合成骨架用传入的 ``now``，以便 vendored 参考套件
+    逐字节对齐。
 
-    为什么忽略：调用点遍布 ``scene.py``（约 8 处），传的全是 ``flow.now``
-    （原生单调时钟）。逐个改容易漏，且以后新增调用点还会踩同一个坑。
-    在这里**一处收口**最稳：只要 epoch，不接受单调时钟。
+    为什么实机档忽略 ``now``：调用点遍布 ``scene.py``（约 8 处），传的全是
+    ``flow.now``（原生单调时钟）。逐个改容易漏，且以后新增调用点还会踩同一个坑。
+    在这里**一处收口**最稳：实机只要 epoch，不接受单调时钟。
 
     载荷 42 字节：``sel(u16) + now(u64) + 1(u64) + cur(i32) + now(u64) + dur(u32) + 0(i32)``
     """
-    stamp = serverNowMs()
+    stamp = now if contract_mode() else serverNowMs()
     return struct.pack(">HQQiQQi", 0x67, stamp, 1, current, stamp, duration, 0)
 
 
@@ -2157,13 +2244,16 @@ def actorInfo(now, camp, playerName=USER_NAME, withMount=True, heroId=None):
 
 
 def actorState(now, current):
-    """⚠️ ``now`` 被忽略，统一走 ``serverNowMs()``。
+    """``update_time_ms`` 是发到客户端的时间戳。
 
-    ``update_time_ms`` 也是发到客户端的时间戳；用单调时钟会让客户端算出 1970。
+    ⚠️ 实机档忽略 ``now``、强制走 ``serverNowMs()``（epoch 毫秒）；用单调时钟会让
+    客户端算出 1970。契约档（``contract_mode()``）按上游合成骨架用传入的 ``now``，
+    以便 vendored 参考套件逐字节对齐。
     """
+    stamp = now if contract_mode() else serverNowMs()
     return room_flow.encode_actor_update_state(
         user_id=USER_ID, actor_mid=ACTOR_ID, actor_state=current,
-        update_time_ms=serverNowMs())
+        update_time_ms=stamp)
 
 
 # --- 坐骑视野实体 -------------------------------------------------------------------
@@ -2278,6 +2368,14 @@ def battleHeroes(sequence, runtimeMovement=False):
     """
     formation = battleFormationNow()
     if runtimeMovement:
+        if contract_mode():
+            # 契约档：上游合成骨架 = 固定单人 110001、无武器挂载 ⇒ 单条 116B，
+            # 与 vendored 参考套件 ``len(battleHeroes(1, True)) == 116`` 对齐。
+            hero = 110001
+            guid = next((e[1] for e in formation if e[2] == hero), 1)
+            return login_flow.encode_fixed_battle_hero_sync_item_container_response(
+                sequence=sequence, position=1, guid=guid,
+                hero_resource_id=hero, weapons=(), mount_tid=0)
         wanted = set(heroIds(True))
         formation = tuple(entry for entry in formation if entry[2] in wanted) \
             or formation[:1]

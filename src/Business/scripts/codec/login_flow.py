@@ -155,7 +155,7 @@ def _hero_card_slot(position: int, guid: int, hero_resource_id: int,
     table (a 6-7 digit id such as ``104029``), which is what the slot entry
     carries.  The client resolves ``group_id`` against the hero's seven groups,
     so ``group_id = 0`` (that table's "no such group") reads as unequipped.
-    See 《刀锋铁骑 武将装备链完整数据》§七.
+    See 武将装备链数据梳理 §七.
 
     The outer ``CS_ITEM_DEF.item_type`` stays ``E_ITEM_TYPE_HEROCARD`` so TDR
     decodes the matching union branch. The first byte of the nested

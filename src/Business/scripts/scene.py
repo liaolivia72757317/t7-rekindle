@@ -435,7 +435,16 @@ def battleEntry(flow):
     if flow.session.get("battleEntered") or not flow.session.get("heroChosen"):
         return
     flow.session["battleEntered"] = True
-    flow.send(0x36, wire.actorState(flow.now, 6), "actor-in-scene-after-battle-confirm")
+    # 契约档回落到上游合成骨架：battleEntry 首帧 actorState 取 6/8 由 playing 决定
+    # （与 vendored 参考测试 test_runtime_entry_initializes_idle_once_without_position_stop
+    #  对齐，playing=True→6、playing=False→8）；实机档保持原样（恒发 6，另由下方
+    #  actorState(8) 待 round-game 解锁）。
+    if wire.contract_mode():
+        _entry_state = 6 if controls.groundEnabled(flow) else 8
+        flow.send(0x36, wire.actorState(flow.now, _entry_state),
+                  "actor-in-scene-after-battle-confirm")
+    else:
+        flow.send(0x36, wire.actorState(flow.now, 6), "actor-in-scene-after-battle-confirm")
     flow.send(0xE, vision_flow.encode_vision_del_event(), "actor-vision-del-after-battle-confirm")
     # 上面这条 del 会把客户端**所有**视野物件清掉（含 CC 器械 + 教学引导），
     # 所以两个去重标记也要一起清。
@@ -449,26 +458,38 @@ def battleEntry(flow):
     sendCcObjects(flow)
     sendTutorialObjects(flow)
     sendNpcObjects(flow)
-    flow.send(0x36, wire.actorState(flow.now, 8), "actor-ready-play-after-battle-confirm")
+    # 实机档：发 ``actorState(8)``（停在「就绪待播」），待 ``round-game`` 补 6 解锁。
+    # 契约档（``wire.contract_mode()``）回落到上游合成骨架：battleEntry 不发这条额外帧。
+    if not wire.contract_mode():
+        flow.send(0x36, wire.actorState(flow.now, 8), "actor-ready-play-after-battle-confirm")
     if flow.session.get("controlBaseline") == wire.BASELINE_ID:
         # ⚠️ 客户端权威模式下**不能**发这条「位置=出生点、速度=0」的静止帧：
         #    移动由客户端 overlay 自己驱动，服务端再发一次静止坐标 = 互搏，
         #    人物会被钉死在出生点（实机症状：WASD 完全不动）。上游同款闸门。
         if not controls.runtimeMovement(flow):
             ground = controls.groundState(flow)
-            controls.broadcast(flow, wire.POSITION, ground["heading"], 1, 0, 0,
-                               "instance-ground-initial-stop")
+            controls.broadcast(flow, wire.POSITION, ground["heading"], 1, 0,0,
+                              "instance-ground-initial-stop")
         initializeBattleState(flow)
-        controls.notifyInAir(flow, is_in_air=0)
+        # 契约档：本 fork 实机修复的「空中状态广播」不在上游合成骨架里，
+        # 回落去掉这条额外帧，供 vendored 参考套件对齐。
+        if not wire.contract_mode():
+            controls.notifyInAir(flow, is_in_air=0)
         # 顺序有讲究：这两条都要求视野实体已经建好（上面那条 vision ADD 才有坐骑）。
-        controls.activateMount(flow)
-        controls.unlockOrientation(flow)
+        # ⚠️ 这两条是**本 fork 的实机修复**（控制解锁 / 坐骑激活）；契约档回落到
+        #    上游合成骨架：battleEntry 不发这两条额外帧，供 vendored 参考套件对齐。
+        if not wire.contract_mode():
+            controls.activateMount(flow)
+            controls.unlockOrientation(flow)
     # ⭐ 2026-10-03（第十七轮）：**训练关状态机**。非训练场静默返回 False
     #    （逐位不变）；训练场则发 STATE_NOTIFY(RUNNING) + SHOW_TRAIN_INFO。
     #    放在最后 —— 它依赖上面所有视野实体（含 NPC）已经建好。
     dungeon.enterTraining(flow)
     scheduleBattleMusic(flow)
-    sendInstanceEnter(flow)
+    # 契约档：本 fork 的实机音频修复（INSTANCE_ENTER 重扫 bank）不在上游合成骨架，
+    # 回落去掉这条额外帧，供 vendored 参考套件对齐。
+    if not wire.contract_mode():
+        sendInstanceEnter(flow)
     flow.phase("battle-entry-sent")
 
 
@@ -503,7 +524,14 @@ def timer(flow, name):
         #    回合正式开始由 ``round-start`` / ``round-game`` 两条推进。
         #    ⚠️ 时长仍给 GAME_MS：部分客户端分支会拿 duration 当总时长，
         #    给 0 可能被判「已结束」。
-        flow.send(0xA, wire.roundState(flow.now, 1, wire.GAME_MS), "instance-round-state-after-auth")
+        #    契约档（``wire.contract_mode()``）回落到上游合成骨架的
+        #    ``roundState(now, 2, PREPARE_MS)``，供 vendored 参考套件对齐。
+        if wire.contract_mode():
+            flow.send(0xA, wire.roundState(flow.now, 2, wire.PREPARE_MS),
+                      "instance-round-state-after-auth")
+        else:
+            flow.send(0xA, wire.roundState(flow.now, 1, wire.GAME_MS),
+                      "instance-round-state-after-auth")
         flow.later("instance-start-pattern", 200)
     elif name == "instance-start-pattern":
         flow.send(0xA, wire.startPattern(), "instance-start-pattern-data-ntf-after-auth")

@@ -18,7 +18,7 @@
 
 数据来源
 --------
-客户端 ``D:\\刀锋铁骑\\vfs\\map.vfs``，每个场景一份
+原版客户端 ``vfs`` 包里的 ``map.vfs``，每个场景一份
 ``../data/scene/map/<场景>/aairwall.dat``，是 **GB2312 的纯 XML**。
 已抽取 62 个场景，落在 ``server/data/scene/<场景>/aairwall.xml``。
 
