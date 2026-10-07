@@ -1138,28 +1138,67 @@ HERO_ROSTER_PATH = os.path.join(_heroDataDir(), "hero_roster.json")
 HERO_CARD_GUID = 1
 
 
+def _coerceRoster(data, source):
+    """把「JSON 形状」的名册规范成运行期形状（元组化 / 键名映射 / 类型收敛）。"""
+    return {
+        "cards": tuple(tuple(c) for c in data["cards"]),
+        "souls": tuple(tuple(s) for s in data.get("souls", [])),
+        "currency": dict(data.get("currency", {})),
+        # JSON 里叫 ``containerCardLimit``，``herodefault.asRoster()`` 里叫 ``limit``
+        # —— 两种形状都认，避免内置默认那条路静默丢掉卡位上限。
+        "limit": int(data.get("containerCardLimit", data.get("limit", 50))),
+        "unlocks": {int(k): tuple(v) for k, v in data.get("unlocks", {}).items()},
+        "battleFormation": tuple(data.get("battleFormation") or (1,)),
+        "weapons": tuple(tuple(w) for w in data.get("weapons", [])),
+        "source": source,
+    }
+
+
+def _builtinRoster():
+    """内置默认名册（``herodefault.py``），干净检出时的兜底。
+
+    ``src/Business/data/`` 是运行期数据、不进版本库，所以干净检出没有
+    ``hero_roster.json``。只退回「一张卡 + 空装备」会让 ``HERO_BATTLE_LOADOUTS``
+    变成 ``{}`` ⇒ ``battleLoadout()`` 返回空列表 ⇒ 进图空手、坐骑链路失败。
+    ``herodefault.py`` 与 JSON 同源，由 ``tools/hero_roster.py`` 生成。
+    """
+    try:
+        from . import herodefault
+    except Exception as error:                       # pragma: no cover - 自包含校验
+        try:
+            import herodefault                       # 脚本被当顶层模块加载时
+        except Exception:
+            print("[contracts] herodefault 不可用: " + repr(error), flush=True)
+            return None
+    try:
+        return _coerceRoster(herodefault.asRoster(), "builtin")
+    except Exception as error:                       # pragma: no cover - 自包含校验
+        print("[contracts] herodefault 内容异常: " + repr(error), flush=True)
+        return None
+
+
 def _loadHeroRoster():
-    """缺文件/坏 json 时退回「只有 pos 1 那张」= 改动前的行为，不影响进图。"""
-    empty = {"cards": ((1, HERO_CARD_GUID, HERO_ID),), "souls": (),
-             "currency": {}, "limit": 50, "unlocks": {},
-             "battleFormation": (1,), "weapons": (), "source": "fallback"}
+    """本地 JSON 优先；缺文件/坏 json 时退到内置默认，最后才是单卡兜底。
+
+    ``source`` 有三个取值，用来在启动自证行里区分「代码没生效」和「文件没找到」：
+
+      * ``file``     —— 读到了 ``data/hero/hero_roster.json``（自研运行期的常态）；
+      * ``builtin``  —— 没有文件，用的 ``herodefault.py`` 内置默认（**干净检出**）；
+      * ``fallback`` —— 连内置默认都用不了（只有 pos 1 一张卡 + 空装备，
+                        退化到改动前的行为，仅作最后保险）。
+    """
     try:
         with open(HERO_ROSTER_PATH, encoding="utf-8") as fp:
-            data = json.load(fp)
-        return {
-            "cards": tuple(tuple(c) for c in data["cards"]),
-            "souls": tuple(tuple(s) for s in data.get("souls", [])),
-            "currency": dict(data.get("currency", {})),
-            "limit": int(data.get("containerCardLimit", 50)),
-            "unlocks": {int(k): tuple(v) for k, v in data.get("unlocks", {}).items()},
-            "battleFormation": tuple(data.get("battleFormation") or (1,)),
-            "weapons": tuple(tuple(w) for w in data.get("weapons", [])),
-            "source": "file",
-        }
+            return _coerceRoster(json.load(fp), "file")
     except Exception as error:
-        print("[contracts] hero_roster 读取失败，退回单卡: " + repr(error),
+        print("[contracts] hero_roster 读取失败，退回内置默认: " + repr(error),
               flush=True)
-        return empty
+    builtin = _builtinRoster()
+    if builtin is not None:
+        return builtin
+    return {"cards": ((1, HERO_CARD_GUID, HERO_ID),), "souls": (),
+            "currency": {}, "limit": 50, "unlocks": {},
+            "battleFormation": (1,), "weapons": (), "source": "fallback"}
 
 
 def _battleFormation(roster):
@@ -1694,7 +1733,8 @@ print("[contracts] hero_roster=" + _HERO_ROSTER_SOURCE
       + " formation=" + str([c[0] for c in HERO_BATTLE_FORMATION])
       + " battleHeroes=" + str(HERO_IDS)
       + " weapons=" + str({k: len(v) for k, v in HERO_CARD_WEAPONS.items()})
-      + " path=" + HERO_ROSTER_PATH, flush=True)
+      + " path=" + HERO_ROSTER_PATH
+      + " exists=" + ("yes" if os.path.isfile(HERO_ROSTER_PATH) else "no"), flush=True)
 # 战斗侧那一份也必须看得见：进图手里拿什么、有没有马，全看这一行。
 # ⚠️ all_using / throw_ammo 是「1/2/3 切不过去」这条链的启用位与弹药，
 #    曾因只读 env（进不了 launcher 进程）而静默失效；source= 指出它到底从哪生效。
@@ -2010,11 +2050,26 @@ def roundInfo(now):
 
 
 def instanceInfo(now, startedAt=None):
-    """⚠️ ``now`` / ``startedAt`` 被忽略，统一走 ``serverNowMs()``。"""
+    """实例信息（``instance-minimal-update``）。``now`` 忽略，走 ``serverNowMs()``。
+
+    这条报文里有两个**语义不同**的时间字段，不能混用：
+
+      * ``server_time_ms``         —— 「现在」，每次刷新都该往前走；
+      * ``instance_start_time_ms`` —— 「本局起点」，**整局固定不变**。
+
+    两个字段都写 ``serverNowMs()`` 会让每次刷新都告诉客户端「本局刚刚开始」，
+    而移动、战斗状态仍按原起点算 ⇒ 时间轴不一致（倒计时重置、状态机错位）。
+    所以 ``startedAt`` 必须采用：由 ``scene.begin()`` 落一次进
+    ``session["instanceEpochMs"]``（**epoch** 毫秒），之后刷新复用同一个值。
+
+    ⚠️ 别拿 ``session["instanceStartedAt"]`` 顶替：那是**单调时钟**、只用于本地
+    差值，发到线上客户端会算出 1970。
+    """
     stamp = serverNowMs()
+    start = stamp if startedAt is None else int(startedAt)
     return room_flow.encode_minimal_instance_update(
         server_time_ms=stamp, instance_id=1,
-        instance_start_time_ms=stamp,
+        instance_start_time_ms=start,
         resource_id=RESOURCE_ID, start_pattern=START_PATTERN)
 
 
