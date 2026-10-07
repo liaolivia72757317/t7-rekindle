@@ -24,6 +24,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public event Action UpdateFinished;
         private string _updateError = string.Empty;
         private bool _isCheckingUpdate;
+        private UpdateChannel _channel;
 
         public AboutViewModel(IDesktopInteraction interaction)
             : this(interaction, LauncherInformation.CheckUpdateAsync) { }
@@ -60,22 +61,27 @@ namespace T7.Rekindle.Desktop.ViewModels
         public string ContactLabel => HasContactAddress ? "项目主页" : "未配置联系方式";
         public bool HasNewUpdate => _lastUpdate?.IsNewVersion == true && !IsCheckingUpdate && !UpdateFailed;
         public bool HasUpdateReminder => _lastUpdate?.IsNewVersion == true;
-        public string UpdateReminderVersion => HasUpdateReminder ? _lastUpdate.TargetVersion : string.Empty;
-        public string VersionCapsuleHint => "当前版本 " + Version
+        public string UpdateReminderVersion => HasUpdateReminder ? _lastUpdate.TargetDisplayVersion : string.Empty;
+        internal string UpdateReminderIdentity => HasUpdateReminder ? _lastUpdate.UpdateIdentity : string.Empty;
+        public string UpdateChannelText => _channel == UpdateChannel.Preview ? "预览渠道" : "正式渠道";
+        private string UnpublishedText => _channel == UpdateChannel.Preview ? "暂无预览构建" : "暂无正式发布版本";
+        public string VersionCapsuleHint => "当前版本 " + DisplayVersion
             + (HasUpdateReminder ? "\n发现新版本 " + UpdateReminderVersion
                 + (UpdateFailed ? "（本次检查失败，保留上次检查结果）" : string.Empty) : string.Empty)
             + "\n打开更新页面";
         public bool UpdateFailed => UpdateError.Length != 0;
         public string LastCheckText => !_lastCheck.HasValue ? "尚未检查" : _lastCheck.Value.ToString("yyyy-MM-dd HH:mm") + (UpdateFailed ? " · 失败" : "");
-        public string UpdateDescription => IsCheckingUpdate ? "正在获取正式发布信息" : UpdateFailed ? "检查失败，不影响本地启动。请稍后重试。"
-            : _lastUpdate == null ? "点击检查更新，获取最新发布信息" : HasNewUpdate ? "可用版本 " + _lastUpdate.TargetVersion
-            : !_lastUpdate.HasPublishedRelease ? "当前没有可用的正式发布版本" : _lastUpdate.IsCurrentVersionAhead ? "当前构建高于最新正式发布版" : "当前已使用最新的启动器版本";
+        public string UpdateDescription => IsCheckingUpdate ? (_channel == UpdateChannel.Preview ? "正在获取预览构建信息" : "正在获取正式发布信息")
+            : UpdateFailed ? "检查失败，不影响本地启动。请稍后重试。"
+            : _lastUpdate == null ? "点击检查更新，获取最新发布信息" : HasNewUpdate ? "可用版本 " + _lastUpdate.TargetDisplayVersion
+            : !_lastUpdate.HasPublishedRelease ? (_channel == UpdateChannel.Preview ? "当前没有可用的预览构建" : "当前没有可用的正式发布版本")
+            : _lastUpdate.IsCurrentVersionAhead ? (_channel == UpdateChannel.Preview ? "当前构建高于最新预览构建" : "当前构建高于最新正式发布版") : "当前已使用最新的启动器版本";
         public string UpdateIcon => IsCheckingUpdate ? "loader" : UpdateFailed ? "alert-triangle" : _lastUpdate == null ? "info"
             : HasNewUpdate ? "download" : !_lastUpdate.HasPublishedRelease ? "info" : "check-circle";
         public string UpdateVersion => IsCheckingUpdate || UpdateFailed || _lastUpdate?.HasPublishedRelease != true
-            ? string.Empty : _lastUpdate.TargetVersion;
+            ? string.Empty : _lastUpdate.TargetDisplayVersion;
         public string UpdateSummary => IsCheckingUpdate ? "正在获取更新日志…" : UpdateFailed ? "获取更新日志失败，请稍后重试。"
-            : _lastUpdate == null ? "检查更新后显示版本更新日志。" : !_lastUpdate.HasPublishedRelease ? "暂无正式发布版本。"
+            : _lastUpdate == null ? "检查更新后显示版本更新日志。" : !_lastUpdate.HasPublishedRelease ? UnpublishedText + "。"
             : FormatReleaseNotes(_lastUpdate);
 
         private static string FormatReleaseNotes(LauncherUpdateInfo info)
@@ -95,6 +101,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         public string ProjectDescription => LauncherInformation.ProjectDescription;
         public string ProjectStatus => "当前处于开发阶段，完整人机对战与局域网联机尚未完成。";
         public string Version => LauncherInformation.Version;
+        public string DisplayVersion => LauncherInformation.DisplayVersion;
         public string ShortHash => LauncherInformation.ShortHash;
         public string BuildDescription => LauncherInformation.CommitHash.Length == 0 ? "构建信息未提供" : "提交 " + ShortHash;
         public string HashDescription => LauncherInformation.CommitHash.Length == 0 ? "构建未记录 Git 提交" : LauncherInformation.CommitHash;
@@ -159,7 +166,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 SetUpdateDownload(update);
                 UpdateStatus = _lastUpdate.StatusText;
                 if (!_lastUpdate.HasPublishedRelease)
-                    NoticeRaised?.Invoke("暂无正式发布版本", NoticeSeverity.Info, null, null);
+                    NoticeRaised?.Invoke(UnpublishedText, NoticeSeverity.Info, null, null);
             }
             catch (Exception error)
             {
@@ -183,6 +190,19 @@ namespace T7.Rekindle.Desktop.ViewModels
             UpdateActionPresentation();
         }
 
+        internal void ResetUpdateChannel(UpdateChannel channel)
+        {
+            if (IsCheckingUpdate || IsUpdating) throw new InvalidOperationException("更新任务进行中。");
+            _channel = channel;
+            _lastUpdate = null;
+            _lastCheck = null;
+            Feedback = UpdateError = string.Empty;
+            UpdateStatus = "尚未检查更新";
+            SetUpdateDownload(new LauncherUpdateInfo());
+            OnPropertyChanged(nameof(UpdateChannelText));
+            UpdatePresentation();
+        }
+
         private void UpdateActionPresentation()
         {
             foreach (var name in new[] { nameof(UpdateButtonText), nameof(UpdateButtonIcon), nameof(UpdateActionCommand) })
@@ -191,7 +211,7 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private void SetUpdateDownload(LauncherUpdateInfo info)
         {
-            if (info.IsNewVersion && UpdateDownload != null && UpdateDownload.Info.TargetVersion == info.TargetVersion
+            if (info.IsNewVersion && UpdateDownload != null && UpdateDownload.Info.UpdateIdentity == info.UpdateIdentity
                 && UpdateDownload.Info.Installer?.Sha256 == info.Installer?.Sha256
                 && UpdateDownload.Info.Installer?.DownloadAddress == info.Installer?.DownloadAddress
                 && UpdateDownload.Info.DownloadAddress == info.DownloadAddress) return;

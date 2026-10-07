@@ -11,6 +11,7 @@ import shutil
 import stat
 import struct
 import zipfile
+from release_metadata import package_build_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_ARCHIVE_MEMBERS = 20000
@@ -424,6 +425,7 @@ def _package(output: Path, python_archive: Path | None = None, release: bool = F
         raise FileNotFoundError("release packaging requires a root LICENSE file")
     manifest = {
         "schemaVersion": 1,
+        "build": package_build_metadata(os.environ),
         "product": "T7-Rekindle",
         "architecture": "x64",
         "minimumWindowsBuild": "10.0.19041",

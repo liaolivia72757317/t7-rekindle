@@ -14,6 +14,11 @@ namespace T7.Rekindle.Desktop.Services
     {
         public string CurrentVersion { get; set; }
         public string TargetVersion { get; set; }
+        public UpdateChannel Channel { get; set; }
+        public UpdateChannel CurrentChannel { get; set; }
+        internal LauncherBuild TargetBuild { get; set; }
+        public string TargetDisplayVersion => TargetBuild?.DisplayVersion ?? TargetVersion;
+        public string UpdateIdentity => TargetBuild?.Identity ?? (Channel == UpdateChannel.Preview ? "preview:" : "stable:") + TargetVersion;
         public string Summary { get; set; }
         public IReadOnlyList<LauncherReleaseNote> ReleaseNotes { get; set; } = Array.Empty<LauncherReleaseNote>();
         public string ReleaseNotesNotice { get; set; } = string.Empty;
@@ -24,9 +29,9 @@ namespace T7.Rekindle.Desktop.Services
         public bool IsNewVersion { get; set; }
         public bool HasPublishedRelease { get; set; } = true;
         public bool IsCurrentVersionAhead { get; set; }
-        public string StatusText => !HasPublishedRelease ? "暂无正式发布版本"
+        public string StatusText => !HasPublishedRelease ? (Channel == UpdateChannel.Preview ? "暂无预览构建" : "暂无正式发布版本")
             : IsNewVersion ? "发现新版本"
-            : IsCurrentVersionAhead ? "当前版本高于最新发布版" : "已是最新版本";
+            : IsCurrentVersionAhead ? (Channel == UpdateChannel.Preview ? "当前构建高于最新预览构建" : "当前版本高于最新发布版") : "已是最新版本";
         public bool HasDownloadAddress => !string.IsNullOrWhiteSpace(DownloadAddress)
             && Uri.TryCreate(DownloadAddress, UriKind.Absolute, out var address)
             && address.Scheme == Uri.UriSchemeHttps && address.UserInfo.Length == 0;
@@ -52,9 +57,16 @@ namespace T7.Rekindle.Desktop.Services
         public static string ContactAddress => ReadMetadata("ContactUrl");
         public static string IssuesAddress => ReadMetadata("IssuesUrl");
         public static string UpdateBaseAddress => ReadMetadata("UpdateBaseUrl");
+        internal static LauncherBuild CurrentBuild => new LauncherBuild(
+            ReadMetadata("BuildChannel") == "stable" ? UpdateChannel.Stable : UpdateChannel.Preview,
+            Version, ReadNumber("PreviewRunId"), ReadNumber("PreviewRunNumber"),
+            checked((int)ReadNumber("PreviewRunAttempt")), CommitHash);
+        public static string DisplayVersion => CurrentBuild.DisplayVersion;
 
-        public static Task<LauncherUpdateInfo> CheckUpdateAsync() =>
-            new ReleaseUpdateService(UpdateClient, RepositoryAddress, UpdateBaseAddress).CheckAsync(Version);
+        public static Task<LauncherUpdateInfo> CheckUpdateAsync() => CheckUpdateAsync(UpdateChannel.Stable);
+
+        public static Task<LauncherUpdateInfo> CheckUpdateAsync(UpdateChannel channel) =>
+            new ReleaseUpdateService(UpdateClient, RepositoryAddress, UpdateBaseAddress).CheckAsync(CurrentBuild, channel);
 
         internal static Task<string> DownloadInstallerAsync(LauncherUpdateAsset asset,
             IProgress<UpdateDownloadProgress> progress, CancellationToken cancellation, UpdateDownloadControl control) =>
@@ -77,5 +89,6 @@ namespace T7.Rekindle.Desktop.Services
 
         private static string ReadMetadata(string key) => Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(attribute => attribute.Key == key)?.Value?.Trim() ?? string.Empty;
+        private static long ReadNumber(string key) => long.TryParse(ReadMetadata(key), out var number) ? number : 0;
     }
 }

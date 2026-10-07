@@ -6,7 +6,7 @@ using T7.Rekindle.Core;
 
 namespace T7.Rekindle.Desktop.Services
 {
-    public sealed class SettingsService
+    public sealed partial class SettingsService
     {
         private readonly string _directory;
         private readonly string _path;
@@ -64,17 +64,20 @@ namespace T7.Rekindle.Desktop.Services
                 throw new InvalidDataException("设置不符合当前 schema。");
             }
 
-            Directory.CreateDirectory(_directory);
-            // A per-write name plus CreateNew avoids following a stale
-            // settings.json.tmp reparse point and keeps the replace in the
-            // same directory for atomicity.
-            var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             var json = JsonConvert.SerializeObject(settings, Formatting.Indented, new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.None,
                 MissingMemberHandling = MissingMemberHandling.Error,
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             }) + Environment.NewLine;
+            WriteJson(_path, json);
+        }
+
+        private void WriteJson(string path, string json)
+        {
+            Directory.CreateDirectory(_directory);
+            // CreateNew and same-directory replacement keep each write atomic.
+            var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             var bytes = new System.Text.UTF8Encoding(false).GetBytes(json);
             var committed = false;
             try
@@ -85,13 +88,13 @@ namespace T7.Rekindle.Desktop.Services
                     stream.Flush(true);
                 }
 
-                if (File.Exists(_path))
+                if (File.Exists(path))
                 {
-                    File.Replace(temporary, _path, _backupPath, true);
+                    File.Replace(temporary, path, path + ".bak", true);
                 }
                 else
                 {
-                    File.Move(temporary, _path);
+                    File.Move(temporary, path);
                 }
                 committed = true;
             }

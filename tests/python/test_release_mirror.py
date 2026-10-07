@@ -31,7 +31,9 @@ def test_stable_version_and_build_configuration(tmp_path):
                             "R2_PUBLIC_BASE_URL": "https://downloads.example.com/",
                             "GITHUB_ENV": str(environment)})
     assert environment.read_text(encoding="utf-8").splitlines() == [
-        "T7_RELEASE_VERSION=1.2.3.4", "T7_UPDATE_BASE_URL=https://downloads.example.com"]
+        "T7_RELEASE_VERSION=1.2.3.4", "T7_UPDATE_BASE_URL=https://downloads.example.com",
+        "T7_BUILD_CHANNEL=stable", "T7_BUILD_VERSION=1.2.3.4", "T7_PREVIEW_RUN_ID=0",
+        "T7_PREVIEW_RUN_NUMBER=0", "T7_PREVIEW_RUN_ATTEMPT=0"]
     with pytest.raises(ValueError, match="R2_PUBLIC_BASE_URL"):
         metadata.prepare_build({"GITHUB_REF_TYPE": "tag", "GITHUB_REF_NAME": "v1.2.3",
                                 "GITHUB_ENV": str(environment)})
@@ -247,7 +249,10 @@ def test_branch_build_can_omit_the_mirror(tmp_path):
     metadata = load_module("release_metadata")
     environment = tmp_path / "github-env"
     metadata.prepare_build({"GITHUB_REF_TYPE": "branch", "GITHUB_ENV": str(environment)})
-    assert environment.read_text(encoding="utf-8") == "T7_RELEASE_VERSION=\nT7_UPDATE_BASE_URL=\n"
+    assert environment.read_text(encoding="utf-8").splitlines() == [
+        "T7_RELEASE_VERSION=", "T7_UPDATE_BASE_URL=", "T7_BUILD_CHANNEL=preview",
+        f"T7_BUILD_VERSION={metadata.base_version()}", "T7_PREVIEW_RUN_ID=0",
+        "T7_PREVIEW_RUN_NUMBER=0", "T7_PREVIEW_RUN_ATTEMPT=0"]
 
 
 def test_missing_upload_configuration_stops_before_external_calls(monkeypatch, capsys):

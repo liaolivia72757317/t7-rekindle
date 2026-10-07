@@ -2,11 +2,13 @@ import importlib.util
 import json
 from pathlib import Path
 import zipfile
+import sys
 import pytest
 from python_runtime_fixture import python_archive, python_dll
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
 
 
 def load_package_module():

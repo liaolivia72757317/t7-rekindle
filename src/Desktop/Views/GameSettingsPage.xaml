@@ -1,7 +1,8 @@
 <UserControl x:Class="T7.Rekindle.Desktop.Views.GameSettingsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:T7.Rekindle.Desktop.Views">
+             xmlns:views="clr-namespace:T7.Rekindle.Desktop.Views"
+             xmlns:services="clr-namespace:T7.Rekindle.Desktop.Services">
   <Border Style="{StaticResource PagePanel}">
     <Grid>
       <Grid.RowDefinitions><RowDefinition Height="80" /><RowDefinition Height="*" /></Grid.RowDefinitions>
@@ -61,6 +62,21 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="80" /></Grid.ColumnDefinitions>
                     <TextBlock Text="开机时自动启动启动器" FontSize="18" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,20,0" />
                     <CheckBox Grid.Column="1" IsChecked="{Binding StartWithWindows}" Style="{StaticResource PreferenceSwitch}" AutomationProperties.Name="开机时自动启动启动器" TabIndex="9" />
+                  </Grid>
+                </Border>
+                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                  <Grid MinHeight="116">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" Margin="0,12,20,12">
+                      <Label Content="更新渠道" Target="{Binding ElementName=UpdateChannelSelector}" FontSize="18" FontWeight="Normal" />
+                      <TextBlock Text="正式版面向普通玩家；预览版跟踪默认分支成功 CI。" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ComboBox x:Name="UpdateChannelSelector" Grid.Column="1" Height="40" VerticalAlignment="Center"
+                              SelectedValue="{Binding SelectedUpdateChannel}" SelectedValuePath="Tag" IsEnabled="{Binding CanChangeUpdateChannel}"
+                              AutomationProperties.Name="更新渠道" AutomationProperties.HelpText="保存后立即检查；检查、下载或安装期间暂时禁用" TabIndex="10">
+                      <ComboBoxItem Content="正式版（默认）" Tag="{x:Static services:UpdateChannel.Stable}" />
+                      <ComboBoxItem Content="预览版" Tag="{x:Static services:UpdateChannel.Preview}" />
+                    </ComboBox>
                   </Grid>
                 </Border>
                 <TextBlock Text="{Binding PreferenceError}" Style="{StaticResource FieldError}" />

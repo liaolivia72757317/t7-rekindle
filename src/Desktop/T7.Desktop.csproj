@@ -6,6 +6,8 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Version>0.1.0</Version>
+    <T7_BUILD_CHANNEL Condition="'$(T7_BUILD_CHANNEL)' == ''">preview</T7_BUILD_CHANNEL>
+    <Version Condition="'$(T7_BUILD_VERSION)' != ''">$(T7_BUILD_VERSION)</Version>
     <Version Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</Version>
     <AssemblyVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</AssemblyVersion>
     <FileVersion Condition="'$(T7_RELEASE_VERSION)' != ''">$(T7_RELEASE_VERSION)</FileVersion>
@@ -30,6 +32,10 @@
     <AssemblyMetadata Include="BuildsUrl" Value="$(RepositoryUrl)/actions/workflows/ci.yml" />
     <AssemblyMetadata Include="IssuesUrl" Value="$(RepositoryUrl)/issues" />
     <AssemblyMetadata Include="UpdateBaseUrl" Value="$(T7_UPDATE_BASE_URL)" />
+    <AssemblyMetadata Include="BuildChannel" Value="$(T7_BUILD_CHANNEL)" />
+    <AssemblyMetadata Include="PreviewRunId" Value="$(T7_PREVIEW_RUN_ID)" />
+    <AssemblyMetadata Include="PreviewRunNumber" Value="$(T7_PREVIEW_RUN_NUMBER)" />
+    <AssemblyMetadata Include="PreviewRunAttempt" Value="$(T7_PREVIEW_RUN_ATTEMPT)" />
     <Resource Include="Resources\Assets\**\*" Exclude="Resources\Assets\icons\**\*;Resources\Assets\art\scene-complete.png" />
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute" Condition="'$(SourceRevisionId)' != ''">
       <_Parameter1>CommitHash</_Parameter1>

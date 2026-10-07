@@ -51,7 +51,7 @@ namespace T7.Rekindle.Desktop.Services
 
         internal async Task<ReleaseNotesResult> ReadMirrorAsync(LauncherUpdateInfo info, Uri origin, JToken versions)
         {
-            if (!info.IsNewVersion) return TargetOnly(info);
+            if (!info.IsNewVersion || info.CurrentChannel != info.Channel) return TargetOnly(info);
             string[] tags;
             try { tags = SelectVersions(info, versions); }
             catch (InvalidDataException)
@@ -85,7 +85,7 @@ namespace T7.Rekindle.Desktop.Services
 
         internal async Task<ReleaseNotesResult> ReadGitHubAsync(LauncherUpdateInfo info)
         {
-            if (!info.IsNewVersion) return TargetOnly(info);
+            if (!info.IsNewVersion || info.CurrentChannel != info.Channel) return TargetOnly(info);
             var history = await ReadHistoryAsync(info).ConfigureAwait(false);
             if (!history.Notes.ContainsKey(info.TargetVersion)) history.Notes.Add(info.TargetVersion, TargetNote(info));
             return new ReleaseNotesResult(history.Notes.Values, history.Notice);

@@ -232,12 +232,17 @@ def test_project_information_uses_the_public_repository():
     assert project.findtext("PropertyGroup/RepositoryUrl") == "https://github.com/liaolivia72757317/t7-rekindle"
     metadata = {item.attrib["Include"]: item.attrib["Value"]
                 for item in project.findall("ItemGroup/AssemblyMetadata")}
-    assert set(metadata) == {"RepositoryUrl", "DownloadUrl", "BuildsUrl", "IssuesUrl", "UpdateBaseUrl"}
+    assert set(metadata) == {"RepositoryUrl", "DownloadUrl", "BuildsUrl", "IssuesUrl", "UpdateBaseUrl",
+                             "BuildChannel", "PreviewRunId", "PreviewRunNumber", "PreviewRunAttempt"}
     assert metadata["RepositoryUrl"] == "$(RepositoryUrl)"
     assert metadata["DownloadUrl"] == "$(RepositoryUrl)/releases"
     assert metadata["BuildsUrl"] == "$(RepositoryUrl)/actions/workflows/ci.yml"
     assert metadata["IssuesUrl"] == "$(RepositoryUrl)/issues"
     assert metadata["UpdateBaseUrl"] == "$(T7_UPDATE_BASE_URL)"
+    assert metadata["BuildChannel"] == "$(T7_BUILD_CHANNEL)"
+    assert metadata["PreviewRunId"] == "$(T7_PREVIEW_RUN_ID)"
+    assert metadata["PreviewRunNumber"] == "$(T7_PREVIEW_RUN_NUMBER)"
+    assert metadata["PreviewRunAttempt"] == "$(T7_PREVIEW_RUN_ATTEMPT)"
 
 
 def test_update_page_reuses_header_actions_without_a_result_dialog():

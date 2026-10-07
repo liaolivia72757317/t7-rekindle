@@ -20,8 +20,12 @@ namespace T7.Rekindle.Desktop.Services
             _repository = ReleaseMetadata.Repository(repositoryAddress);
         }
 
-        internal async Task<LauncherUpdateInfo> CheckAsync(string currentVersion)
+        internal Task<LauncherUpdateInfo> CheckAsync(string currentVersion) =>
+            CheckAsync(new LauncherBuild(UpdateChannel.Stable, currentVersion));
+
+        internal async Task<LauncherUpdateInfo> CheckAsync(LauncherBuild build)
         {
+            var currentVersion = build.Version;
             var current = ReleaseMetadata.ParseVersion(currentVersion);
             var endpoint = "https://api.github.com/repos" + _repository.AbsolutePath.TrimEnd('/') + "/releases/latest";
             using (var request = new HttpRequestMessage(HttpMethod.Get, endpoint))
@@ -37,6 +41,7 @@ namespace T7.Rekindle.Desktop.Services
                             return new LauncherUpdateInfo
                             {
                                 CurrentVersion = currentVersion,
+                                CurrentChannel = build.Channel,
                                 TargetVersion = "未发布",
                                 HasPublishedRelease = false,
                                 UpdateSource = "GitHub",
@@ -48,7 +53,8 @@ namespace T7.Rekindle.Desktop.Services
                         if (!response.IsSuccessStatusCode)
                             throw new IOException("GitHub 更新服务返回 HTTP " + (int)response.StatusCode + "，请稍后重试。");
                         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        var info = ReadRelease(json, currentVersion, current);
+                        var info = ReadRelease(json, currentVersion);
+                        build.ApplyTo(info);
                         var notes = await new ReleaseNotesService(_client, _repository).ReadGitHubAsync(info).ConfigureAwait(false);
                         info.ReleaseNotes = notes.Entries;
                         info.ReleaseNotesNotice = notes.Notice;
@@ -70,12 +76,12 @@ namespace T7.Rekindle.Desktop.Services
             }
         }
 
-        private LauncherUpdateInfo ReadRelease(string json, string currentVersion, Version current)
+        private LauncherUpdateInfo ReadRelease(string json, string currentVersion)
         {
             var release = JsonConvert.DeserializeObject<Release>(json);
             if (release == null || release.Draft != false || release.Prerelease != false)
                 throw new InvalidDataException("GitHub 返回的不是正式发布版本，请到发布页确认。");
-            var target = ReleaseMetadata.ParseVersion(release.TagName);
+            ReleaseMetadata.ParseVersion(release.TagName);
             if (!Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var address)
                 || address.Scheme != Uri.UriSchemeHttps || address.Host != _repository.Host
                 || !address.IsDefaultPort || address.UserInfo.Length != 0
@@ -85,8 +91,6 @@ namespace T7.Rekindle.Desktop.Services
             {
                 CurrentVersion = currentVersion,
                 TargetVersion = release.TagName,
-                IsNewVersion = target > current,
-                IsCurrentVersionAhead = current > target,
                 Summary = string.IsNullOrWhiteSpace(release.Body) ? "该版本未填写更新说明，请到发布页查看。" : release.Body.Trim(),
                 DownloadAddress = address.AbsoluteUri,
                 UpdateSource = "GitHub",

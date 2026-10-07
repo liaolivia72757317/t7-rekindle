@@ -1,4 +1,4 @@
-"""Shared stable-release metadata and build-time configuration."""
+"""Release metadata and build-time channel identity."""
 from __future__ import annotations
 
 import argparse
@@ -6,6 +6,7 @@ import hashlib
 import os
 from pathlib import Path
 import re
+import xml.etree.ElementTree as ET
 from urllib.parse import quote, urlsplit
 
 
@@ -44,6 +45,47 @@ def file_digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def base_version() -> str:
+    project = Path(__file__).resolve().parents[1] / "src/Desktop/T7.Desktop.csproj"
+    return ET.parse(project).findtext("PropertyGroup/Version")
+
+
+def is_preview_build(environment: dict[str, str]) -> bool:
+    return (environment.get("GITHUB_REF_TYPE") == "branch"
+            and environment.get("GITHUB_EVENT_NAME") in ("push", "workflow_dispatch")
+            and bool(environment.get("T7_DEFAULT_BRANCH"))
+            and environment.get("GITHUB_REF_NAME") == environment["T7_DEFAULT_BRANCH"])
+
+
+def validate_preview_build(build: dict) -> dict:
+    if not isinstance(build, dict) or build.get("channel") != "preview":
+        raise ValueError("A preview build identity is required.")
+    if not isinstance(build.get("version"), str) or not isinstance(build.get("commitHash"), str):
+        raise ValueError("Preview version and commit hash must be strings.")
+    parse_version(build.get("version", ""))
+    for key, limit in (("runId", 2**63 - 1), ("runNumber", 2**63 - 1), ("runAttempt", 2**31 - 1)):
+        if type(build.get(key)) is not int or not 0 < build[key] <= limit:
+            raise ValueError(f"Invalid preview {key}.")
+    if not re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", build.get("commitHash", "")):
+        raise ValueError("Invalid preview commit hash.")
+    return {key: build[key] for key in ("channel", "version", "runId", "runNumber", "runAttempt", "commitHash")}
+
+
+def package_build_metadata(environment: dict[str, str]) -> dict:
+    build = {"channel": environment.get("T7_BUILD_CHANNEL", "preview"),
+             "version": environment.get("T7_RELEASE_VERSION") or environment.get("T7_BUILD_VERSION") or base_version(),
+             "runId": int(environment.get("T7_PREVIEW_RUN_ID") or "0"),
+             "runNumber": int(environment.get("T7_PREVIEW_RUN_NUMBER") or "0"),
+             "runAttempt": int(environment.get("T7_PREVIEW_RUN_ATTEMPT") or "0"),
+             "commitHash": environment.get("GITHUB_SHA", "")}
+    parse_version(build["version"])
+    if build["channel"] not in ("stable", "preview"):
+        raise ValueError("Invalid build channel.")
+    if any(build[key] != 0 for key in ("runId", "runNumber", "runAttempt")):
+        validate_preview_build(build)
+    return build
+
+
 def build_manifest(release: dict, assets: dict[str, Path], base_url: str) -> dict:
     version = release["tag_name"]
     parse_version(version)
@@ -78,8 +120,18 @@ def prepare_build(environment: dict[str, str]) -> None:
     destination = environment.get("GITHUB_ENV")
     if not destination:
         raise ValueError("GITHUB_ENV is required to export build metadata.")
+    preview = is_preview_build(environment)
+    values = {"T7_RELEASE_VERSION": version, "T7_UPDATE_BASE_URL": base_url,
+              "T7_BUILD_CHANNEL": "stable" if version else "preview",
+              "T7_BUILD_VERSION": version or base_version(),
+              "T7_PREVIEW_RUN_ID": environment.get("GITHUB_RUN_ID", "") if preview else "0",
+              "T7_PREVIEW_RUN_NUMBER": environment.get("GITHUB_RUN_NUMBER", "") if preview else "0",
+              "T7_PREVIEW_RUN_ATTEMPT": environment.get("GITHUB_RUN_ATTEMPT", "") if preview else "0"}
+    build = package_build_metadata({**environment, **values})
+    if preview:
+        validate_preview_build(build)
     with Path(destination).open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(f"T7_RELEASE_VERSION={version}\nT7_UPDATE_BASE_URL={base_url}\n")
+        stream.writelines(f"{key}={value}\n" for key, value in values.items())
 
 
 if __name__ == "__main__":

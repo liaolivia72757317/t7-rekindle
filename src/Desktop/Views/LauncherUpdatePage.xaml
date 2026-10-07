@@ -33,13 +33,14 @@
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
               <TextBlock Text="{Binding UpdateStatus}" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
               <TextBlock Text="{Binding UpdateDescription}" Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+              <TextBlock Text="{Binding UpdateChannelText}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
               <ProgressBar Height="3" Margin="0,12,0,0" Style="{StaticResource BusyProgress}" Visibility="{Binding IsCheckingUpdate, Converter={StaticResource BoolVisibility}}" AutomationProperties.Name="正在检查启动器更新" />
             </StackPanel>
           </Grid>
           <Border Grid.Column="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1,0,0,0" Padding="28,0,0,0">
             <StackPanel VerticalAlignment="Center">
               <StackPanel Orientation="Horizontal"><views:Icon Kind="file-text" Margin="0,0,12,0" /><TextBlock Text="当前版本" Style="{StaticResource MutedText}" /></StackPanel>
-              <TextBlock Text="{Binding Version}" FontSize="20" Margin="32,6,0,20" />
+              <TextBlock Text="{Binding DisplayVersion}" FontSize="20" Margin="32,6,0,20" TextWrapping="Wrap" />
               <StackPanel Orientation="Horizontal"><views:Icon Kind="clock" Margin="0,0,12,0" /><TextBlock Text="最近检测时间" Style="{StaticResource MutedText}" /></StackPanel>
               <TextBlock Text="{Binding LastCheckText}" FontSize="16" Margin="32,6,0,0" TextWrapping="Wrap" />
             </StackPanel>

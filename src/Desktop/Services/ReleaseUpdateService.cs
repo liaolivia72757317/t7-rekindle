@@ -21,13 +21,20 @@ namespace T7.Rekindle.Desktop.Services
             _mirror = mirrorAddress;
         }
 
-        internal async Task<LauncherUpdateInfo> CheckAsync(string currentVersion)
+        internal Task<LauncherUpdateInfo> CheckAsync(string currentVersion) =>
+            CheckAsync(new LauncherBuild(UpdateChannel.Stable, currentVersion), UpdateChannel.Stable);
+
+        internal async Task<LauncherUpdateInfo> CheckAsync(LauncherBuild build, UpdateChannel channel)
         {
+            if (channel == UpdateChannel.Preview)
+                return await new PreviewUpdateService(_client, _repository, _mirror).CheckAsync(build).ConfigureAwait(false);
+            if (channel != UpdateChannel.Stable) throw new ArgumentOutOfRangeException(nameof(channel));
+            var currentVersion = build.Version;
             var current = ReleaseMetadata.ParseVersion(currentVersion);
             Exception mirrorFailure = null;
             if (!string.IsNullOrWhiteSpace(_mirror))
             {
-                try { return await CheckMirrorAsync(currentVersion, current).ConfigureAwait(false); }
+                try { return await CheckMirrorAsync(build, current).ConfigureAwait(false); }
                 catch (Exception error) when (error is IOException || error is InvalidDataException || error is TimeoutException)
                 {
                     mirrorFailure = error;
@@ -36,7 +43,7 @@ namespace T7.Rekindle.Desktop.Services
             try
             {
                 var info = await new GitHubReleaseUpdateService(_client, _repository.AbsoluteUri)
-                    .CheckAsync(currentVersion).ConfigureAwait(false);
+                    .CheckAsync(build).ConfigureAwait(false);
                 if (mirrorFailure != null)
                     info.SourceNotice = "R2 检查失败，已使用 GitHub：" + mirrorFailure.Message;
                 return info;
@@ -47,7 +54,7 @@ namespace T7.Rekindle.Desktop.Services
             }
         }
 
-        private async Task<LauncherUpdateInfo> CheckMirrorAsync(string currentVersion, Version current)
+        private async Task<LauncherUpdateInfo> CheckMirrorAsync(LauncherBuild build, Version current)
         {
             var origin = ReleaseMetadata.MirrorOrigin(_mirror);
             using (var request = new HttpRequestMessage(HttpMethod.Get, new Uri(origin, "updates/stable.json")))
@@ -65,23 +72,22 @@ namespace T7.Rekindle.Desktop.Services
                         var manifest = JsonConvert.DeserializeObject<Manifest>(json);
                         if (manifest?.SchemaVersion != 1 || manifest.Installer == null)
                             throw new InvalidDataException("更新清单缺少安装包或版本格式不受支持。");
-                        var target = ReleaseMetadata.ParseVersion(manifest.Version);
+                        ReleaseMetadata.ParseVersion(manifest.Version);
                         var expected = new Uri(origin, "releases/" + Uri.EscapeDataString(manifest.Version)
                             + "/" + Uri.EscapeDataString(ReleaseMetadata.InstallerName(manifest.Version))).AbsoluteUri;
                         if (!ReleaseMetadata.IsSameObject(manifest.Installer.Url, expected))
                             throw new InvalidDataException("R2 安装包地址与当前镜像或版本不一致。");
                         var info = new LauncherUpdateInfo
                         {
-                            CurrentVersion = currentVersion,
+                            CurrentVersion = build.Version,
                             TargetVersion = manifest.Version,
-                            IsNewVersion = target > current,
-                            IsCurrentVersionAhead = current > target,
                             Summary = string.IsNullOrWhiteSpace(manifest.Summary) ? "该版本未填写更新说明。" : manifest.Summary.Trim(),
                             DownloadAddress = _repository.AbsoluteUri.TrimEnd('/') + "/releases/tag/" + Uri.EscapeDataString(manifest.Version),
                             UpdateSource = "R2",
                             Installer = new LauncherUpdateAsset(expected, ReleaseMetadata.GitHubAsset(_repository, manifest.Version),
                                 manifest.Installer.Size, manifest.Installer.Sha256, "R2")
                         };
+                        build.ApplyTo(info);
                         var notes = await new ReleaseNotesService(_client, _repository)
                             .ReadMirrorAsync(info, origin, manifest.Versions).ConfigureAwait(false);
                         info.ReleaseNotes = notes.Entries;

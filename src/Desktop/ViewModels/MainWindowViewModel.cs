@@ -52,7 +52,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             string settingsWarning, Func<string, Task<ClientDirectoryResult>> inspectDirectory, IDesktopInteraction interaction,
             Func<string, CancellationToken, Task<ClientDirectoryResult>> locateDirectory = null,
             Func<Task<LauncherUpdateInfo>> checkUpdate = null,
-            Func<LauncherUpdateInfo, UpdateDownloadViewModel> createUpdateDownload = null)
+            Func<LauncherUpdateInfo, UpdateDownloadViewModel> createUpdateDownload = null,
+            Func<UpdateChannel, Task<LauncherUpdateInfo>> checkChannelUpdate = null)
         {
             _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -70,6 +71,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             _minimizeToTray = loaded.MinimizeToTray;
             _startWithWindows = loaded.StartWithWindows;
             _skipStartupAnimation = loaded.SkipStartupAnimation;
+            _updateChannel = settings.LoadUpdateChannel(out var channelWarning);
+            _preferenceError = channelWarning;
             _settingsFeedback = string.Empty;
             ShowNotice(settingsWarning ?? string.Empty, !string.IsNullOrEmpty(settingsWarning));
             BrowseCommand = new RelayCommand(Browse, () => !AreSessionFieldsLocked);
@@ -87,7 +90,10 @@ namespace T7.Rekindle.Desktop.ViewModels
             ToggleLogsCommand = new RelayCommand(() => LogsExpanded = !LogsExpanded);
             OpenLogsCommand = new RelayCommand(OpenLogs);
             CopyLogsCommand = new RelayCommand(CopyLogs);
-            About = new AboutViewModel(interaction, checkUpdate ?? LauncherInformation.CheckUpdateAsync, createUpdateDownload);
+            var channelCheck = checkChannelUpdate ?? new Func<UpdateChannel, Task<LauncherUpdateInfo>>(LauncherInformation.CheckUpdateAsync);
+            About = new AboutViewModel(interaction, checkUpdate ?? (() => channelCheck(_updateChannel)), createUpdateDownload);
+            About.ResetUpdateChannel(_updateChannel);
+            About.PropertyChanged += OnUpdateActivityChanged;
             About.NoticeRaised += (message, severity, actionText, action) => Notices.Publish(message, message, severity, actionText, action, severity == NoticeSeverity.Warning);
             About.UpdateFinished += OnUpdateFinished;
             ShowRecentNoticesCommand = new RelayCommand(ShowRecentNotices);
@@ -224,8 +230,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             if (!IsUpdateSelected && About.UpdateFailed)
                 Notices.Publish("update.failed", "检查更新失败，不影响本地启动", NoticeSeverity.Warning, "重试",
                     () => { IsUpdateSelected = true; About.CheckUpdateCommand.Execute(null); });
-            if (!automatic || !About.HasNewUpdate || !_announcedUpdateVersions.Add(About.UpdateReminderVersion)) return;
-            Notices.Publish("update.available." + About.UpdateReminderVersion,
+            if (!automatic || !About.HasNewUpdate || !_announcedUpdateVersions.Add(About.UpdateReminderIdentity)) return;
+            Notices.Publish("update.available." + About.UpdateReminderIdentity,
                 "发现启动器新版本 " + About.UpdateReminderVersion, NoticeSeverity.Info,
                 "查看", () => ShowUpdatePageCommand.Execute(null), duration: TimeSpan.FromSeconds(6));
         }
@@ -302,6 +308,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             if (_disposed) return;
             _disposed = true;
             _poller.Stop();
+            About.PropertyChanged -= OnUpdateActivityChanged;
             About.Dispose();
             GameSessionEnded -= TriggerUpdateCheck;
             _validationCancellation?.Cancel();

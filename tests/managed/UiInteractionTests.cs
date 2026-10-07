@@ -25,7 +25,7 @@ namespace T7.ManagedHarness
             TestVersionCapsuleNavigation(directory);
             TestConstructionNavigation(directory, output);
             TestClientDownloadCard(directory, output);
-            TestSettingsAccessibility(directory);
+            TestSettingsAccessibility(directory, output);
             TestGameSettingsPersistence(directory);
             TestDialogs(output);
             DiagnosticLogTests.Run(directory, output);
@@ -181,9 +181,10 @@ namespace T7.ManagedHarness
             }
         }
 
-        private static void TestSettingsAccessibility(string directory)
+        private static void TestSettingsAccessibility(string directory, string output)
         {
-            using (var model = CreateModel(Path.Combine(directory, "settings-accessibility")))
+            var pending = new TaskCompletionSource<LauncherUpdateInfo>();
+            using (var model = CreateModel(Path.Combine(directory, "settings-accessibility"), () => pending.Task))
             {
                 RunTask(model.ValidationTask);
                 model.IsSettingsSelected = true;
@@ -195,6 +196,23 @@ namespace T7.ManagedHarness
                 Assert(HasAutomationId(peer, "NameInput"), "selected settings tab hides its fields from UI Automation");
                 Assert(tabs.Items.Count == 3 && ((TabItem)tabs.Items[1]).Header.ToString() == "启动器设置"
                     && ((TabItem)tabs.Items[2]).Header.ToString() == "游戏设置", "settings tabs were not renamed and extended");
+                model.SettingsTabIndex = 1;
+                LauncherLayoutTests.Render((FrameworkElement)window.Content, window, output, "settings-update-channel", 1200, 900);
+                var channel = (ComboBox)settings.FindName("UpdateChannelSelector");
+                Assert(HasAutomationId(peer, "UpdateChannelSelector") && channel.IsEnabled && channel.SelectedIndex == 0,
+                    "channel selector is inaccessible or has the wrong default");
+                Assert(channel.Focusable && System.Windows.Input.KeyboardNavigation.GetIsTabStop(channel),
+                    "channel selector is excluded from keyboard navigation");
+                channel.SelectedIndex = 1;
+                Pump();
+                Assert(model.SelectedUpdateChannel == UpdateChannel.Preview
+                    && new SettingsService(Path.Combine(directory, "settings-accessibility")).LoadUpdateChannel(out _) == UpdateChannel.Preview,
+                    "channel selection did not persist through its binding");
+                Assert(!channel.IsEnabled, "channel selector did not reflect the running update check");
+                pending.SetResult(new LauncherUpdateInfo { Channel = UpdateChannel.Preview });
+                RunTask(model.About.CheckUpdateCommand.ExecutionTask);
+                Assert(channel.IsEnabled, "channel selector remained disabled after checking");
+                LauncherLayoutTests.Render((FrameworkElement)window.Content, window, output, "settings-update-preview", 1200, 900);
                 model.SettingsTabIndex = 2;
                 LauncherLayoutTests.Render((FrameworkElement)window.Content, window, null, "game-settings-accessibility", 1200, 900);
                 Assert(HasAutomationId(peer, "SkipStartupAnimationSwitch"), "game switch is hidden from UI Automation");
@@ -377,8 +395,9 @@ namespace T7.ManagedHarness
             LauncherLayoutTests.Render((FrameworkElement)recent.Content, null, output, "recent-notices", 624, 461);
         }
 
-        private static MainWindowViewModel CreateModel(string directory) => new MainWindowViewModel(new FakeLauncherBridge(),
+        private static MainWindowViewModel CreateModel(string directory, Func<Task<LauncherUpdateInfo>> checkUpdate = null) => new MainWindowViewModel(new FakeLauncherBridge(),
             new SettingsService(directory), new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-            path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction());
+            path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
+            checkUpdate: checkUpdate ?? (() => Task.FromResult(new LauncherUpdateInfo())));
     }
 }

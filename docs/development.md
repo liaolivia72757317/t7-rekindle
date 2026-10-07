@@ -151,13 +151,17 @@ Compress-Archive -Path artifacts/package/* -DestinationPath dist/T7-Rekindle-win
 
 CI 通过 `GITHUB_SHA` 写入 Git 提交元数据。项目文件同时生成项目名称、介绍及仓库、发布页、CI 构建和 Issues 的地址元数据。
 
+`prepare-build` 同时生成构建渠道、数字版本及可发布预览的 CI 身份，分别写入程序集和程序包 `manifest.json` 的 `build` 对象。正式 tag 标记为 `stable`；默认分支的 push 或手动 CI 标记为可比较的 `preview`，使用 `runId`、`runNumber`、`runAttempt`、`commitHash`。其他分支及本地构建没有可比较的预览序号。用户订阅渠道与构建身份独立，首次默认正式，偏好保存在 `update-settings.json`。
+
 程序启动时、运行中每 30 分钟，以及游戏结束并完成会话清理后自动检查更新，也支持用户手动点击。所有触发共用同一个检查命令，已有检查时跳过重叠触发，不排队；手动检查和游戏结束检查不重置定时周期。检查结果不自动打开弹窗、下载或安装。
 
-更新检查优先匿名请求内置域名的 R2 清单，失败时回退 GitHub Releases `latest` API，每个检查请求超时为 10 秒；不查询预发布版或 CI 开发构建。数字版本比较支持四段数字及不影响优先级的 `+构建标识`。用户可在更新页点击“下载更新”，查看进度、暂停、继续或取消下载；大小及 SHA-256 校验成功后，由用户再次确认安装。启动器结束当前游戏并退出后，安装程序直接覆盖当前启动器目录，跳过目录选择并保留进度窗口；手动安装仍使用完整向导。未配置镜像地址的开发构建仍使用 GitHub。配置、协议和验收见 [R2 发布镜像](release-mirror.md)。
+正式渠道优先匿名请求 R2 稳定清单，失败时回退 GitHub Releases `latest` API；预览渠道仅请求 R2 预览清单。每个检查请求超时为 10 秒。正式版内部比较四段数字，忽略 `+构建标识`；预览内部比较 `(runNumber, runAttempt)`，同一提交重新构建也可更新。跨渠道始终提供目标渠道最新版本，不比较版本高低。用户可在更新页下载、暂停、继续或取消；大小及 SHA-256 校验成功后，再次确认安装。安装程序等待启动器退出后覆盖当前目录，手动安装仍使用完整向导。未配置镜像地址时，正式渠道使用 GitHub，预览渠道明确提示配置缺失。配置、协议和验收见 [R2 发布镜像](release-mirror.md)。
 
 ## 5. CI 产物与正式发布
 
 [CI 工作流](../.github/workflows/ci.yml)在分支 push、tag push、PR 和手动运行时执行构建、测试、包校验及安装器编译。成功的构建上传产品目录、安装器、便携 ZIP 和测试报告，当前保留期为 14 天。
+
+默认分支的 push 和手动 CI 成功后另行将安装器及 ZIP 发布到 R2 预览入口，不创建 GitHub 预发布。发布作业按产物 ID 下载同一构建文件，并读取 ZIP 内冻结的构建身份；仅重跑发布不产生新构建身份。预览和正式镜像共用现有 R2 配置，凭据只提供给发布作业。
 
 GitHub Release 的文件名为 `T7-Rekindle-{tag}-Setup.exe` 和 `T7-Rekindle-windows-x64-{tag}.zip`，`{tag}` 保留完整 tag（含 `v` 前缀和构建标识）。例如 tag `v1.2.3` 对应 `T7-Rekindle-v1.2.3-Setup.exe` 和 `T7-Rekindle-windows-x64-v1.2.3.zip`。普通 CI 产物和本地打包仍使用上文不含 tag 的名称。
 

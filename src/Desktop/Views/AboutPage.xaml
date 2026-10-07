@@ -39,7 +39,7 @@
                 <WrapPanel>
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,28,0">
                     <TextBlock Text="启动器版本" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding Version}" Margin="12,0,0,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Version}" ToolTip="{Binding DisplayVersion}" Margin="12,0,0,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
                   </StackPanel>
                   <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Git 提交" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
