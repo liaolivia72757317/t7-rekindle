@@ -7,9 +7,13 @@
 判据：
 
   * ``runtimeMovement=True``（t7-rekindle 宿主注入）
-      - selector 52 / 3 **只接受**客户端上报的位置与朝向，一条运动帧都不发；
-      - 周期拍（ground-step）不发帧，且运动定时器被取消；
-      - 快跑（sel=63）只记标志，不发 ``move-ground-fast-run-state-echo``。
+      - selector 52 / 3 **只接受**客户端上报的位置与朝向，不驱动任何服务端运动；
+      - ⭐ 第四十一轮：按键**变化**时补一条「移动状态镜像」（走/跑/停的 MOVE_BC）——
+        这是客户端权威下「按 W 一会进跑 / SHIFT 立即加速」的唯一来源（老版靠
+        服务端权威的 50ms 周期帧）。它**不驱动位移**，只镜像驱动状态；
+      - 周期拍（ground-step）**不再追加**服务端运动帧，且运动定时器被取消；
+      - 快跑（sel=63）记标志 + 补一条「跑」档镜像，**不发**旧版的
+        ``move-ground-fast-run-state-echo``。
   * ``runtimeMovement=False``（自建 T7.Server.exe，宿主不注入）
       - 与改动前同口径：照旧下发运动帧。
   * ``scene.battleEntry`` / ``scene.sendVisionObject`` 的同款闸门
@@ -32,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts import contracts as c  # noqa: E402
 from scripts import controls  # noqa: E402
 from scripts import scene  # noqa: E402
+from scripts.codec import move_flow  # noqa: E402
 
 RESULTS = []
 
@@ -87,21 +92,36 @@ controls.message(f, 2, 52, keyBody(controls.MOVE_KEY_CATEG_WASD, [1, 0, 0, 0], P
 g = f.session.get("ground", {})
 check("selector 52：接受客户端上报的位置", g.get("position") == POS,
       repr(g.get("position")))
-check("selector 52：不发任何运动帧", len(f.sent) == 0, "%d 条" % len(f.sent))
+# ⭐ 第四十一轮：不再是「一条都不发」—— 按 W（掩码变化沿）要补一条**走档**镜像，
+#   但那是「镜像驱动状态」而不是「服务端驱动位移」：位置仍是客户端报的，且**没有**
+#   服务端运动定时器在跑。回退：``cc_move_mirror=off`` ⇒ 逐位回到旧行为。
+_mirror = [x for x in f.sent if x[1] == "client-authority-move-mirror"]
+check("selector 52：只补一条走档镜像（不驱动位移）",
+      len(f.sent) == 1 and len(_mirror) == 1, "sent=%d %r" % (len(f.sent), [x[1] for x in f.sent]))
+if _mirror:
+    _dm = move_flow.decode_move_bc_with_system_and_active(_mirror[0][2])
+    check("镜像帧 = 走档（state=%d）" % controls.GROUND_WALK_STATES[(-1, 0)],
+          _dm.state == controls.GROUND_WALK_STATES[(-1, 0)], "state=%d" % _dm.state)
+check("镜像不改账本（位置仍是客户端报的）", g.get("position") == POS,
+      repr(g.get("position")))
 check("留下 no-motion-echo 日志",
       any("no-motion-echo" in x for x in f.result["logs"]),
       repr(f.result["logs"]))
 
 f.now += 50
+_nSent = len(f.sent)
 controls.timer(f, "ground-step")
-check("ground-step 周期拍：一条不发", len(f.sent) == 0, "%d 条" % len(f.sent))
+check("ground-step 周期拍：不再追加服务端运动帧", len(f.sent) == _nSent,
+      "%d 条" % (len(f.sent) - _nSent))
 check("运动定时器被取消", "ground-step" not in f.session["pending"],
       repr(list(f.session["pending"])))
 
+_nSent = len(f.sent)
 controls.handleFastRun(f, b"\x00\x3f" + struct.pack(">b", 1))
-check("快跑：只记标志、不发帧",
-      g.get("fastRun") == 1 and len(f.sent) == 0,
-      "fastRun=%r sent=%d" % (g.get("fastRun"), len(f.sent)))
+check("快跑：记标志 + 补一条跑档镜像（不发旧版 echo）",
+      g.get("fastRun") == 1 and len(f.sent) == _nSent + 1
+      and f.sent[-1][1] == "client-authority-fast-run-mirror",
+      "fastRun=%r sent=%d %r" % (g.get("fastRun"), len(f.sent), f.sent[-1][1]))
 
 f3 = Flow(True)
 controls.message(f3, 2, 3, headingBody(-45, POS))
@@ -211,6 +231,33 @@ class NoStateFlow(Flow):
 # ``runtimeMovement``，见 ``controls.runtimeMovement``。
 check("取不到 state ⇒ 退回 CLIENT_RUNTIME_MOVEMENT 默认(False)（不抛 AttributeError）",
       controls.runtimeMovement(NoStateFlow(True)) is c.CLIENT_RUNTIME_MOVEMENT)
+
+# ---- 第三十九轮：客户端权威下走/跑只镜像客户端显式 fastRun -------------------
+# 用户口供「老版按 W 一会 SHIFT 就显示（服务端 2s 自动进跑）；现在两个都启动了」。
+# ``moveStartedAt`` 在客户端权威下由 localReport 之外的路径写入后**只增不减**，
+# 于是服务端广播「跑」而客户端本地是「走」⇒ 两边状态打架。
+import types as _types  # noqa: E402
+
+
+def _forward_proj():
+    return _types.SimpleNamespace(moving=True, forward_back=-1, left_right=0)
+
+
+_walk = controls.GROUND_WALK_STATES[(-1, 0)]
+_run = controls.GROUND_RUN_STATES[(-1, 0)]
+
+check("服务端权威：持续前向 >2s ⇒ 跑（旧兜底保留，逐位不变）",
+      controls.groundMoveState({"moveStartedAt": 0, "fastRun": 0},
+                               _forward_proj(), 5000) == _run)
+check("客户端权威：未发 fastRun ⇒ 走（不被 2s 兜底顶成跑）",
+      controls.groundMoveState({"moveStartedAt": 0, "fastRun": 0},
+                               _forward_proj(), 5000, False) == _walk)
+check("客户端权威：fastRun=1 ⇒ 跑（镜像 SHIFT）",
+      controls.groundMoveState({"moveStartedAt": 0, "fastRun": 1},
+                               _forward_proj(), 5000, False) == _run)
+check("客户端权威：刚起步也不误判（elapsed=0 ⇒ 走）",
+      controls.groundMoveState({"moveStartedAt": 5000, "fastRun": 0},
+                               _forward_proj(), 5000, False) == _walk)
 
 print("ALL OK" if all(RESULTS) else "FAIL " + str(RESULTS.count(False)))
 sys.exit(0 if all(RESULTS) else 1)

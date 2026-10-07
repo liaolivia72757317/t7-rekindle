@@ -493,6 +493,86 @@ def climbFaceZ(flow, x, y):
     return None
 
 
+# ============ 客户端权威下的云梯斜面校正（2026-10-07）========================
+# 背景（实机：樊城云梯立起来后能**直接穿过去**）：
+#   ``localReport`` 只**接受**客户端上报、不回写任何运动 ⇒ 服务端整条运动链
+#   （``advanceGround`` → ``groundZAt`` → ``climbFaceZ``）在客户端权威下**根本不跑**，
+#   于是 ``siege._syncClimbFace`` 登记好的云梯爬升面**没有任何人读**。
+#   证据：会话 ``51992-1437159953-1`` 里 ``siege-ladder-climb rid=10010``
+#   （foot=(578.96,583.96,43.49) run=11.26 rise=11.38）登记成功，
+#   而 ``client-runtime-position-accepted`` 证明走的就是 ``localReport`` 这条路。
+# 做法：每次收到上报位置后查一次斜面；命中且客户端 Z 低于斜面 ⇒ **只改 Z**、
+#   水平位置原样带回，用 selector4（``broadcastHeading``）回发。
+#   ⚠️ 只改 Z 是**故意的**：水平位置用客户端刚上报的值 ⇒ 不会水平橡皮筋
+#   （这正是 ``localReport`` 「不回写运动」那条纪律）；只把垂直方向补上。
+# 回退（10 秒）：``ladder_climb=off``（session 里没有 ``climbFaces`` 键 ⇒
+#   ``climbFaceZ`` 恒返回 ``None`` ⇒ 本函数第一行就 return，逐字节回到改动前）；
+#   或 ``set T7_CC_LADDER_ECHO=0`` 只关回发、保留爬升面登记。
+CLIMB_ECHO_ENV = "T7_CC_LADDER_ECHO"
+CLIMB_ECHO_ENABLED = True
+# 回发节流（毫秒）：客户端采纳后 Z 就到位了、会自动停；不采纳时按这个频率发。
+CLIMB_ECHO_MIN_MS = 100
+# 探测日志节流（毫秒）：只在「没发回包」时记录早退原因，500ms 一条足够复盘。
+CLIMB_PROBE_MIN_MS = 500
+
+
+def climbEchoEnabled() -> bool:
+    override = os.environ.get(CLIMB_ECHO_ENV)
+    if override == "0":
+        return False
+    if override == "1":
+        return True
+    return CLIMB_ECHO_ENABLED is True
+
+
+def climbCorrect(flow, ground) -> bool:
+    """客户端权威下把云梯斜面高度补给客户端（selector4 回发）。返回是否发了。
+
+    ``climbFaceZ`` 返回 ``None``（没登记面 / 不在斜面范围）⇒ 一个字节都不发，
+    与加本函数之前逐位相同。
+
+    ⭐ 2026-10-07 实机复盘：第一版上线后 ``ladder-climb-correct`` **一条都没发**
+    （用户「云梯还是踩不上去」），而 ``siege-ladder-climb`` 明明登记成功了
+    ⇒ 差值出在**这一函数内部的某个早退分支**，但当时没有日志可见。
+    所以加一条**探测日志**（``ladder-climb-probe``，节流
+    ``CLIMB_PROBE_MIN_MS``）：命中过面的人每次调用都记 ``(x,y,z) → z_斜面``，
+    离线复盘就能一眼看出「早退在哪一支」（no-face / 已达标 / 节流）。
+    纯日志，不发包，坏了也不影响回发主链。
+    """
+    if not climbEchoEnabled():
+        return False
+    position = ground.get("position")
+    if not position or len(position) < 3:
+        return False
+    z = climbFaceZ(flow, position[0], position[1])
+    now = flow.now
+    last = ground.get("climbProbeAt")
+    if z is None or position[2] >= z - CLIMB_EPS or (
+            last is not None and now - last < CLIMB_PROBE_MIN_MS):
+        if last is None or now - last >= CLIMB_PROBE_MIN_MS:
+            ground["climbProbeAt"] = now
+            flow.result["logs"].append(
+                "ladder-climb-probe x=%.2f y=%.2f z=%.2f face=%s why=%s"
+                % (position[0], position[1], position[2],
+                   ("%.2f" % z) if z is not None else "none",
+                   "no-face" if z is None else
+                   ("reached" if position[2] >= z - CLIMB_EPS else "throttled")))
+    if z is None:
+        return False
+    if position[2] >= z - CLIMB_EPS:
+        return False
+    lastEcho = ground.get("climbEchoAt")
+    if lastEcho is not None and now - lastEcho < CLIMB_ECHO_MIN_MS:
+        return False
+    flow.result["logs"].append(
+        "ladder-climb-correct x=%.2f y=%.2f z=%.2f->%.2f"
+        % (position[0], position[1], position[2], z))
+    ground["position"] = [position[0], position[1], z]
+    ground["climbEchoAt"] = now
+    broadcastHeading(flow)
+    return True
+
+
 def groundZAt(flow, x, y, src=None):
     """``(x, y)`` 的可站立高度；``None`` = 不由本模块决定（保持原值不动）。
 
@@ -659,6 +739,107 @@ JUMP_TIMER = "jump-step"
 JUMP_INITIAL_VELOCITY = 5.0   # 单位/秒，起跳瞬间的垂直速度
 JUMP_GRAVITY = 18.0           # 单位/秒²，垂直加速度（向下）
 
+# --- ⭐⭐⭐ 2026-10-07：客户端权威输入同步（跳跃闸门 + 下蹲回声）----------------
+# 证据链（对比 git e29de12 老版 = 服务端权威时期的完整跳跃状态机）：
+#   * 老版 ``jumpActive()`` 闸门 —— 空中再按空格不起跳 ⇒「正常的跳」；
+#   * v0.2.0 客户端权威迁移时**状态机没移植**（本文件只剩注释与常量）⇒ 客户端
+#     本地「想跳就跳」（无限跳）、Ctrl 下蹲没有服务端确认；
+#   * ``localReport`` 其实**已经在记** ``keys[4]=下蹲 / keys[5]=跳跃``
+#     （上游同款记账），只是记账之后没有任何动作 —— 本轮把动作接上：
+#     跳跃按下沿 → ``notifyInAir(1)``（客户端 DriveEnable 关 ⇒ 空中跳不了），
+#     ``JUMP_AIR_MS`` 后定时器解除；下蹲沿 → sel=39 下蹲动画广播
+#     （老版实测取值 SQUAT=1 / END_SQUAT=2）。
+#   回退：``[move] input_sync=off`` 或环境变量 ``T7_CC_INPUT_SYNC=0``。
+JUMP_AIR_TIMER = "jump-air"
+JUMP_AIR_MS = 700            # 滞空期：2·v/g = 2·5/18 ≈ 555ms + 落地缓冲
+# ⭐ 2026-10-07 第三十八轮：落地动画尾巴的两个后续拍（老 ``stepJump`` 三拍：
+#   着陆(5) → 结束着陆(6) → NONE(0)）。缺了尾巴客户端会停在落地姿势。
+JUMP_AIR_END_TIMER = "jump-air-end"
+JUMP_AIR_NONE_TIMER = "jump-air-none"
+
+# --- ⭐⭐⭐ 2026-10-07 第四十一轮：客户端权威的「移动状态镜像」 -------------------
+# 实机（会话 16:28 那局）证明客户端的**走/跑表现**是跟着服务端 MOVE_BC 的
+# ``state`` 走的：老版服务端权威每 50ms 重发一次，所以「按 W 一会就进跑」
+# （用户原话「老版本按 W 一会 SHIFT 就显示了」）；迁到客户端权威后服务端
+# **平时一条 MOVE_BC 都不发** ⇒ 用户口供「shift 冲刺没有出来 / ~ 空手跑也没出来」。
+# 本轮把「按变化镜像」补回来（老版 = 每 50ms 无条件重发，这里 = 只在变化时发）：
+#   * 按键/快跑**变化** ⇒ 镜像一条走/跑/停的 MOVE_BC；
+#   * 起步沿 ⇒ 排 ``cc-run-delay`` 定时器，``GROUND_RUN_DELAY_MS`` 后补一条「跑」
+#     （这就是「按 W 一会就进跑」那条，老版靠 50ms 周期帧实现）。
+# 回退（10 秒）：``[move] cc_move_mirror=off`` 或环境变量 ``T7_CC_MOVE_MIRROR=0``。
+CC_RUN_TIMER = "cc-run-delay"
+
+# --- ⭐⭐⭐ 2026-10-07 第四十轮：客户端权威广播的位置外推 -------------------------
+# 客户端上行只有 ~3 帧/秒（会话 -12 实测：``input-report-diag`` 相邻两条 1.0~2.9s，
+# 真实包更密也远慢于服务端 50ms 节拍）。而我们的跳跃/下蹲广播（sel=55/39）发生在
+# 两帧**之间** ⇒ 直接拿 ``ground["position"]``（= 最后一帧的坐标）发出去，客户端
+# 会被**拽回**最多半秒前的坐标 —— 用户口供「按完空格，W 变后退一段距离」就是它。
+# 这里按最后一次上报的**水平速度**线性外推，上限 ``CLIENT_EXTRAP_MAX_MS``
+# （≈ 一个上报间隔）；超过就认为客户端已经停了（停住就不再上报位置），不外推。
+CLIENT_EXTRAP_MAX_MS = 350
+# 外推位移的硬上限（米）。就算 dt 在闸门内，速度异常大时也不许把人瞬移出去。
+CLIENT_EXTRAP_MAX_M = 1.5
+
+
+def inputSyncEnabled() -> bool:
+    """客户端权威输入同步（跳跃闸门 + 下蹲回声）总开关。默认 on。"""
+    override = os.environ.get("T7_CC_INPUT_SYNC")
+    if override == "0":
+        return False
+    if override == "1":
+        return True
+    return _moveIniFlag("input_sync", True)
+
+
+def jumpStateMirrorMode() -> str:
+    """跳跃/下蹲广播里的 ``state`` 怎么填（第四十轮应急旋钮）。
+
+    ``mirror``（默认）= 镜像客户端上报的按键掩码（老版服务端权威的口径：
+    按着 W 起跳就发「走」档，松手那一拍由 ``_mirrorStop`` 补 STOP）。
+    ``stop``         = 永远发静止档 —— 如果实机发现「跳跃广播一写移动驱动状态
+    客户端就停不下来」，一行切到这个，服务端就完全不碰客户端的移动状态。
+
+    旋钮：``[move] cc_jump_state`` / 环境变量 ``T7_CC_JUMP_STATE``。
+    """
+    override = os.environ.get("T7_CC_JUMP_STATE")
+    if override in ("mirror", "stop"):
+        return override
+    value = _moveIniText("cc_jump_state", "mirror")
+    return value if value in ("mirror", "stop") else "mirror"
+
+
+def ccMoveMirrorEnabled() -> bool:
+    """客户端权威「移动状态镜像」开关（第四十一轮）。默认 on。
+
+    旋钮 ``[move] cc_move_mirror`` / 环境变量 ``T7_CC_MOVE_MIRROR``。
+    关掉 = 回到「服务端平时一条 MOVE_BC 都不发」的旧行为（逐位相同）。
+    """
+    override = os.environ.get("T7_CC_MOVE_MIRROR")
+    if override == "0":
+        return False
+    if override == "1":
+        return True
+    return _moveIniFlag("cc_move_mirror", True)
+
+
+def footAxisMode() -> str:
+    """客户端权威下**步兵** MOVE_BC 的 ``forward_back`` / ``left_right`` 符号（第四十二轮）。
+
+    ``client``（默认）= **取负** —— 客户端约定：按 W 必须发 ``fb=+1000``。
+      一手证据见 ``displayAxes`` 里 prior_art《2026年8月9日四方向反向与移动过快
+      三倍修正》那段：「当前 W 事件的 wire 表现为 fb=-1000，而历史成功抓包 W 为
+      fb=+1000；**这解释 W 显示后退步态**」。
+    ``world``         = 历史字面值（W ⇒ −1000），A/B 用；等于逐位回到第四十一轮之前。
+
+    只在**客户端权威 + 步兵**生效（服务端权威与骑兵都不受影响，见 ``displayAxes``）。
+    旋钮：``[move] cc_foot_axis`` / 环境变量 ``T7_CC_FOOT_AXIS``。
+    """
+    override = os.environ.get("T7_CC_FOOT_AXIS")
+    if override in ("client", "world"):
+        return override
+    value = _moveIniText("cc_foot_axis", "client")
+    return value if value in ("client", "world") else "client"
+
 # --- MOVE_STATE_DATA_ANIMATION_*：动画索引的**实测值**，不是推断 -----------------
 # 来源：2026-09-18 用 `scripts/codec/tdr.py` 直接从客户端 TieJiClient.exe 的
 # sh_proto_cs 宏表读出（`parse_tdr_macro(block, macro_name=...)`）。
@@ -791,12 +972,37 @@ def localReport(flow, selector, body) -> bool:
         wire.exact(body, 24, "runtime-local-key-state")
         category = struct.unpack_from(">i", body, 2)[0]
         keys = body[6:12]
-        if category != MOVE_KEY_CATEG_WASD:
-            # 上游同样把非 WASD 类别原样退回 False（落到 unhandled 兜底），
-            # 也就是客户端权威模式下服务端**不再**接管跳跃/蹲起。
+        # ⭐⭐ 输入诊断（2026-10-07 第三十四轮）：会话 -8 实机复盘 —— 新代码
+        #   已加载（快照 grep 证实）但 7 分钟对局 0 次 jump-gate / 0 次下蹲帧，
+        #   唯一的 move-in-air-state-bc 是进场景瞬间的杂散触发 ⇒ `_syncJumpAndCrouch`
+        #   根本没看到真实按键。嫌疑：客户端的跳跃/CTRL 不在 category=1 的
+        #   keys[4]/keys[5] 位，或走了别的 selector。在 category 过滤**之前**
+        #   节流记一条，让下次实测能直接看到上报分布。纯日志，节流 2s。
+        _inputDiag(flow, selector, category, keys, body)
+        if category not in (MOVE_KEY_CATEG_WASD, MOVE_KEY_CATEG_CTRL,
+                            MOVE_KEY_CATEG_SPACE):
             return False
         if any(value not in (0, 1) for value in keys):
             raise ValueError("runtime local key state must be 0 or 1")
+        if category != MOVE_KEY_CATEG_WASD:
+            # ⭐⭐⭐ 2026-10-07 第三十五轮（会话 -9 实证）：CTRL 走 **cat=2**
+            #   （input-report-diag sel=52 cat=2 keys=00 00 00 00 01 00 —— keys[4]
+            #   蹲位），SPACE 走 cat=3（TDR ``E_MOVE_KEY_CATEG``，见 :700 注释）。
+            #   客户端权威下 ``message()`` 把 sel=52 **全部**路由到本函数，旧代码
+            #   在这里把 cat=2/3 原样退回 ⇒ 跳跃/下蹲永远 0 触发（会话 -8/-9
+            #   两轮实机 0 次 jump-gate 的根因）。现在：这两类包只做跳跃/下蹲
+            #   同步，**不碰位置账本**（cat=2/3 的 position 语义未实证，先不采）。
+            if not groundEnabled(flow):
+                return True
+            ground = groundState(flow)
+            ground["crouched"] = bool(keys[4])
+            ground["jumpPressed"] = bool(keys[5])
+            if inputSyncEnabled():
+                try:
+                    _syncJumpAndCrouch(flow, ground, keys)
+                except Exception:  # noqa: BLE001
+                    pass
+            return True
         position = list(struct.unpack_from(">fff", body, 12))
     else:
         return False
@@ -809,16 +1015,53 @@ def localReport(flow, selector, body) -> bool:
     if ground["position"] is None:
         flow.result["logs"].append(
             "client-runtime-position-accepted; no-motion-echo")
+    # ⭐ 第四十轮：先记「上报速度」，再覆盖位置（顺序不能反 —— 外推要用上一帧）。
+    _recordReportVelocity(flow, ground, position)
     ground["position"] = position
     if selector == 3:
         ground["heading"] = heading
     else:
+        prevMask = ground.get("mask", -1)
         ground["mask"] = sum(keys[index] << index for index in range(4))
         # 上游同款记账：keys[4] = 下蹲、keys[5] = 跳跃。客户端权威模式下服务端
         # 不据此发包，只留给日志/诊断用（缺了会让上游 pytest 的
         # test_runtime_reports_update_local_snapshot_without_server_echo 报 KeyError）。
         ground["crouched"] = bool(keys[4])
         ground["jumpPressed"] = bool(keys[5])
+        # ⭐⭐⭐ 2026-10-07：输入同步（跳跃闸门 + 下蹲回声）—— 记账之外真正干活。
+        #   包 try：附加能力，坏了不许拖垮「接受上报位置」这条主链。
+        if inputSyncEnabled():
+            try:
+                _syncJumpAndCrouch(flow, ground, keys)
+            except Exception:  # noqa: BLE001
+                pass
+        # ⭐⭐⭐ 第四十一轮：按键**变化** ⇒ 镜像一条走/跑/停的 MOVE_BC
+        #   （见 ``_mirrorMoveState``）。放在跳跃/下蹲同步**之后**：那一支刚刚可能
+        #   发过一帧「在移动」的驱动状态，本条正好把它收尾 / 校正。
+        #   只在**真正的变化沿**发 —— 客户端站着不动时会持续上报 keys=0。
+        #   （快跑标志的变化走 ``handleFastRun``，不在这里。）
+        #   ⭐⭐⭐ 2026-10-07 第四十三轮：**把「松手补 STOP」从 ``cc_move_mirror`` 解绑**。
+        #   为什么：原先整段都挂在 ``ccMoveMirrorEnabled()`` 上 ⇒ 把旋钮改 off 做
+        #   A/B 时，「走/跑镜像」和「松手补 STOP」**一起**没了，A/B 不干净（一次动
+        #   了两个变量）。而 STOP 帧 FB/LR=0、无方向冲突，正是最不该被 A/B 牵连的
+        #   那条 —— 它是第四十轮「一直在跑停不下来」的修复。现在：
+        #     · 镜像 on  ⇒ 走原路（``_mirrorMoveState`` 内部自己会在松手沿补 STOP）；
+        #     · 镜像 off ⇒ 仍然只补那条松手 STOP，一个带方向的帧都不发。
+        if inputSyncEnabled() and ground["mask"] != prevMask:
+            try:
+                if ccMoveMirrorEnabled():
+                    _mirrorMoveState(flow, ground, prevMask, ground.get("fastRun", 0))
+                elif ground["mask"] <= 0 and prevMask not in (0, -1):
+                    _mirrorStop(flow, ground)
+            except Exception:  # noqa: BLE001
+                pass
+    # ⭐ 2026-10-07：客户端权威下把云梯斜面高度补回来（见 ``climbCorrect``）。
+    #   放最后：位置账本已经记完，这里只在命中斜面时**改写 Z 并回发**。
+    #   包 try：这是附加能力，坏了也不该让「接受上报位置」这条主链崩。
+    try:
+        climbCorrect(flow, ground)
+    except Exception:  # noqa: BLE001
+        pass
     return True
 
 
@@ -850,6 +1093,62 @@ def groundState(flow):
                                                "position": None, "tick": 0})
     ground.setdefault("moveStartedAt", None)
     return ground
+
+
+def _recordReportVelocity(flow, ground, position) -> None:
+    """记下客户端**上报速度**（供 ``clientAuthorityPosition`` 外推用）。
+
+    只存**标量/浮点列表**：会话快照会被原生层 ``host_runtime._pack`` 逐值校验，
+    tuple 会抛 ``TypeError: unsupported state type: tuple`` 并**丢弃整个事件**
+    （会话 -10 血泪，见 ``_syncJumpAndCrouch`` 同款注释）。所以速度拆成两个
+    float（``reportVx``/``reportVy``），上一帧位置存成 list。
+
+    任何一步不成立都静默跳过 —— 这是给广播用的附加信息，坏了不许拖垮
+    「接受上报位置」这条主链。
+    """
+    try:
+        prevAt = ground.get("reportAt")
+        prevPos = ground.get("reportPrev")
+        now = flow.now
+        if (type(prevAt) is int and type(prevPos) is list and len(prevPos) >= 2
+                and now > prevAt):
+            dt = (now - prevAt) / 1000.0
+            if dt > 0:
+                ground["reportVx"] = (position[0] - prevPos[0]) / dt
+                ground["reportVy"] = (position[1] - prevPos[1]) / dt
+        ground["reportPrev"] = [float(position[0]), float(position[1]),
+                                float(position[2])]
+        ground["reportAt"] = int(now)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def clientAuthorityPosition(flow, ground, extrapolate=True):
+    """客户端权威广播用的位置：把最后一次上报按上报速度外推到当前时刻。
+
+    背景与上限来历见 ``CLIENT_EXTRAP_MAX_MS`` 的注释。任何一步不成立
+    （没上报过 / 还没算出速度 / 时间倒流 / 超过外推窗口 / 位移超硬上限）
+    ⇒ **原样返回账本位置**，与加这个函数之前逐位相同。所以服务端权威模式
+    （``localReport`` 从不被调用、这些键根本不存在）行为一个字节都不变。
+    """
+    position = ground.get("position")
+    if position is None:
+        return wire.POSITION
+    if not extrapolate:
+        return position
+    reportAt = ground.get("reportAt")
+    vx = ground.get("reportVx")
+    vy = ground.get("reportVy")
+    if type(reportAt) is not int or vx is None or vy is None:
+        return position
+    dt = flow.now - reportAt
+    if dt <= 0 or dt > CLIENT_EXTRAP_MAX_MS:
+        return position
+    dx = vx * dt / 1000.0
+    dy = vy * dt / 1000.0
+    if math.hypot(dx, dy) > CLIENT_EXTRAP_MAX_M:
+        return position
+    return [position[0] + dx, position[1] + dy, position[2]]
 
 
 # 服务端**第一次**建立角色位置时的正常范围（米）—— 见 ``anchorToSpawn``。
@@ -889,7 +1188,8 @@ def anchorToSpawn(flow, position):
     return spawn
 
 
-def groundMoveState(ground: dict, projection: move_flow.GroundMoveProjection, now: int) -> int:
+def groundMoveState(ground: dict, projection: move_flow.GroundMoveProjection,
+                    now: int, runFallback: bool = True) -> int:
     if not projection.moving:
         ground["moveStartedAt"] = None
         return move_flow.MOVE_GROUND_STATE_STOP
@@ -902,7 +1202,14 @@ def groundMoveState(ground: dict, projection: move_flow.GroundMoveProjection, no
     #   2. 原有兜底：持续前向移动超过 GROUND_RUN_DELAY_MS 自动进跑。
     # 做成并集而不是替换，是为了**不改动**已实机验收的 WASD 行为：客户端不发
     # sel=63 时 fastRun 恒为 0，判断结果与改动前逐位相同（t7_wasd_verify.py 有回归门）。
-    if axes in GROUND_RUN_STATES and (ground.get("fastRun") or elapsed >= GROUND_RUN_DELAY_MS):
+    # ⭐⭐⭐ 2026-10-07 第三十九轮（客户端权威专用）：``runFallback=False`` 时
+    #   **只认客户端显式发来的 ``fastRun``（SHIFT）**，不启用「持续前向 2s 自动进跑」
+    #   那条服务端兜底。理由：客户端权威下位移与走/跑**全由客户端决定**，而
+    #   ``moveStartedAt`` 只由服务端路径推进（localReport 不推进它），一旦被某次
+    #   广播写进就只增不减 ⇒ ``elapsed`` 恒 > 2s ⇒ 服务端广播「跑」而客户端本地是
+    #   「走」，两边状态打架（用户口供：按 W 一会「两个都启动了」）。
+    run = bool(ground.get("fastRun")) or (runFallback and elapsed >= GROUND_RUN_DELAY_MS)
+    if axes in GROUND_RUN_STATES and run:
         return GROUND_RUN_STATES[axes]
     return GROUND_WALK_STATES[axes]
 
@@ -1382,6 +1689,15 @@ def displayAxes(flow, forwardBack, leftRight):
 
     ⚠️ **步兵直通**：不改步兵一个字（用户要求「别在影响步兵了」）。
     """
+    # ⚠️⚠️ 2026-10-07 第四十二轮**返工记录（别再犯）**：
+    #   曾在这里加过「客户端权威 + 步兵 ⇒ 取负」，理由是 prior_art 说客户端约定
+    #   W ⇒ fb=+1000。**实测立刻翻车**：用户「WASD 都是反方向」。
+    #   原因：38 号 ``MOVE_BC_WITH_SYSTEM_AND_ACTIVE`` 与 55/39 号**不是同一种语义** ——
+    #     * 38 号是 prior_art 明说的「按键/方向变化时只发布一次，**作为持续驱动命令**」
+    #       ⇒ 客户端拿它**驱动移动**，必须与键盘意图同轴 = **世界轴原值**（W ⇒ −1000）；
+    #     * 55 号 ``BC_ACTOR_WITH_JUMP`` 是**动画广播** ⇒ 才需要客户端**显示**约定
+    #       （取负，W ⇒ +1000，见 prior_art《四方向反向…》）。
+    #   所以取负只加在**跳跃广播**那一侧（见 ``_jumpAxes``），这里一个字都不改。
     if not mounted(flow) or WIRE_AXIS == "world":
         return forwardBack, leftRight
     return -forwardBack, -leftRight
@@ -1573,6 +1889,23 @@ def stopState(flow) -> int:
 def moveWireState(flow, ground, mask, projection) -> int:
     """上线的 ``state``：步兵 = 步战档（``groundMoveState``），骑兵 = 骑乘档。"""
     if not mounted(flow):
+        if runtimeMovement(flow):
+            # ⭐ 第三十九轮：客户端权威 —— 只镜像客户端显式快跑标志（见
+            #   ``groundMoveState`` 的 ``runFallback``），并留一条节流诊断，
+            #   下一轮实机就能一眼看出「服务端广播的 state」与客户端标志是否一致。
+            state = groundMoveState(ground, projection, flow.now, False)
+            try:
+                last = ground.get("stateMirrorAt")
+                if last is None or flow.now - last >= 1000:
+                    ground["stateMirrorAt"] = flow.now
+                    flow.result["logs"].append(
+                        "move-state-mirror state=%d fastRun=%d elapsed=%s"
+                        % (state, int(ground.get("fastRun") or 0),
+                           "n/a" if ground.get("moveStartedAt") is None
+                           else int(flow.now - ground["moveStartedAt"])))
+            except Exception:  # noqa: BLE001
+                pass
+            return state
         return groundMoveState(ground, projection, flow.now)
     return mountWireState(mask, projection)
 
@@ -2300,6 +2633,213 @@ def notifyInAir(flow, is_in_air: int) -> None:
             "move-in-air-state-bc-mount-" + ("air" if is_in_air else "ground"))
 
 
+def _notifyCrouch(flow, ground, crouched: bool) -> None:
+    """sel=39 ``BC_WITH_SPECIAL_ANIMATION`` —— 下蹲沿广播（老版实测取值）。
+
+    老版服务端权威时期随 MOVE_STATE_DATA 下发的 ``squat/squat_animation``，
+    客户端权威下改用 sel=39 独立广播；取值沿用老版实测：
+    ``squat``=1/0，``squat_animation``=SQUAT(1)/END_SQUAT(2)。
+    姿态取静止档（下蹲起手瞬间位移未定，不与移动广播打架）。
+    """
+    position = clientAuthorityPosition(flow, ground)
+    tick = nextGroundTick(flow)
+    body = move_flow.encode_move_bc_with_special_animation(
+        server_tick=tick, target_instance_id=1,
+        state=stopState(flow), left_right=0, forward_back=0, acceleration=0,
+        current_velocity=0, max_velocity=0, direction_yaw=ground["heading"],
+        position=tuple(position),
+        squat=1 if crouched else 0,
+        squat_animation=(MOVE_ANIMATION_SQUAT if crouched
+                         else MOVE_ANIMATION_END_SQUAT))
+    flow.send(2, body, "move-bc-special-animation-crouch-"
+              + ("on" if crouched else "off"))
+    ground["tick"] = tick
+    ground["timingTick"] = tick
+
+
+_INPUT_DIAG_MIN_MS = 2000.0
+
+
+def _mirrorStop(flow, ground) -> None:
+    """客户端权威：客户端报「方向键全松开」时补一条 STOP（第四十轮）。
+
+    为什么必须有：客户端权威下服务端**平时一条 MOVE_BC 都不发**，只有跳跃/下蹲
+    两个边沿会发。而 sel=55/39 属于「移动驱动状态」报文（prior_art 08-09 152114
+    对 35 号的结论同源）—— 一旦写了「在移动」，客户端会**持久**保持那个驱动状态
+    ⇒ 松手也不停（用户口供「一直在跑，停不下来了」）。老版服务端权威每 50ms
+    重发一次驱动状态，松手那一拍自然带 STOP；迁移到客户端权威后这条**丢了**，
+    本轮把「松手 → STOP」补回来。
+
+    位置取**账本值**、不外推：客户端报「全松开」时它已经站住了，账本值就是真值
+    （外推反而会把它往前送一截）。账本还没有位置时直接不发 —— 绝不能拿
+    ``wire.POSITION``（出生点）去发 STOP，那正是「把人拽回出生点」的成因。
+    """
+    if ground.get("position") is None:
+        return
+    position = clientAuthorityPosition(flow, ground, extrapolate=False)
+    broadcast(flow, position, ground["heading"], stopState(flow), 0, 0,
+              "client-authority-stop-mirror")
+
+
+def _mirrorMoveState(flow, ground, prevMask, prevFastRun) -> None:
+    """客户端权威：按键/快跑**变化**时镜像一条 MOVE_BC（走/跑/停）。
+
+    为什么必须有（第四十一轮，会话 16:28 实机）：客户端的走/跑**表现**跟着服务端
+    MOVE_BC 的 ``state`` 走 —— 老版服务端权威每 50ms 重发一次，所以「按 W 一会
+    就进跑」；迁到客户端权威后服务端平时一条都不发 ⇒ 用户口供「shift 冲刺没有
+    出来 / ~ 空手跑也没出来」。这里把「按变化发」补回来。
+
+    ★ 顺带修掉「一直在跑」的**另一半**：``groundMoveState`` 只在
+      ``projection.moving`` 为真时推进 ``moveStartedAt``，而客户端权威下它此前
+      只被跳跃广播调用（两跳之间没人调）⇒ 那个时间戳**只增不减**。本函数在
+      **每一次按键变化**都调它 ⇒ 松手那一拍 ``projection.moving`` 为假，
+      ``moveStartedAt`` 被清成 None，下一次起步重新计时（2 秒兜底才正确）。
+
+    ★ 位置用 ``clientAuthorityPosition``（**外推**）：镜像帧落在两次上报之间，
+      拿账本原值会把客户端往回拽一截（用户口供「像回档一样」）。
+    """
+    mask = ground.get("mask", -1)
+    if mask <= 0:
+        flow.cancel(CC_RUN_TIMER)
+        ground["moveStartedAt"] = None
+        if prevMask not in (0, -1):
+            _mirrorStop(flow, ground)
+        return
+    if prevMask in (0, -1):
+        # 起步沿：立基准 + 排「持续前向 N 秒进跑」那一拍（老版靠 50ms 周期帧达成）。
+        ground["moveStartedAt"] = flow.now
+        flow.later(CC_RUN_TIMER, GROUND_RUN_DELAY_MS)
+    projection = drivingProjection(flow, mask, ground["heading"])
+    if not projection.moving:
+        return                     # 原地转舵（骑兵 / 投石车）：不动位移就不镜像
+    state = groundMoveState(ground, projection, flow.now)
+    position = clientAuthorityPosition(flow, ground)
+    broadcast(flow, position, ground["heading"], state,
+              projection.forward_back, projection.left_right,
+              "client-authority-move-mirror")
+
+
+def mirrorRunState(flow) -> None:
+    """``cc-run-delay`` 到点：如果还在移动，补一条「跑」档广播。
+
+    与 ``_mirrorMoveState`` 同一套判定（``groundMoveState`` + ``displayAxes``），
+    只是触发源是**时间**而不是按键变化 —— 老版服务端权威的 50ms 周期帧就是
+    靠这个把「持续前向 2 秒 → 进跑」送到客户端的。
+    """
+    ground = groundState(flow)
+    mask = ground.get("mask", -1)
+    if mask <= 0:
+        return
+    projection = drivingProjection(flow, mask, ground["heading"])
+    if not projection.moving:
+        return
+    # ★ 到点判定：``moveStartedAt`` 可能被**中间那几次跳跃广播**重锚（那条路径也调
+    #   ``groundMoveState``，moving 时会把 None 填成 now）⇒ 这里不能假定「定时器
+    #   到点就一定够 2 秒」。不够就按剩余时间补排一拍，避免漏掉「进跑」。
+    started = ground.get("moveStartedAt")
+    if type(started) is not int:
+        ground["moveStartedAt"] = flow.now
+        started = flow.now
+    remaining = GROUND_RUN_DELAY_MS - (flow.now - started)
+    if remaining > 0:
+        flow.later(CC_RUN_TIMER, remaining)
+        return
+    state = groundMoveState(ground, projection, flow.now)
+    position = clientAuthorityPosition(flow, ground)
+    broadcast(flow, position, ground["heading"], state,
+              projection.forward_back, projection.left_right,
+              "client-authority-run-delay-mirror")
+
+def _inputDiag(flow, selector, category, keys, body) -> None:
+    """sel=52 上报分布诊断（节流 2s，纯日志，任何异常静默吞掉）。
+
+    * ``cat=1 keys=00..``      —— 常规 WASD 包，看 keys[4]/keys[5] 是否出现 1
+    * ``cat=N keys=..``        —— 非 WASD 类别（CTRL=2 / SPACE=3，第三十五轮起
+      已在本地做跳跃/下蹲同步）；``pos=`` 供离线判断这两类包的位置语义。
+    """
+    try:
+        sess = flow.session
+        now = flow.now
+        last = sess.get("inputDiagAt")
+        if last is not None and now - last < _INPUT_DIAG_MIN_MS:
+            return
+        sess["inputDiagAt"] = now
+        try:
+            pos = "%.1f,%.1f,%.1f" % struct.unpack_from(">fff", body, 12)
+        except Exception:  # noqa: BLE001
+            pos = "?"
+        flow.result["logs"].append(
+            "input-report-diag sel=%d cat=%d keys=%s pos=%s"
+            % (selector, category, " ".join("%02x" % value for value in keys), pos))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _syncJumpAndCrouch(flow, ground, keys) -> None:
+    """客户端权威下的跳跃闸门与下蹲回声（对比老版状态机的最小等价实现）。
+
+    * 跳跃按下沿且不在空中 ⇒ ``notifyInAir(1)`` + 排 ``JUMP_AIR_TIMER``；
+      空中期间（``jumpAir``=1）忽略新的按下沿 —— 这就是老版
+      ``jumpActive()`` 闸门的客户端权威等价物（防无限跳）。
+    * 下蹲沿（keys[4] 与上次不同）⇒ sel=39 下蹲/起身广播。
+    * 每一步都只写标量进 ``ground``（session 原生层类型校验，同老版教训）。
+    """
+    jump_now = bool(keys[5])
+    jump_prev = ground.get("jumpPressedPrev")
+    ground["jumpPressedPrev"] = jump_now
+    # ⭐ 键位观察日志：只要任何一份上报里出现跳/蹲位，立即记一条（按状态去重）。
+    #   若实机日志里这条从不出现而 input-report-diag 正常滚动 ⇒ 客户端把
+    #   跳跃/CTRL 放在了别的 category/selector，需要换位置对接。
+    #   ⚠️⚠️ 只能用**标量**存状态：会话快照会被原生层 ``host_runtime._pack``
+    #   逐值类型校验，tuple/list-of-mixed 之外 tuple 会抛
+    #   ``TypeError: unsupported state type: tuple`` 并**丢弃整个事件**
+    #   （会话 -10 实证：56 次 TypeError、按空格/CTRL 完全无反应、连诊断日志
+    #   都被一起丢掉）。所以这里拆成两个 bool。
+    try:
+        _jumpObs = bool(jump_now)
+        _crouchObs = bool(keys[4])
+        if _jumpObs or _crouchObs:
+            if (_jumpObs != ground.get("inputKeyObsJump")
+                    or _crouchObs != ground.get("inputKeyObsCrouch")):
+                ground["inputKeyObsJump"] = _jumpObs
+                ground["inputKeyObsCrouch"] = _crouchObs
+                flow.result["logs"].append(
+                    "input-key-observed jump=%d crouch=%d cat_keys=%s"
+                    % (jump_now, _crouchObs, " ".join("%02x" % v for v in keys)))
+        else:
+            ground["inputKeyObsJump"] = False
+            ground["inputKeyObsCrouch"] = False
+    except Exception:  # noqa: BLE001
+        pass
+    if jump_now and not jump_prev and not ground.get("jumpAir"):
+        ground["jumpAir"] = 1
+        try:
+            notifyInAir(flow, is_in_air=1)
+        except Exception as error:  # noqa: BLE001
+            flow.result["logs"].append("jump-in-air-failed %r" % (error,))
+        # ⭐⭐⭐ 2026-10-07 第三十八轮（会话 -11 实证）：老跳跃状态机
+        #   （``startJump``/``stepJump``）在客户端权威下**从不被调用** ⇒
+        #   wire 里 ``sel=55 BC_ACTOR_WITH_JUMP`` 一条不发、只有 in-air 状态
+        #   ⇒ 客户端收不到跳跃动画广播，按空格没反应（服务端日志却「全都发了」）。
+        #   这里补上老 ``startJump`` 的**广播那一半**（jump=1/动画=起跳(4)/
+        #   附带 sel=39）；**不做**服务端垂直积分 —— 客户端权威下位移归客户端。
+        try:
+            notifyJump(flow, jump=1, jump_animation=MOVE_ANIMATION_JUMP,
+                       special_animation=True)
+        except Exception as error:  # noqa: BLE001
+            flow.result["logs"].append("jump-broadcast-failed %r" % (error,))
+        flow.later(JUMP_AIR_TIMER, JUMP_AIR_MS)
+        flow.result["logs"].append("jump-gate air=1 ms=%d" % JUMP_AIR_MS)
+    crouch_now = bool(keys[4])
+    # ⭐ 第三十五轮：``crouchPrev`` 首次为 None 时按「未蹲」处理 —— 客户端权威下
+    #   玩家可能全程站着不动（无 cat=1 包），第一份包就是 CTRL 按下
+    #   （会话 -9 实证），按旧写法这条会被当基准吞掉、永远不广播。
+    crouch_prev = bool(ground.get("crouchPrev"))
+    ground["crouchPrev"] = crouch_now
+    if crouch_now != crouch_prev:
+        _notifyCrouch(flow, ground, crouch_now)
+
+
 # --- 跳跃：状态、广播与垂直积分 -------------------------------------------------
 
 def jumpState(flow):
@@ -2333,10 +2873,34 @@ def _jumpAxes(flow, ground):
     mask = ground["mask"]
     if mask < 0:
         return stopState(flow), 0, 0
+    # ⭐ 第四十轮：客户端权威下掩码会**过期**（客户端 ~3 帧/秒，只在按键变化/上报
+    #   节拍发包）。最后一次上报超出外推窗口 ⇒ 根本不知道玩家还在不在动，按静止
+    #   处理 —— 绝不能凭一个陈旧掩码把「跑」的驱动状态写进客户端（那正是
+    #   「一直在跑，停不下来」）。服务端权威没有 ``reportAt`` 键 ⇒ 本闸门不生效，
+    #   行为逐位不变。
+    reportAt = ground.get("reportAt")
+    if type(reportAt) is int and flow.now - reportAt > CLIENT_EXTRAP_MAX_MS:
+        return stopState(flow), 0, 0
+    # ⭐ 第四十轮应急旋钮：``cc_jump_state=stop`` ⇒ 服务端一个移动驱动状态都不写
+    #   （见 ``jumpStateMirrorMode``）。
+    if jumpStateMirrorMode() == "stop":
+        return stopState(flow), 0, 0
     projection = drivingProjection(flow, mask, ground["heading"])
     if not projection.moving:
         return stopState(flow), 0, 0
     displayFb, displayLr = displayAxes(flow, projection.forward_back, projection.left_right)
+    # ⭐⭐⭐ 第四十二轮（2026-10-07）：**只有跳跃广播这一侧**取负。
+    #   为什么 38 号不取负、这里却要取负 —— 见 ``displayAxes`` 顶部的返工记录：
+    #   38 号 ``MOVE_BC_WITH_SYSTEM_AND_ACTIVE`` 是**持续驱动命令**（必须跟键盘同轴，
+    #   否则用户实测「WASD 都是反方向」）；55 号 ``BC_ACTOR_WITH_JUMP`` 是**动画广播**，
+    #   按客户端**显示**约定。prior_art《2026年8月9日四方向反向与移动过快三倍修正》
+    #   实测原文：「当前 W 事件的 wire 表现为 fb=-1000，而历史成功抓包 W 为 fb=+1000；
+    #   **这解释 W 显示后退步态**」⇒ 显示侧 W 必须是 **+1000**。
+    #   症状对应（用户口供「按完空格，还是会后退」）：按着 W 起跳时 55 号带 fb=-1000。
+    #   ⚠️ 只在「客户端权威 + 步兵」生效；服务端权威与骑兵一个字不动。
+    #   回退（10 秒）：`[move] cc_foot_axis=world` / env `T7_CC_FOOT_AXIS=world`。
+    if runtimeMovement(flow) and not mounted(flow) and footAxisMode() == "client":
+        displayFb, displayLr = -displayFb, -displayLr
     return (moveWireState(flow, ground, mask, projection),
             displayLr * 1000, displayFb * 1000)
 
@@ -2352,7 +2916,7 @@ def notifyJump(flow, *, jump: int, jump_animation: int, special_animation: bool)
     重复的位置广播。若实机证明客户端只消费 sel=39，把它改成每步都发即可。
     """
     ground = groundState(flow)
-    position = ground["position"] if ground["position"] is not None else wire.POSITION
+    position = clientAuthorityPosition(flow, ground)
     state, wire_lr, wire_fb = _jumpAxes(flow, ground)
     moving = state not in (move_flow.MOVE_GROUND_STATE_STOP,
                            move_flow.MOVE_GROUND_MOUNT_STATE_STOP)
@@ -2516,8 +3080,22 @@ def handleFastRun(flow, body) -> bool:
     if previous == isStart:
         return True
     if runtimeMovement(flow):
-        # 客户端权威：只记快跑标志，**不发**任何服务端运动帧。否则每按一次 SHIFT
-        # 就会有一条 move-ground-fast-run-state-echo 去顶客户端自己积的轨迹。
+        # 客户端权威：老版在这里一条都不发（只记标志）。但实机定案客户端的走/跑
+        # **表现**是跟着服务端 MOVE_BC 的 ``state`` 走的 ⇒ 按 SHIFT 必须补一条
+        # 「跑」档镜像，否则「shift 冲刺」永远显示不出来（第四十一轮口供）。
+        # 位置仍走 ``clientAuthorityPosition``（外推），与移动镜像同口径。
+        if (ccMoveMirrorEnabled() and inputSyncEnabled()
+                and ground["mask"] > 0 and ground["position"] is not None):
+            try:
+                projection = drivingProjection(flow, ground["mask"], ground["heading"])
+                if projection.moving:
+                    state = groundMoveState(ground, projection, flow.now)
+                    position = clientAuthorityPosition(flow, ground)
+                    broadcast(flow, position, ground["heading"], state,
+                              projection.forward_back, projection.left_right,
+                              "client-authority-fast-run-mirror")
+            except Exception:  # noqa: BLE001
+                pass
         return True
     if not groundEnabled(flow) or ground["mask"] < 0 or ground["position"] is None:
         return True
@@ -2540,6 +3118,51 @@ def handleFastRun(flow, body) -> bool:
 
 
 def timer(flow, name):
+    if name == JUMP_AIR_TIMER:
+        # ⭐⭐⭐ 2026-10-07：客户端权威跳跃闸门的滞空期结束 → 解除 DriveEnable
+        #   （客户端恢复地面移动/允许下一次跳）。放在所有闸门**之前**：
+        #   这个定时器恰恰是客户端权威模式专用的（老状态机的那套在
+        #   runtimeMovement 下全被 cancel，不能让它被拦掉）。
+        if inputSyncEnabled() and groundState(flow).get("jumpAir"):
+            groundState(flow)["jumpAir"] = 0
+            try:
+                notifyInAir(flow, is_in_air=0)
+                # ⭐ 第三十八轮：落地动画三拍的第一拍（着陆缓冲 5）+ 排后续两拍。
+                notifyJump(flow, jump=0, jump_animation=MOVE_ANIMATION_JUMP_LAND,
+                           special_animation=True)
+                flow.later(JUMP_AIR_END_TIMER, JUMP_END_MS)
+                flow.result["logs"].append("jump-gate air=0")
+            except Exception as error:  # noqa: BLE001
+                flow.result["logs"].append("jump-land-failed %r" % (error,))
+        return True
+    if name == JUMP_AIR_END_TIMER:
+        # 第二拍：结束着陆(6)。
+        try:
+            notifyJump(flow, jump=0, jump_animation=MOVE_ANIMATION_END_JUMP,
+                       special_animation=False)
+            flow.later(JUMP_AIR_NONE_TIMER, JUMP_END_MS)
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    if name == JUMP_AIR_NONE_TIMER:
+        # 第三拍：必须回 NONE(0) —— 老版就是漏了这一拍，角色停在落地姿势上。
+        try:
+            notifyJump(flow, jump=0, jump_animation=MOVE_ANIMATION_NONE,
+                       special_animation=False)
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    if name == CC_RUN_TIMER:
+        # ⭐⭐⭐ 第四十一轮：客户端权威「持续前向 N 秒 → 进跑」的那一拍。
+        #   老版服务端权威靠 50ms 周期帧达成（每帧重算 groundMoveState ⇒ 到点自动
+        #   变跑档）；客户端权威下服务端平时一条都不发，所以必须显式排一个定时器。
+        #   ⚠️ 必须放在下面 ``runtimeMovement(flow)`` 早退**之前**：那段会把所有
+        #      运动帧 cancel 掉，而本定时器恰恰是客户端权威模式专用的。
+        try:
+            mirrorRunState(flow)
+        except Exception:  # noqa: BLE001
+            pass
+        return True
     if name not in ("direction-prime-start", "direction-prime-stop", "ground-step", JUMP_TIMER):
         return False
     if runtimeMovement(flow):
