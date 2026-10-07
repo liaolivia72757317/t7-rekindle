@@ -45,6 +45,7 @@ namespace T7.ManagedHarness
             NativeBridgeServiceTests.Run();
             GitHubReleaseUpdateTests.Run();
             UpdateFeedTests.Run();
+            ReleaseNotesTests.Run();
             UpdateDownloadTests.Run();
             UpdateDownloadViewModelTests.Run();
             LauncherTests.Run();

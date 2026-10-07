@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -75,7 +76,18 @@ namespace T7.Rekindle.Desktop.ViewModels
             ? string.Empty : _lastUpdate.TargetVersion;
         public string UpdateSummary => IsCheckingUpdate ? "正在获取更新日志…" : UpdateFailed ? "获取更新日志失败，请稍后重试。"
             : _lastUpdate == null ? "检查更新后显示版本更新日志。" : !_lastUpdate.HasPublishedRelease ? "暂无正式发布版本。"
-            : string.IsNullOrWhiteSpace(_lastUpdate.Summary) ? "该版本未填写更新说明。" : _lastUpdate.Summary;
+            : FormatReleaseNotes(_lastUpdate);
+
+        private static string FormatReleaseNotes(LauncherUpdateInfo info)
+        {
+            const string emptyNotes = "该版本未填写更新说明。";
+            var body = info.ReleaseNotes == null || info.ReleaseNotes.Count == 0
+                ? (string.IsNullOrWhiteSpace(info.Summary) ? emptyNotes : info.Summary)
+                : string.Join("\n\n", info.ReleaseNotes.Select(note => "# " + note.Version + "\n\n"
+                    + (note.Error.Length != 0 ? "日志加载失败：" + note.Error
+                        : string.IsNullOrWhiteSpace(note.Summary) ? emptyNotes : note.Summary)));
+            return string.IsNullOrWhiteSpace(info.ReleaseNotesNotice) ? body : info.ReleaseNotesNotice + "\n\n" + body;
+        }
         public UpdateDownloadViewModel UpdateDownload => _updateDownload;
         public bool IsUpdating => UpdateDownload?.IsDownloading == true || UpdateDownload?.IsInstalling == true;
         public RelayCommand ShowContactCommand { get; }

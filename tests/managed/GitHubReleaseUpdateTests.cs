@@ -111,7 +111,7 @@ namespace T7.ManagedHarness
             using (var client = new HttpClient(handler))
             {
                 var result = await new GitHubReleaseUpdateService(client, REPOSITORY).CheckAsync(current);
-                Assert(handler.RequestCount == 1, "an update check made an extra request or downloaded an asset");
+                Assert(handler.RequestCount == (result.IsNewVersion ? 2 : 1), "update check did not separate target and history requests");
                 return result;
             }
         }
@@ -144,13 +144,15 @@ namespace T7.ManagedHarness
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 RequestCount++;
-                Assert(request.Method == HttpMethod.Get && request.RequestUri.AbsoluteUri == "https://api.github.com/repos/example/project/releases/latest",
-                    "update check did not query the latest published GitHub release");
+                var history = request.RequestUri.AbsoluteUri == "https://api.github.com/repos/example/project/releases?per_page=100&page=1";
+                Assert(request.Method == HttpMethod.Get && (history
+                    || request.RequestUri.AbsoluteUri == "https://api.github.com/repos/example/project/releases/latest"),
+                    "update check queried an unexpected endpoint");
                 Assert(request.Headers.Authorization == null && request.Headers.UserAgent.ToString().StartsWith("T7-Rekindle/")
                     && request.Headers.Accept.ToString() == "application/vnd.github+json"
                     && string.Join(",", request.Headers.GetValues("X-GitHub-Api-Version")) == "2026-03-10", "GitHub request headers are invalid");
                 return _failure == null
-                    ? Task.FromResult(new HttpResponseMessage(_status) { Content = new StringContent(_json) })
+                    ? Task.FromResult(new HttpResponseMessage(_status) { Content = new StringContent(history ? new JArray(JObject.Parse(_json)).ToString() : _json) })
                     : Task.FromException<HttpResponseMessage>(_failure);
             }
         }

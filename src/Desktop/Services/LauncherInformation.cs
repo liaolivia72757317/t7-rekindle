@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -14,6 +15,8 @@ namespace T7.Rekindle.Desktop.Services
         public string CurrentVersion { get; set; }
         public string TargetVersion { get; set; }
         public string Summary { get; set; }
+        public IReadOnlyList<LauncherReleaseNote> ReleaseNotes { get; set; } = Array.Empty<LauncherReleaseNote>();
+        public string ReleaseNotesNotice { get; set; } = string.Empty;
         public string DownloadAddress { get; set; }
         public LauncherUpdateAsset Installer { get; set; }
         public string UpdateSource { get; set; } = string.Empty;

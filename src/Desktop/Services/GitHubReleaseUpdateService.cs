@@ -48,7 +48,11 @@ namespace T7.Rekindle.Desktop.Services
                         if (!response.IsSuccessStatusCode)
                             throw new IOException("GitHub 更新服务返回 HTTP " + (int)response.StatusCode + "，请稍后重试。");
                         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        return ReadRelease(json, currentVersion, current);
+                        var info = ReadRelease(json, currentVersion, current);
+                        var notes = await new ReleaseNotesService(_client, _repository).ReadGitHubAsync(info).ConfigureAwait(false);
+                        info.ReleaseNotes = notes.Entries;
+                        info.ReleaseNotesNotice = notes.Notice;
+                        return info;
                     }
                 }
                 catch (TaskCanceledException error)

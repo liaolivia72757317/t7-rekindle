@@ -25,13 +25,15 @@ namespace T7.ManagedHarness
             {
                 requests.Add(request.RequestUri.AbsoluteUri);
                 Assert(request.Headers.Authorization == null, "public mirror request contained credentials");
-                return Task.FromResult(UpdateFixtures.Json(UpdateFixtures.Manifest()));
+                return Task.FromResult(request.RequestUri.AbsolutePath.EndsWith("changelog.md")
+                    ? UpdateFixtures.Notes() : UpdateFixtures.Json(UpdateFixtures.Manifest()));
             }))
             using (var client = new HttpClient(handler))
             {
                 var service = new ReleaseUpdateService(client, UpdateFixtures.Repository, UpdateFixtures.Mirror);
                 var info = await service.CheckAsync("v1.0.0");
-                Assert(requests.Count == 1 && requests[0] == UpdateFixtures.Mirror + "/updates/stable.json",
+                Assert(requests.Count == 2 && requests[0] == UpdateFixtures.Mirror + "/updates/stable.json"
+                    && requests[1] == UpdateFixtures.Mirror + "/releases/v1.2.3/changelog.md",
                     "successful mirror check contacted GitHub or downloaded an asset");
                 Assert(info.IsNewVersion && info.Installer != null && info.UpdateSource == "R2"
                     && info.Installer.Size == UpdateFixtures.Payload.Length
@@ -66,14 +68,14 @@ namespace T7.ManagedHarness
                 {
                     requests.Add(request.RequestUri.Host);
                     if (request.RequestUri.Host == "api.github.com")
-                        return Task.FromResult(UpdateFixtures.Json(UpdateFixtures.Release()));
+                        return Task.FromResult(UpdateFixtures.GitHubResponse(request));
                     return Task.FromResult(UpdateFixtures.Json(manifest));
                 }))
                 using (var client = new HttpClient(handler))
                 {
                     var info = await new ReleaseUpdateService(client, UpdateFixtures.Repository, UpdateFixtures.Mirror)
                         .CheckAsync("v1.0.0");
-                    Assert(requests.Count == 2 && info.UpdateSource == "GitHub" && info.SourceNotice.Contains("R2")
+                    Assert(requests.Count == 3 && info.UpdateSource == "GitHub" && info.SourceNotice.Contains("R2")
                         && info.Installer != null && info.Installer.FallbackAddress == null,
                         "invalid mirror feed did not fall back with a visible explanation");
                 }
@@ -82,7 +84,7 @@ namespace T7.ManagedHarness
             {
                 using (var handler = new UpdateResponseHandler((request, token) =>
                     request.RequestUri.Host == "api.github.com"
-                        ? Task.FromResult(UpdateFixtures.Json(UpdateFixtures.Release()))
+                        ? Task.FromResult(UpdateFixtures.GitHubResponse(request))
                         : Task.FromException<HttpResponseMessage>(failure)))
                 using (var client = new HttpClient(handler))
                     Assert((await new ReleaseUpdateService(client, UpdateFixtures.Repository, UpdateFixtures.Mirror)
@@ -93,7 +95,7 @@ namespace T7.ManagedHarness
                 var oldRelease = UpdateFixtures.Release();
                 oldRelease["assets"][0]["digest"] = digest;
                 using (var handler = new UpdateResponseHandler((request, token) =>
-                    Task.FromResult(UpdateFixtures.Json(oldRelease))))
+                    Task.FromResult(UpdateFixtures.GitHubResponse(request, oldRelease))))
                 using (var client = new HttpClient(handler))
                 {
                     var info = await new ReleaseUpdateService(client, UpdateFixtures.Repository, "").CheckAsync("v1.0.0");
@@ -117,16 +119,19 @@ namespace T7.ManagedHarness
                 release["assets"][0]["browser_download_url"] = githubAddress;
                 var manifest = UpdateFixtures.Manifest();
                 manifest["version"] = tag;
+                manifest["versions"] = new JArray(tag);
                 manifest["installer"]["url"] = mirrorAddress;
                 foreach (var useMirror in new[] { true, false })
                 {
                     using (var handler = new UpdateResponseHandler((request, token) =>
-                        Task.FromResult(UpdateFixtures.Json(useMirror ? manifest : release))))
+                        Task.FromResult(!useMirror ? UpdateFixtures.GitHubResponse(request, release)
+                            : request.RequestUri.AbsolutePath.EndsWith("changelog.md") ? UpdateFixtures.Notes()
+                            : UpdateFixtures.Json(manifest))))
                     using (var client = new HttpClient(handler))
                     {
                         var info = await new ReleaseUpdateService(client, UpdateFixtures.Repository,
                             useMirror ? UpdateFixtures.Mirror : "").CheckAsync("v1.0.0");
-                        Assert(handler.RequestCount == 1 && info.TargetVersion == tag && info.Installer != null
+                        Assert(handler.RequestCount == 2 && info.TargetVersion == tag && info.Installer != null
                             && info.Installer.DownloadAddress == (useMirror ? mirrorAddress : githubAddress)
                             && info.Installer.FallbackAddress == (useMirror ? githubAddress : null),
                             "release installer filename or download address did not preserve the full tag");
@@ -158,6 +163,7 @@ namespace T7.ManagedHarness
         internal static JObject Manifest() => new JObject
         {
             ["schemaVersion"] = 1, ["version"] = "v1.2.3", ["summary"] = "更新说明",
+            ["versions"] = new JArray("v1.2.3"),
             ["installer"] = new JObject
             {
                 ["url"] = Mirror + "/releases/v1.2.3/" + AssetName,
@@ -181,10 +187,19 @@ namespace T7.ManagedHarness
             })
         };
 
-        internal static HttpResponseMessage Json(JObject value) => new HttpResponseMessage(HttpStatusCode.OK)
+        internal static HttpResponseMessage Json(JToken value) => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(value?.ToString() ?? "invalid-json", Encoding.UTF8, "application/json")
         };
+
+        internal static HttpResponseMessage Notes(string text = "更新说明") => new HttpResponseMessage(HttpStatusCode.OK)
+            { Content = new StringContent(text, Encoding.UTF8, "text/markdown") };
+
+        internal static HttpResponseMessage GitHubResponse(HttpRequestMessage request, JObject release = null)
+        {
+            release = release ?? Release();
+            return Json(request.RequestUri.AbsolutePath.EndsWith("latest") ? (JToken)release : new JArray(release));
+        }
 
         internal static HttpResponseMessage Bytes() => new HttpResponseMessage(HttpStatusCode.OK)
         {

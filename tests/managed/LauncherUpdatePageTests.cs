@@ -25,6 +25,7 @@ namespace T7.ManagedHarness
             TestCheckStates();
             TestFeedSummary(false);
             TestFeedSummary(true);
+            TestAggregatedNotes(outputDirectory);
             TestDownloadActions(outputDirectory);
             TestDownloadFallback();
             TestCloseDuringDownload(settingsDirectory, false);
@@ -305,9 +306,11 @@ namespace T7.ManagedHarness
                 {
                     var release = UpdateFixtures.Release();
                     release["body"] = "- GitHub 发布条目";
-                    return Task.FromResult(UpdateFixtures.Json(release));
+                    return Task.FromResult(UpdateFixtures.GitHubResponse(request, release));
                 }
                 if (fallback) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+                if (request.RequestUri.AbsolutePath.EndsWith("changelog.md"))
+                    return Task.FromResult(UpdateFixtures.Notes("- 清单发布条目"));
                 var manifest = UpdateFixtures.Manifest();
                 manifest["summary"] = "- 清单发布条目";
                 return Task.FromResult(UpdateFixtures.Json(manifest));
@@ -322,6 +325,45 @@ namespace T7.ManagedHarness
                     RunTask(model.CheckUpdateCommand.ExecuteAsync(null));
                     AssertNotes(page, fallback ? "GitHub 发布条目" : "清单发布条目", "v1.2.3");
                 }
+            }
+        }
+
+        private static void TestAggregatedNotes(string outputDirectory)
+        {
+            var body = "## 新增功能\n\n- **重点改动**\n";
+            for (var index = 0; index < 60; index++) body += "- 跨版本日志条目 " + index + "\n";
+            var info = new LauncherUpdateInfo
+            {
+                CurrentVersion = "v1.0.0", TargetVersion = "v1.2.3", IsNewVersion = true,
+                Installer = UpdateFixtures.Asset(), Summary = "目标版本说明",
+                ReleaseNotesNotice = "部分版本日志加载失败，已显示获取到的内容。",
+                ReleaseNotes = Array.AsReadOnly(new[]
+                {
+                    new LauncherReleaseNote("v1.2.3", body),
+                    new LauncherReleaseNote("v1.1.0", "", "读取超时。"),
+                    new LauncherReleaseNote("v1.0.5", "")
+                })
+            };
+            using (var model = new AboutViewModel(new FakeDesktopInteraction(), () => Task.FromResult(info)))
+            {
+                RunTask(model.CheckUpdateCommand.ExecuteAsync(null));
+                var page = new LauncherUpdatePage { DataContext = new { About = model } };
+                var root = CreateRoot(page);
+                RenderDownload(page, root, outputDirectory, "history");
+                var viewer = Viewer(page);
+                var text = new TextRange(viewer.Document.ContentStart, viewer.Document.ContentEnd).Text;
+                Assert(text.IndexOf("v1.2.3", StringComparison.Ordinal) < text.IndexOf("v1.1.0", StringComparison.Ordinal)
+                    && text.IndexOf("v1.1.0", StringComparison.Ordinal) < text.IndexOf("v1.0.5", StringComparison.Ordinal),
+                    "aggregated version sections were reordered");
+                Assert(text.Contains("重点改动") && !text.Contains("**") && text.Contains("日志加载失败：读取超时。")
+                    && text.Contains("该版本未填写更新说明。"), "aggregated Markdown or missing-note states were lost");
+                var scroll = viewer.Template.FindName("PART_ContentHost", viewer) as ScrollViewer;
+                Assert(scroll != null && scroll.ExtentHeight > scroll.ViewportHeight && !model.UpdateFailed,
+                    "long notes did not scroll or notes failure invalidated the update");
+                AssertAction(page, model.UpdateDownload.PrimaryCommand, "下载更新", "download", true);
+                var reopened = new LauncherUpdatePage { DataContext = new { About = model } };
+                Pump();
+                AssertNotes(reopened, "v1.0.5", "v1.2.3");
             }
         }
 

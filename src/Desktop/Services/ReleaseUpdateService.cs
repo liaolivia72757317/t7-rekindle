@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace T7.Rekindle.Desktop.Services
 {
@@ -69,7 +70,7 @@ namespace T7.Rekindle.Desktop.Services
                             + "/" + Uri.EscapeDataString(ReleaseMetadata.InstallerName(manifest.Version))).AbsoluteUri;
                         if (!ReleaseMetadata.IsSameObject(manifest.Installer.Url, expected))
                             throw new InvalidDataException("R2 安装包地址与当前镜像或版本不一致。");
-                        return new LauncherUpdateInfo
+                        var info = new LauncherUpdateInfo
                         {
                             CurrentVersion = currentVersion,
                             TargetVersion = manifest.Version,
@@ -81,6 +82,11 @@ namespace T7.Rekindle.Desktop.Services
                             Installer = new LauncherUpdateAsset(expected, ReleaseMetadata.GitHubAsset(_repository, manifest.Version),
                                 manifest.Installer.Size, manifest.Installer.Sha256, "R2")
                         };
+                        var notes = await new ReleaseNotesService(_client, _repository)
+                            .ReadMirrorAsync(info, origin, manifest.Versions).ConfigureAwait(false);
+                        info.ReleaseNotes = notes.Entries;
+                        info.ReleaseNotesNotice = notes.Notice;
+                        return info;
                     }
                 }
                 catch (TaskCanceledException error) { throw new TimeoutException("检查更新超时。", error); }
@@ -94,6 +100,7 @@ namespace T7.Rekindle.Desktop.Services
             [JsonProperty("schemaVersion")] public int? SchemaVersion { get; set; }
             [JsonProperty("version")] public string Version { get; set; }
             [JsonProperty("summary")] public string Summary { get; set; }
+            [JsonProperty("versions")] public JToken Versions { get; set; }
             [JsonProperty("installer")] public Asset Installer { get; set; }
         }
 
