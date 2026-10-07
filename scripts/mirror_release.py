@@ -15,9 +15,10 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from release_metadata import asset_names, build_manifest, file_digest, normalize_base_url, parse_version
+from release_history import (LATEST_NAMES, STABLE_KEY, backfill_notes, indexed_versions, read_stable,
+                             seed_legacy_notes, sorted_versions, write_notes, write_stable)
 
 
-STABLE_KEY = "updates/stable.json"
 IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -90,8 +91,26 @@ def verify_public_asset(url: str, asset: dict) -> None:
             time.sleep(2 ** attempt)
 
 
+def verify_public_text(url: str, text: str) -> None:
+    expected = text.encode("utf-8")
+    opener = build_opener(HttpsRedirects())
+    for attempt in range(3):
+        try:
+            request = Request(url, headers={"User-Agent": "T7-Rekindle-release-mirror",
+                                            "Accept-Encoding": "identity", "Cache-Control": "no-cache"})
+            with opener.open(request, timeout=30) as response:
+                if response.read(len(expected) + 1) != expected:
+                    raise ValueError("Public release notes differ from the uploaded text.")
+            return
+        except (URLError, TimeoutError, ConnectionError) as error:
+            if attempt == 2 or (isinstance(error, HTTPError) and error.code < 500
+                                and error.code not in (408, 429)):
+                raise
+            time.sleep(2 ** attempt)
+
+
 def publish_release(release: dict, assets: dict[str, Path], store, base_url: str,
-                    work_directory: Path, verify=verify_public_asset) -> bool:
+                    work_directory: Path, verify=verify_public_asset, *, verify_notes=verify_public_text) -> bool:
     if release.get("draft") or release.get("prerelease"):
         print("Draft and prerelease versions are excluded from the stable channel.")
         return False
@@ -100,16 +119,24 @@ def publish_release(release: dict, assets: dict[str, Path], store, base_url: str
     manifest = build_manifest(release, assets, base_url)
     version = manifest["version"]
     names = asset_names(version)
+    previous = read_stable(store, work_directory)
+    comparison = 1 if previous is None else (
+        (parse_version(version) > parse_version(previous["version"]))
+        - (parse_version(version) < parse_version(previous["version"])))
+    if comparison == 0:
+        for kind in names:
+            if any(previous[kind].get(field) != manifest[kind][field] for field in ("size", "sha256")):
+                raise ValueError("Equivalent stable versions have different immutable assets.")
     for kind, name in names.items():
         key, asset = f"releases/{version}/{name}", manifest[kind]
         existing = store.head(key)
         if existing is not None:
             digest = existing.get("Metadata", {}).get("sha256")
             if not digest:
-                previous = work_directory / f"existing-{name}"
-                if not store.download(key, previous):
+                existing_path = work_directory / f"existing-{name}"
+                if not store.download(key, existing_path):
                     raise ValueError("An existing immutable asset disappeared during verification.")
-                digest = file_digest(previous)
+                digest = file_digest(existing_path)
             if existing.get("ContentLength") != asset["size"] or digest != asset["sha256"]:
                 raise ValueError(f"Refusing to overwrite an immutable asset: {key}. Use a new tag.")
         else:
@@ -118,34 +145,45 @@ def publish_release(release: dict, assets: dict[str, Path], store, base_url: str
         verify(asset["url"], asset)
         print(f"Verified {key} ({asset['size']} bytes).")
 
-    previous_path = work_directory / "previous-stable.json"
-    if store.download(STABLE_KEY, previous_path):
-        previous = json.loads(previous_path.read_text(encoding="utf-8"))
-        if previous.get("schemaVersion") != 1:
-            raise ValueError("Existing stable feed has an unsupported schemaVersion.")
-        comparison = parse_version(version), parse_version(previous.get("version", ""))
-        if comparison[0] < comparison[1]:
-            print("Backfill complete; the newer stable feed is unchanged.")
-            return False
-        if comparison[0] == comparison[1]:
-            for kind in names:
-                old = previous.get(kind) or {}
-                if any(old.get(field) != manifest[kind][field] for field in ("size", "sha256")):
-                    raise ValueError("Equivalent stable versions have different immutable assets.")
-    manifest_path = work_directory / "stable.json"
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    store.upload(STABLE_KEY, manifest_path, content_type="application/json; charset=utf-8",
-                 cache_control="no-store")
-    print(f"Published stable feed for {version}.")
-    return True
+    seed_legacy_notes(previous, store, base_url, work_directory, verify_notes, exclude=version)
+    write_notes(f"releases/{version}/changelog.md", manifest["summary"],
+                store, base_url, work_directory, verify_notes)
+    if comparison >= 0:
+        for kind, name in LATEST_NAMES.items():
+            key, asset = "latest/" + name, manifest[kind]
+            store.upload(key, assets[names[kind]], content_type="application/zip" if kind == "portable"
+                         else "application/octet-stream", cache_control="no-store", sha256=asset["sha256"])
+            verify(normalize_base_url(base_url) + "/" + key, asset)
+        write_notes("latest/changelog.md", manifest["summary"], store, base_url, work_directory, verify_notes)
+    result = {**(manifest if comparison >= 0 else previous),
+              "versions": sorted_versions([*indexed_versions(previous), version])}
+    write_stable(result, store, work_directory)
+    print(f"Published stable feed for {result['version']} with {len(result['versions'])} versions.")
+    return comparison >= 0
+
+
+def list_releases(repository: str) -> list[dict]:
+    pages = json.loads(run_command(["gh", "api", "--paginate", "--slurp",
+                                   f"repos/{repository}/releases?per_page=100"]))
+    if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+        raise ValueError("GitHub returned an invalid release list.")
+    releases = [release for page in pages for release in page]
+    if any(not isinstance(release, dict) for release in releases):
+        raise ValueError("GitHub returned an invalid release entry.")
+    return releases
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", default=os.environ.get("RELEASE_TAG"))
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--tag")
+    mode.add_argument("--backfill-notes", action="store_true")
     arguments = parser.parse_args()
     try:
-        if not arguments.tag:
+        arguments.tag = arguments.tag or os.environ.get("RELEASE_TAG", "").strip()
+        if arguments.backfill_notes and arguments.tag:
+            raise ValueError("Choose either a Release tag or --backfill-notes.")
+        if not arguments.tag and not arguments.backfill_notes:
             raise ValueError("A Release tag is required.")
         repository = os.environ.get("GITHUB_REPOSITORY", "")
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
@@ -156,6 +194,10 @@ def main() -> None:
                 raise ValueError(f"{name} is required.")
         base_url = normalize_base_url(os.environ["R2_PUBLIC_BASE_URL"])
         store = AwsR2Store(os.environ["R2_ACCOUNT_ID"], os.environ["R2_BUCKET"])
+        if arguments.backfill_notes:
+            with tempfile.TemporaryDirectory(prefix="t7-r2-notes-") as temporary:
+                backfill_notes(list_releases(repository), store, base_url, Path(temporary), verify_public_text)
+            return
         release = json.loads(run_command(["gh", "api",
                                          f"repos/{repository}/releases/tags/{quote(arguments.tag, safe='')}"]))
         if release.get("tag_name") != arguments.tag:

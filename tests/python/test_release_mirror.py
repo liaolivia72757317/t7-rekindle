@@ -85,7 +85,8 @@ def publish(tmp_path, store, version="v1.2.3", verify=None):
     mirror = load_module("mirror_release")
     release, assets = release_fixture(tmp_path, version)
     return mirror.publish_release(release, assets, store, "https://downloads.example.com",
-                                  tmp_path, verify or (lambda url, asset: None))
+                                  tmp_path, verify or (lambda url, asset: None),
+                                  verify_notes=lambda url, text: None)
 
 
 def test_assets_verified_before_manifest_and_retry_is_idempotent(tmp_path):
@@ -94,12 +95,13 @@ def test_assets_verified_before_manifest_and_retry_is_idempotent(tmp_path):
 
     def verify(url, asset):
         assert "updates/stable.json" not in store.writes
-        assert url.startswith("https://downloads.example.com/releases/v1.2.3/")
+        assert url.startswith(("https://downloads.example.com/releases/v1.2.3/",
+                               "https://downloads.example.com/latest/"))
         assert len(asset["sha256"]) == 64 and asset["size"] > 0
         verified.append(url)
 
     assert publish(tmp_path, store, verify=verify)
-    assert len(verified) == 2
+    assert len(verified) == 4
     assert store.writes[-1] == "updates/stable.json"
     content, options = store.objects["updates/stable.json"]
     manifest = json.loads(content)
@@ -110,7 +112,7 @@ def test_assets_verified_before_manifest_and_retry_is_idempotent(tmp_path):
     assert "immutable" in store.objects[store.writes[0]][1]["cache_control"]
     store.writes.clear()
     assert publish(tmp_path, store)
-    assert not any(key.startswith("releases/") for key in store.writes)
+    assert not any(key.startswith("releases/") and key.endswith((".exe", ".zip")) for key in store.writes)
 
 
 def test_failed_upload_or_public_verification_preserves_previous_feed(tmp_path):
@@ -136,14 +138,18 @@ def test_backfill_does_not_downgrade_and_changed_assets_are_rejected(tmp_path):
     publish(tmp_path, store, "v2.0.0")
     previous = store.objects["updates/stable.json"]
     assert not publish(tmp_path, store, "v1.0.0")
-    assert store.objects["updates/stable.json"] == previous
+    manifest = json.loads(store.objects["updates/stable.json"][0])
+    assert manifest["version"] == "v2.0.0"
+    assert manifest["installer"] == json.loads(previous[0])["installer"]
+    assert manifest["versions"] == ["v2.0.0", "v1.0.0"]
+    previous = store.objects["updates/stable.json"]
     mirror = load_module("mirror_release")
     release, assets = release_fixture(tmp_path, "v2.0.0")
     assets["T7-Rekindle-v2.0.0-Setup.exe"].write_bytes(b"changed")
     release["assets"][0]["size"] = 7
     with pytest.raises(ValueError, match="immutable"):
         mirror.publish_release(release, assets, store, "https://downloads.example.com",
-                               tmp_path, lambda url, asset: None)
+                               tmp_path, lambda url, asset: None, verify_notes=lambda url, text: None)
     assert store.objects["updates/stable.json"] == previous
 
 
@@ -154,13 +160,13 @@ def test_draft_prerelease_and_unverified_github_assets_are_not_published(tmp_pat
         release[field] = True
         store = MemoryStore()
         assert not mirror.publish_release(release, assets, store, "https://downloads.example.com",
-                                          tmp_path, lambda url, asset: None)
+                                          tmp_path, lambda url, asset: None, verify_notes=lambda url, text: None)
         assert not store.writes
     release, assets = release_fixture(tmp_path)
     release["assets"][0]["digest"] = "sha256:" + "0" * 64
     with pytest.raises(ValueError, match="GitHub"):
         mirror.publish_release(release, assets, MemoryStore(), "https://downloads.example.com",
-                               tmp_path, lambda url, asset: None)
+                               tmp_path, lambda url, asset: None, verify_notes=lambda url, text: None)
 
 
 @pytest.mark.parametrize("tag", ["v1.2.3", "1.2.3", "V1.2.3.4+build.1"])
@@ -233,7 +239,7 @@ def test_mirror_preserves_markdown_release_notes(tmp_path):
     release = {**release, "body": notes}
     store = MemoryStore()
     assert mirror.publish_release(release, assets, store, "https://downloads.example.com",
-                                  tmp_path, lambda url, asset: None)
+                                  tmp_path, lambda url, asset: None, verify_notes=lambda url, text: None)
     assert json.loads(store.objects["updates/stable.json"][0])["summary"] == notes
 
 

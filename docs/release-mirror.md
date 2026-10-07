@@ -8,8 +8,8 @@
 2. 在桶的 **Settings → Custom Domains** 绑定自定义域名。域名对应的 zone 需在同一 Cloudflare 账户；以下用 `https://HOST` 表示你的完整 HTTPS 下载入口。等待域名状态正常，不使用 `r2.dev` 作为生产入口。
 3. 创建 R2 API Token，权限选择 **Object Read & Write**，限制为该桶。保存生成的 **Access Key ID** 和 **Secret Access Key**，不是普通 Cloudflare API Token 字符串。
 4. 为下载域名配置 Cache Rules：
-   - `/updates/*`：**Bypass cache**。
-   - `/releases/*`：**Eligible for cache**，遵循对象的 `Cache-Control`，不要设置覆盖源站的长期错误响应缓存。
+   - `/updates/*`、`/latest/*`、`/releases/*/changelog.md`：**Bypass cache**。
+   - `/releases/*.exe`、`/releases/*.zip`：**Eligible for cache**，遵循对象的 `Cache-Control`，不要设置长期错误响应缓存。
 5. 保持更新入口匿名可访问。该域名不使用登录验证、浏览器挑战或要求 Referer 的防盗链；桌面客户端不需要 CORS 配置。
 
 桶根地址不列出文件，根路径返回 404 不代表配置失败。首次上传后检查 `/updates/stable.json` 和具体产物地址。
@@ -37,21 +37,41 @@
 - 正式 tag 使用 `v主版本.次版本.修订号`，也支持第四段数字和 `+构建标识`；每段数字为 0—65534。CI 将相同的数字版本写入程序集和安装器，构建标识不参与版本排序。预发布 tag 不属于该 CI 的正式发布格式。
 - 发布 tag 使用 annotated tag（可签名），注释保存基于实际变更梳理并确认的中文 Markdown 更新日志；可通过 [create-tag 技能](../.agents/skills/create-tag/SKILL.md) 完成。CI 使用 `--notes-from-tag` 将注释作为 Release 正文，再同步到 R2 清单的 `summary`，不使用 GitHub 自动生成说明。轻量 tag 会回退使用提交信息，不用于此日志流程。
 - 推送正式 tag 后，CI 发布 GitHub Release，随后调用 [R2 镜像工作流](../.github/workflows/r2-mirror.yml)。它通过 GitHub CLI 下载已发布产物，再使用 [AWS CLI / S3 API](https://developers.cloudflare.com/r2/examples/aws/aws-cli/) 上传。
-- 镜像失败时，GitHub Release 保留。修复配置后，在 Actions 重跑失败任务，或手动运行 **Mirror release to R2**，填写已发布的 tag；无需重建或重新创建 Release。草稿、预发布 Release 不更新稳定通道。
-- 不同 tag 的镜像任务按桶串行运行；旧版本补传不会回退最新清单。同一版本的产物保持不可变，内容不同需使用新 tag，不覆盖已有对象。
-- 工作流只上传两个发行文件和清单，不自动删除历史产物。
+- 镜像失败时，GitHub Release 保留。修复配置后，在 Actions 重跑失败任务，或手动运行 **Mirror release to R2**，填写已发布的 tag，保持 `backfill_notes` 关闭；无需重建或重新创建 Release。草稿、预发布 Release 不更新稳定通道。
+- 不同 tag 的镜像任务按桶串行运行；旧版本补传只扩展日志列表，不回退目标版本或覆盖 `latest/`。同一版本的安装包保持不可变，内容不同需使用新 tag；日志允许根据 Release 正文重新同步更正。
+- 正常发布先上传并验证版本化安装包和日志，再覆盖并验证 `latest/`，最后发布稳定清单。不自动删除历史产物。
 
 对象布局：
 
 ```text
 releases/<tag>/T7-Rekindle-<tag>-Setup.exe
 releases/<tag>/T7-Rekindle-windows-x64-<tag>.zip
+releases/<tag>/changelog.md
+latest/T7-Rekindle-Setup.exe
+latest/T7-Rekindle-windows-x64.zip
+latest/changelog.md
 updates/stable.json
 ```
 
-两个文件均通过自定义域名下载验证大小和 SHA-256 后，才发布清单。版本文件使用 `public, max-age=31536000, immutable`；清单使用 `no-store`。
+版本化安装包和 `latest/` 安装包均通过自定义域名验证大小和 SHA-256，日志验证 UTF-8 正文一致后，才发布清单。版本化安装包使用 `public, max-age=31536000, immutable`；清单、日志和 `latest/` 使用 `no-store`。
 
-清单协议为 `schemaVersion: 1`，包含字符串 `version`、`summary`，以及 `installer`、`portable` 两个对象。每个对象包含 HTTPS `url`、正整数字节数 `size`、64 位十六进制 `sha256`。`version` 保留原始 tag，`summary` 来自 GitHub Release 正文。
+清单协议保持 `schemaVersion: 1`，包含字符串 `version`、`summary`，以及 `installer`、`portable` 两个对象。每个对象包含 HTTPS `url`、正整数字节数 `size`、64 位十六进制 `sha256`。顶层字段仍描述最新可安装版本，下载地址仍指向版本化目录，旧客户端可继续使用。
+
+新增 `versions` 字符串数组，例如 `["v0.3.0", "v0.2.2", "v0.2.1"]`，保留原始 tag，去重后按数字版本降序排列。每条日志位于对应目录的 `changelog.md`，保存 GitHub Release 正文；顶层 `summary` 仍是目标版本的单版说明。
+
+### 固定下载入口
+
+网站和分享链接可使用 `https://HOST/latest/T7-Rekindle-Setup.exe`、`https://HOST/latest/T7-Rekindle-windows-x64.zip` 和 `https://HOST/latest/changelog.md`。发布新版或重跑当前目标版本时覆盖这三个对象；启动器继续使用版本化地址，避免更新过程中下载内容变化。
+
+`latest/` 按文件覆盖，不是整目录原子切换。发布中或失败后可能暂时混合版本；失败不会提交新稳定清单，重跑同一版本可修复。此入口不提供目录浏览页。
+
+### 补齐历史日志
+
+部署新发布流程和缓存规则后，先重跑当前最新正式版镜像，初始化固定入口；再手动运行 **Mirror release to R2**，清空 `tag` 并开启 `backfill_notes`。两种模式互斥。
+
+日志补齐要求已有有效稳定清单，分页读取 GitHub Releases，仅同步不高于镜像目标版本的正式版日志，不下载或重传安装包。全部日志验证成功后合并版本列表；目标版本日志更正也同步到顶层 `summary` 和 `latest/changelog.md`。空正文保留版本记录，不将草稿、预发布或格式不支持的 tag 加入列表。
+
+本地配置与工作流相同的环境变量后，可运行 `python scripts/mirror_release.py --backfill-notes`；此模式要求 `RELEASE_TAG` 为空。补齐完成并核对固定入口和版本列表后，再发布支持日志汇总的新客户端。
 
 ## 4. 启动器行为
 
@@ -75,5 +95,6 @@ updates/stable.json
 3. 模拟 R2 故障，确认 GitHub 备用源保持同版本、进度和取消功能。
 4. 测试取消下载、关闭弹窗、校验错误及安装前拒绝退出；均不运行未确认的安装包。
 5. 在国内实际网络测试域名、更新清单和安装包；海外 CI 探测只验证发布链路。
+6. 发布新版后检查三个固定入口的内容和缓存头；补传旧版后确认固定入口及顶层目标版本没有回退。
 
 R2 Standard 当前每月包含 10 GB-month 存储、100 万次 Class A、1,000 万次 Class B 免费用量，直接出站流量免费；超额按量计费。免费额度不是消费硬上限，定期检查用量和账户可用的通知设置。长期保留产物会持续累计存储占用。具体以 [R2 价格页](https://developers.cloudflare.com/r2/pricing/) 为准。

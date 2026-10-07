@@ -14,9 +14,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing stable GitHub Release tag
-        required: true
+        description: Existing stable GitHub Release tag (leave empty when backfilling notes)
+        required: false
         type: string
+      backfill_notes:
+        description: Backfill release notes only, without uploading installers
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -33,6 +38,7 @@ jobs:
     env:
       PYTHONUTF8: "1"
       RELEASE_TAG: ${{ inputs.tag }}
+      BACKFILL_NOTES: ${{ inputs.backfill_notes }}
       GH_TOKEN: ${{ github.token }}
       R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
       R2_BUCKET: ${{ vars.R2_BUCKET }}
@@ -59,4 +65,9 @@ jobs:
 
       - name: Mirror and verify release
         shell: pwsh
-        run: python scripts/mirror_release.py
+        run: |
+          if ($env:BACKFILL_NOTES -eq 'true') {
+            python scripts/mirror_release.py --backfill-notes
+          } else {
+            python scripts/mirror_release.py
+          }
