@@ -2,6 +2,11 @@
 
 # 铁骑·重燃（T7-Rekindle）
 
+[![CI](https://github.com/liaolivia72757317/t7-rekindle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/liaolivia72757317/t7-rekindle/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![Platform: Windows x64](https://img.shields.io/badge/Platform-Windows%20x64-0078D4)](#使用启动器)
+[![Status: 开发中](https://img.shields.io/badge/Status-%E5%BC%80%E5%8F%91%E4%B8%AD-orange)](#当前状态)
+
 铁骑·重燃是一个独立开源项目，目标是重新实现《刀锋铁骑》的服务端，让玩家通过原版客户端重回熟悉的战场。我们希望先完成本地人机对战，再逐步支持局域网联机。
 
 项目不以营利为目的，欢迎开发者和玩家一起参与。
