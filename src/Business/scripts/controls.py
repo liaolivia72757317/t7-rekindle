@@ -822,6 +822,50 @@ def ccMoveMirrorEnabled() -> bool:
     return _moveIniFlag("cc_move_mirror", True)
 
 
+def ccStopFrameEnabled() -> bool:
+    """松手那一拍补发的「停」帧开关（2026-10-07 第四十四轮）。默认 on = 现状不变。
+
+    实机证据（会话 21:56 那局）：这一帧是 ``input_sync=on`` 之后**唯一**还在写
+    客户端位置的帧 —— 那一局发了 26 条，紧挨着它客户端上报的位置横跳 12 次
+    （−5.1 m / −6.2 m / 13.4 m）。发的是账本值：客户端上报之间账本不推进，
+    所以这一帧等于把它**拽回最多一个上报间隔前**的点。
+    关掉 = 松手时服务端一个字都不发，移动完全交给客户端。
+
+    旋钮：``[move] cc_stop_frame`` / 环境变量 ``T7_CC_STOP_FRAME``。
+    """
+    override = os.environ.get("T7_CC_STOP_FRAME")
+    if override == "0":
+        return False
+    if override == "1":
+        return True
+    return _moveIniFlag("cc_stop_frame", True)
+
+
+def ccActionFrameEnabled() -> bool:
+    """跳跃/下蹲那两条**带位置**的动作帧（55、39，以及顺带的坐骑帧）开关（第四十四轮）。
+
+    实机证据（会话 22:19–22:24 那局，5 分钟）：``cc_stop_frame=off`` 之后，唯一还在
+    把位置写回客户端的就是这几条 —— 55 号 84 条、39 号 56+104 条、坐骑 17 条。
+    一次起跳落地就发 **3 条**（落地沿 + 定时器补的两拍，间隔 200 ms），每条都带
+    ``position``（外推值）和 ``direction_yaw``（账本朝向）⇒ 客户端被按回一个
+    最多 350 ms 前、朝向也可能旧了的点 ⇒ 表现就是「走一下退一下 / W 变后退」。
+    纯走路（不碰空格、不碰 CTRL/T）时日志里一条都不发 —— 与该判断一致。
+
+    ``off`` = **只保留** sel=54 滞空闸门（8 字节、不带位置，治「按住空格一直升」
+    靠的就是它），55/39/坐骑帧一条不发。本地人物的蹲/跳动画由客户端自己的按键驱动；
+    代价是**别人**看不到你的蹲/跳（要多人时再打开）。
+    ``on``（默认）= 现状逐字节不变。
+
+    旋钮：``[move] cc_action_frame`` / 环境变量 ``T7_CC_ACTION_FRAME``。
+    """
+    override = os.environ.get("T7_CC_ACTION_FRAME")
+    if override == "0":
+        return False
+    if override == "1":
+        return True
+    return _moveIniFlag("cc_action_frame", True)
+
+
 def footAxisMode() -> str:
     """客户端权威下**步兵** MOVE_BC 的 ``forward_back`` / ``left_right`` 符号（第四十二轮）。
 
@@ -2650,7 +2694,11 @@ def _notifyCrouch(flow, ground, crouched: bool) -> None:
     客户端权威下改用 sel=39 独立广播；取值沿用老版实测：
     ``squat``=1/0，``squat_animation``=SQUAT(1)/END_SQUAT(2)。
     姿态取静止档（下蹲起手瞬间位移未定，不与移动广播打架）。
+
+    客户端权威下带 ``position`` ⇒ 同 55 号一样会被 ``[move] cc_action_frame=off`` 关掉。
     """
+    if runtimeMovement(flow) and not ccActionFrameEnabled():
+        return
     position = clientAuthorityPosition(flow, ground)
     tick = nextGroundTick(flow)
     body = move_flow.encode_move_bc_with_special_animation(
@@ -2693,7 +2741,11 @@ def _mirrorStop(flow, ground) -> None:
     位置取**账本值**、不外推：客户端报「全松开」时它已经站住了，账本值就是真值
     （外推反而会把它往前送一截）。账本还没有位置时直接不发 —— 绝不能拿
     ``wire.POSITION``（出生点）去发 STOP，那正是「把人拽回出生点」的成因。
+
+    旋钮：``[move] cc_stop_frame`` / 环境变量 ``T7_CC_STOP_FRAME``（默认 on）。
     """
+    if not ccStopFrameEnabled():
+        return
     if ground.get("position") is None:
         return
     position = clientAuthorityPosition(flow, ground, extrapolate=False)
@@ -2939,8 +2991,13 @@ def notifyJump(flow, *, jump: int, jump_animation: int, special_animation: bool)
 
     只在起跳/落地两个边沿附带 sel=39，滞空期间只发 sel=55，避免每 50ms 两条
     重复的位置广播。若实机证明客户端只消费 sel=39，把它改成每步都发即可。
+
+    客户端权威下可用 ``[move] cc_action_frame=off`` 整条闭嘴（见其文档；
+    服务端权威路径不受该旋钮影响）。
     """
     ground = groundState(flow)
+    if runtimeMovement(flow) and not ccActionFrameEnabled():
+        return
     position = clientAuthorityPosition(flow, ground)
     state, wire_lr, wire_fb = _jumpAxes(flow, ground)
     moving = state not in (move_flow.MOVE_GROUND_STATE_STOP,
