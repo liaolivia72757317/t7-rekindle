@@ -282,7 +282,16 @@ def sendVisionObject(flow, mid):
 
 def begin(flow):
     flow.send(0x2C, flow.syncBody(), "instance-sync-login-rsp-after-auth")
-    flow.send(0xA, wire.instanceInfo(flow.now), "instance-minimal-update-after-auth")
+    # 实例起点分**两个钟**，别混：
+    #   ``instanceEpochMs``   —— epoch 毫秒，只喂线上字段 ``instance_start_time_ms``。
+    #                            整局落一次（``setdefault``，重进图也保持第一次那个），
+    #                            之后刷新复用同一个值 ⇒ 起点不会被推走。
+    #   ``instanceStartedAt`` —— 单调时钟（``flow.now``），只用于本地差值
+    #                            （``initializeBattleState`` / ``controls``）。
+    #                            它是原生层单调时钟，发到线上客户端会算出 1970。
+    flow.session.setdefault("instanceEpochMs", wire.serverNowMs())
+    flow.send(0xA, wire.instanceInfo(flow.now, flow.session["instanceEpochMs"]),
+              "instance-minimal-update-after-auth")
     flow.session["instanceStartedAt"] = flow.now
     # 同时打上 movable 时钟标记，让 controls 的 ``validMoveClock`` /
     # ``nextGroundTick`` 走「进图起递增毫秒」口径（与上游同款）。
@@ -585,7 +594,9 @@ def message(flow, command, selector, body):
         return False
     flow.session.setdefault("camp", 1)
     if command == 0xA and selector == 0x6A:
-        flow.send(0xA, wire.instanceInfo(flow.now, flow.session.get("instanceStartedAt")),
+        # 刷新实例信息：起点取 ``begin()`` 落的 epoch，**不是** now，
+        # 否则每次刷新都会把本局起点重置成当前时间。
+        flow.send(0xA, wire.instanceInfo(flow.now, flow.session.get("instanceEpochMs")),
                   "instance-update-request")
     elif command == 0xA and selector == 0xB:
         placeholder = room_flow.decode_instance_choose_hero_request(body)
