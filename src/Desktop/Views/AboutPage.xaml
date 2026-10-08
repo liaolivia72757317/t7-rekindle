@@ -61,7 +61,7 @@
               <StackPanel>
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition Width="44" /><ColumnDefinition Width="*" /><ColumnDefinition Width="16" /></Grid.ColumnDefinitions>
-                  <Border Width="44" Height="44" CornerRadius="6" Background="{DynamicResource AccentSoftBrush}">
+                  <Border Width="44" Height="44" CornerRadius="6">
                     <views:Icon Kind="download" Width="24" Height="24" />
                   </Border>
                   <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
