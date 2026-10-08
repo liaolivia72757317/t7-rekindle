@@ -43,6 +43,16 @@ bool verifyClientAdaptation() {
         require(plan.size() == 16, "main adaptation coverage");
         for (const auto& patch : plan) std::copy(patch.expected.begin(), patch.expected.end(), client.begin() + patch.rva);
         t7::applyMemoryPatches(client, plan);
+        const auto startup = std::find_if(plan.begin(), plan.end(), [](const auto& patch) { return patch.rva == 0x890B1; });
+        require(startup != plan.end(), "startup initialization adaptation missing");
+        const t7::Bytes dialogCall{0xFF,0x15,0x90,0x6A,0xAF,0x01};
+        require(std::search(startup->replacement.begin(), startup->replacement.end(), dialogCall.begin(), dialogCall.end())
+                    == startup->replacement.end(), "startup still depends on an ANSI dialog");
+        require(std::equal(startup->expected.begin(), startup->expected.begin() + 9, startup->replacement.begin()),
+                "successful startup initialization branch changed");
+        const t7::Bytes returned{0xB0,0x01,0x5E,0xC3};
+        require(std::equal(returned.begin(), returned.end(), startup->replacement.begin() + 9),
+                "startup failure branch must return success without dialog arguments on the stack");
         require(std::equal(nodeName.begin(), nodeName.end(), client.begin() + 0x2000), "behavior-tree name was scrubbed");
         std::cout << "Client memory patch atomicity and baseline rejection cases passed\n";
         return true;

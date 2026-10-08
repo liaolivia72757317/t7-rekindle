@@ -27,6 +27,7 @@
     <ClCompile Include="../../src/Runtime/core/DiagnosticLog.cpp" />
     <ClCompile Include="../../src/Runtime/core/Protocol.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/Bootstrap.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/StartupGate.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/EndpointStorage.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/Ap32.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/ClientCode.cpp" />

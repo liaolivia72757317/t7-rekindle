@@ -13,7 +13,7 @@ namespace {
 const char* CLIENT_HASH = "3c205c7efaf1956bc2c458b1073e5273a9fef29e3e5ee18418f93f418eeaa5c8";
 const char* PROTOCOL_HASH = "432ea9dd64d7b90af5fed323e52ce33d0a035a3b13cf4ac75a050f0611776d18";
 const char* WEB_HELPER_HASH = "6d6232bddd6374abdcda65c726b5ecb007bd410dca04e125097d2b59449b0b47";
-constexpr uintptr_t SERVICE_RVA = 0x024396CC, VTABLE_RVA = 0x01734E64;
+constexpr uintptr_t SERVICE_RVA = StartupGate::SERVICE_RVA, VTABLE_RVA = StartupGate::VTABLE_RVA;
 std::string hexValue(uintptr_t value) {
     std::ostringstream out; out << "0x" << std::hex << std::uppercase << value; return out.str();
 }
@@ -57,13 +57,6 @@ void write(HANDLE process, uintptr_t address, const void* source, size_t size) {
     }
     if (actual != size) throw std::runtime_error("short process write at " + hexValue(address));
 }
-struct Prompt { DWORD pid; HWND window; };
-BOOL CALLBACK findPrompt(HWND window, LPARAM argument) {
-    auto search = reinterpret_cast<Prompt*>(argument); DWORD pid = 0; GetWindowThreadProcessId(window, &pid);
-    wchar_t text[128]{}; GetWindowTextW(window, text, 128);
-    if (pid == search->pid && IsWindowVisible(window) && !wcscmp(text, L"提示")) { search->window = window; return FALSE; }
-    return TRUE;
-}
 void verifyGraphics() {
     auto d3d = Direct3DCreate9(D3D_SDK_VERSION);
     if (!d3d) throw std::runtime_error("host D3D9 unavailable");
@@ -71,11 +64,12 @@ void verifyGraphics() {
     if (FAILED(hr) || caps.PixelShaderVersion < D3DPS_VERSION(3,0) || caps.VertexShaderVersion < D3DVS_VERSION(3,0))
         throw std::runtime_error("host D3D9 capability gate failed");
 }
-void inject(HANDLE process, uintptr_t base, const Config& config, const std::function<void(std::string)>& log) {
+void inject(HANDLE process, uintptr_t base, uint32_t expectedObject,
+            const Config& config, const std::function<void(std::string)>& log) {
     SuspendedProcess suspended(process);
     uint32_t object = 0, vtable = 0, fields[3]{}, servers[3]{}, selectorSalt = 0;
     read(process, base + SERVICE_RVA, &object, 4);
-    if (!object) throw std::runtime_error("NetworkService not initialized");
+    if (!object || object != expectedObject) throw std::runtime_error("endpoint owner changed before allocation");
     read(process, object, &vtable, 4);
     if (vtable != base + VTABLE_RVA) throw std::runtime_error("NetworkService vtable mismatch");
     read(process, object + 0x8C, fields, sizeof(fields)); read(process, object + 0x78, servers, sizeof(servers));
@@ -222,31 +216,37 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const st
             const auto module = findMappedImageBase(process, executable);
             if (module.base != base) throw std::runtime_error("client mapped image identity mismatch before preparation");
             installClientImage(process, thread, image, cancelled);
+            startupGate_.install(process, static_cast<uint32_t>(base));
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
             if (log) log("Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
         }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH}},
-        [this](DWORD threadId, uintptr_t address) { return movementOverlay_.handleBreakpoint(threadId, address); }, warning);
+        [this](DWORD threadId, uintptr_t address) {
+            return startupGate_.handleBreakpoint(threadId, address) || movementOverlay_.handleBreakpoint(threadId, address);
+        }, warning);
         process_ = debugClient_->process(); pid_ = debugClient_->pid();
-        if (log) log("Prepared owned client PID=" + std::to_string(pid_) + "; waiting for network object");
+        if (log) log("Prepared owned client PID=" + std::to_string(pid_) + "; waiting for startup gate");
         auto deadline = GetTickCount64() + 60000;
-        Prompt prompt{pid_, nullptr}; bool ready = false;
+        uint32_t object = 0;
         while (running() && GetTickCount64() < deadline) {
             if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
-            EnumWindows(findPrompt, reinterpret_cast<LPARAM>(&prompt)); uint32_t object = 0; SIZE_T actual = 0;
-            if (prompt.window && ReadProcessMemory(process_, reinterpret_cast<void*>(base + SERVICE_RVA), &object, 4, &actual) && actual == 4 && object) { ready = true; break; }
+            object = startupGate_.object();
+            if (object) break;
             Sleep(50);
         }
-        if (!ready) {
+        if (!object) {
             DWORD exitCode = 0;
             auto state = WaitForSingleObject(process_, 0);
             if (state == WAIT_OBJECT_0 && GetExitCodeProcess(process_, &exitCode))
-                throw std::runtime_error("client exited before network readiness; exitCode=" + hexValue(exitCode));
-            throw std::runtime_error("startup prompt/network readiness failed; promptPresent=" + std::to_string(prompt.window != nullptr));
+                throw std::runtime_error("client exited before startup gate; exitCode=" + hexValue(exitCode));
+            throw std::runtime_error("startup gate readiness timed out");
         }
-        if (log) log("Network object ready; beginning endpoint injection");
-        inject(process_, base, config, log);
-        if (!PostMessageW(prompt.window, WM_KEYDOWN, VK_RETURN, 1) || !PostMessageW(prompt.window, WM_KEYUP, VK_RETURN, 1))
-            throw std::runtime_error("target prompt input failed");
+        if (log) log("Startup gate reached; beginning endpoint injection");
+        inject(process_, base, object, config, log);
+        debugClient_->check();
+        if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
+        if (log) log("Endpoint publication verified; releasing startup gate");
+        startupGate_.release();
+        if (log) log("Startup gate released; server selection may continue");
         if (log) log("Endpoints verified; waiting for the game to connect to the configured server");
     } catch (...) { cleanupAndRethrow(std::current_exception(), [this] { stop(); }); }
 }
@@ -261,12 +261,17 @@ void Bootstrap::stop() {
         try { debugClient_->stop(); }
         catch (const std::exception& error) { cleanupError = error.what(); }
     }
+    try { startupGate_.clear(); }
+    catch (const std::exception& error) {
+        if (!cleanupError.empty()) cleanupError += "; ";
+        cleanupError += error.what();
+    }
     try { movementOverlay_.rollback(); }
     catch (const std::exception& error) {
         if (!cleanupError.empty()) cleanupError += "; ";
         cleanupError += error.what();
     }
-    debugClient_.reset(); process_ = nullptr; pid_ = 0;
     if (!cleanupError.empty()) throw std::runtime_error(cleanupError);
+    debugClient_.reset(); process_ = nullptr; pid_ = 0;
 }
 }

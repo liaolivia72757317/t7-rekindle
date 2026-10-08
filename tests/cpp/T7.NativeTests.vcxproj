@@ -26,6 +26,9 @@
     <ClCompile Include="InputMethodDebugTests.cpp" />
     <ClCompile Include="..\..\src\Runtime\launcher\InputMethodRegistry.cpp" />
     <ClCompile Include="EndpointStorageTests.cpp" />
+    <ClCompile Include="StartupGateTests.cpp" />
+    <ClCompile Include="StartupGateFixture.cpp" />
+    <ClCompile Include="..\..\src\Runtime\launcher\StartupGate.cpp" />
     <ClCompile Include="..\..\src\Runtime\launcher\EndpointStorage.cpp" />
     <ClCompile Include="MovementResourcesTests.cpp" />
     <ClCompile Include="StartupAnimationTests.cpp" />

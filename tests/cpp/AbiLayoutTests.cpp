@@ -14,6 +14,7 @@ bool verifyDebugClient();
 bool verifyInputMethodRegistry();
 bool verifyInputMethodDebugClient();
 bool verifyEndpointStorage();
+bool verifyStartupGate();
 bool verifyMovementResources();
 bool verifyStartupAnimation();
 int runDebugClientFixture();
@@ -48,5 +49,5 @@ int main() {
     return verifyModuleLookup() && verifyAp32() && verifyClientCode() && verifyClientImports()
         && verifyClientAdaptation() && verifyCameraInput() && verifyRemoteImage() && verifyInputMethodRegistry() && verifyInputMethodDebugClient()
         && verifyDebugClient() && verifyMovementResources()
-        && verifyStartupAnimation() && verifyEndpointStorage() ? 0 : 1;
+        && verifyStartupAnimation() && verifyEndpointStorage() && verifyStartupGate() ? 0 : 1;
 }

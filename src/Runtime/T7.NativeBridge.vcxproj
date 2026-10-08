@@ -37,6 +37,7 @@
     <ClCompile Include="core\DiagnosticLog.cpp" />
     <ClCompile Include="core\Protocol.cpp" />
     <ClCompile Include="launcher\Bootstrap.cpp" />
+    <ClCompile Include="launcher\StartupGate.cpp" />
     <ClCompile Include="launcher\EndpointStorage.cpp" />
     <ClCompile Include="launcher\Ap32.cpp" />
     <ClCompile Include="launcher\ClientCode.cpp" />
@@ -63,6 +64,7 @@
     <ClInclude Include="core\PlayerName.h" />
     <ClInclude Include="core\Protocol.h" />
     <ClInclude Include="launcher\Bootstrap.h" />
+    <ClInclude Include="launcher\StartupGate.h" />
     <ClInclude Include="launcher\Ap32.h" />
     <ClInclude Include="launcher\ClientCode.h" />
     <ClInclude Include="launcher\ClientImports.h" />

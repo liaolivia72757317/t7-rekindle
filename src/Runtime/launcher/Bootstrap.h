@@ -2,6 +2,7 @@
 #include "../core/Common.h"
 #include "MovementOverlay.h"
 #include "DebugClient.h"
+#include "StartupGate.h"
 #include <functional>
 #include <memory>
 namespace t7 {
@@ -31,6 +32,7 @@ private:
     std::unique_ptr<DebugClient> debugClient_;
     DWORD pid_ = 0;
     MovementOverlay movementOverlay_;
+    StartupGate startupGate_;
     TestAdapter testAdapter_;
     bool testRunning_ = false;
 };
