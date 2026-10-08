@@ -17,6 +17,9 @@ bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, boo
 bool verifyOperationPublication(const t7::fs::path& packageRoot, uint32_t expectedStatus);
 bool verifyMovementOverlay();
 bool verifyMovementHookExecution();
+bool verifyGraphicsHookExecution();
+bool verifyGraphicsSession(const t7::fs::path& packageRoot);
+bool verifyAudioSession(const t7::fs::path& packageRoot);
 
 namespace {
 bool verifyJobAssignmentOrder() {
@@ -406,6 +409,8 @@ int wmain(int argc, wchar_t** argv) {
         // Exercise the same Session assembly used by the C ABI while keeping
         // the fake client adapter confined to this native test host.
         if (!verifySessionAssembly(t7::fs::path(argv[1]))) result = 23;
+        if (!verifyGraphicsSession(t7::fs::path(argv[1]))) result = 38;
+        if (!verifyAudioSession(t7::fs::path(argv[1]))) result = 39;
         if (!verifyJournalContracts(t7::fs::path(argv[1]))) result = 25;
         if (!verifyDiagnosticLogs(t7::fs::path(argv[1]))) result = 37;
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 0, true)) result = 28;
@@ -418,7 +423,7 @@ int wmain(int argc, wchar_t** argv) {
         if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_FAILED)) result = 33;
         if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_CANCELLED)) result = 34;
         if (!verifyMovementOverlay()) result = 35;
-        if (!verifyMovementHookExecution()) result = 36;
+        if (!verifyGraphicsHookExecution() || !verifyMovementHookExecution()) result = 36;
 
         // Journal writes are bounded and flushed on destruction without
         // exposing a second product process.  This is the disk-side contract

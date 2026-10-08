@@ -9,6 +9,9 @@ namespace T7.ManagedHarness
 {
     internal sealed class FakeLauncherBridge : INativeBridge
     {
+        public Guid OutputDevice { get; private set; }
+        public int OutputDeviceSetCount { get; private set; }
+        public void SetOutputDevice(Guid identifier) { OutputDevice = identifier; OutputDeviceSetCount++; }
         public SessionSnapshot Snapshot { get; set; } = new SessionSnapshot { State = SessionState.Idle, CleanupComplete = true };
         public bool HoldStart { get; set; }
         public string Failure { get; set; }
@@ -72,6 +75,30 @@ namespace T7.ManagedHarness
             return Task.FromResult(new OperationSnapshot { Status = OperationStatus.Succeeded });
         }
         public SessionSnapshot GetSnapshot() => Snapshot;
+        public GraphicsSettingsSnapshot Graphics { get; set; } = new GraphicsSettingsSnapshot(0, GraphicsSyncState.Unavailable, null);
+        public int GraphicsApplyCount { get; private set; }
+        public GraphicsSettingsValues AppliedGraphics { get; private set; }
+        public ulong AppliedGraphicsRevision { get; private set; }
+        public Exception GraphicsError { get; set; }
+        public GraphicsSettingsSnapshot GetGraphicsSettings() => Graphics;
+        public void ApplyGraphicsSettings(ulong revision, GraphicsSettingsValues values)
+        {
+            if (GraphicsError != null) throw GraphicsError;
+            GraphicsApplyCount++; AppliedGraphics = values; AppliedGraphicsRevision = revision;
+            Graphics = new GraphicsSettingsSnapshot(revision, GraphicsSyncState.Applying, Graphics.Values);
+        }
+        public AudioSettingsSnapshot Audio { get; set; } = new AudioSettingsSnapshot(0, AudioSyncState.Unavailable, null);
+        public int AudioApplyCount { get; private set; }
+        public AudioSettingsValues AppliedAudio { get; private set; }
+        public ulong AppliedAudioRevision { get; private set; }
+        public Exception AudioError { get; set; }
+        public AudioSettingsSnapshot GetAudioSettings() => Audio;
+        public void ApplyAudioSettings(ulong revision, AudioSettingsValues values)
+        {
+            if (AudioError != null) throw AudioError;
+            AudioApplyCount++; AppliedAudio = values; AppliedAudioRevision = revision;
+            Audio = new AudioSettingsSnapshot(revision, AudioSyncState.Applying, Audio.Values);
+        }
         public LogReadResult ReadLogRecords(ref ulong cursor)
         {
             var records = new List<LogRecord>();

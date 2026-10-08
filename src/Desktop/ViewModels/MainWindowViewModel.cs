@@ -53,13 +53,20 @@ namespace T7.Rekindle.Desktop.ViewModels
             Func<string, CancellationToken, Task<ClientDirectoryResult>> locateDirectory = null,
             Func<Task<LauncherUpdateInfo>> checkUpdate = null,
             Func<LauncherUpdateInfo, UpdateDownloadViewModel> createUpdateDownload = null,
-            Func<UpdateChannel, Task<LauncherUpdateInfo>> checkChannelUpdate = null)
+            Func<UpdateChannel, Task<LauncherUpdateInfo>> checkChannelUpdate = null,
+            Func<string, bool> isClientRunning = null,
+            Func<IReadOnlyList<string>> readGraphicsResolutions = null,
+            Func<IReadOnlyList<OutputDeviceOption>> readOutputDevices = null,
+            Func<Guid, IReadOnlyList<string>> readOutputDeviceResolutions = null)
         {
             _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _inspectDirectory = inspectDirectory;
             _locateDirectory = locateDirectory ?? ((path, token) => Task.Run(() => ClientDirectoryService.Locate(path, token), token));
             _interaction = interaction;
+            _isClientRunning = isClientRunning ?? GameSettingsFileService.IsClientRunning;
+            _readGraphicsResolutions = readOutputDeviceResolutions ?? (readGraphicsResolutions == null
+                ? new Func<Guid, IReadOnlyList<string>>(Direct3DEnvironment.ReadResolutions) : _ => readGraphicsResolutions());
             var loaded = initial ?? new UserSettings();
             _clientDirectory = loaded.ClientDirectory;
             _playerName = loaded.PlayerName;
@@ -71,6 +78,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             _minimizeToTray = loaded.MinimizeToTray;
             _startWithWindows = loaded.StartWithWindows;
             _skipStartupAnimation = loaded.SkipStartupAnimation;
+            var outputDevice = ParseOutputDevice(loaded.OutputDeviceId);
+            _selectedOutputDeviceId = outputDevice == Guid.Empty ? string.Empty : outputDevice.ToString("D");
             _updateChannel = settings.LoadUpdateChannel(out var channelWarning);
             _preferenceError = channelWarning;
             _settingsFeedback = string.Empty;
@@ -100,6 +109,9 @@ namespace T7.Rekindle.Desktop.ViewModels
             ShowDiagnosticsCommand = new RelayCommand(ShowDiagnostics);
             ShowAnnouncementCommand = new RelayCommand(ShowAnnouncement);
             CopyDirectoryCommand = new RelayCommand(CopyDirectory);
+            InitializeGraphics();
+            InitializeOutputDevices(readOutputDevices ?? Direct3DEnvironment.ReadOutputDevices);
+            InitializeAudio();
             var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
             _poller = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background,
                 (_, __) => Poll(), dispatcher);
@@ -299,6 +311,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             MinimizeToTray = _minimizeToTray,
             StartWithWindows = _startWithWindows,
             SkipStartupAnimation = _skipStartupAnimation,
+            OutputDeviceId = _selectedOutputDeviceId,
             UpdateChannel = _updateChannel == UpdateChannel.Preview ? "preview" : "stable",
             WindowWidth = _windowWidth,
             WindowHeight = _windowHeight

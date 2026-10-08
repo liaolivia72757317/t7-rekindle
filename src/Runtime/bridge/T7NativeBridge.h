@@ -70,6 +70,37 @@ enum T7NativeSessionState : uint32_t {
 };
 
 #pragma pack(push, 8)
+enum T7NativeAudioState : uint32_t {
+    T7NB_AUDIO_UNAVAILABLE = 0, T7NB_AUDIO_READY = 1, T7NB_AUDIO_APPLYING = 2,
+    T7NB_AUDIO_FAILED = 3, T7NB_AUDIO_CONFLICT = 4
+};
+typedef struct T7NativeAudioValues {
+    uint32_t musicMuted;
+    float musicVolume;
+    uint32_t effectsMuted;
+    float effectsVolume;
+} T7NativeAudioValues;
+typedef struct T7NativeAudioSnapshot {
+    uint32_t abiVersion, structSize;
+    uint64_t revision;
+    uint32_t state;
+    T7NativeAudioValues values;
+    uint32_t reserved;
+} T7NativeAudioSnapshot;
+enum T7NativeGraphicsState : uint32_t {
+    T7NB_GRAPHICS_UNAVAILABLE = 0, T7NB_GRAPHICS_READY = 1, T7NB_GRAPHICS_APPLYING = 2,
+    T7NB_GRAPHICS_FAILED = 3, T7NB_GRAPHICS_CONFLICT = 4
+};
+typedef struct T7NativeGraphicsValues {
+    uint32_t width, height, fullScreen, quality, verticalSync, fog, viewDistance, ragDoll, frameLimit, swoosh;
+} T7NativeGraphicsValues;
+typedef struct T7NativeGraphicsSnapshot {
+    uint32_t abiVersion, structSize;
+    uint64_t revision;
+    uint32_t state;
+    T7NativeGraphicsValues values;
+    uint32_t reserved;
+} T7NativeGraphicsSnapshot;
 typedef struct T7NativeStartArgs {
     uint32_t abiVersion;
     uint32_t structSize;
@@ -144,8 +175,19 @@ static_assert(sizeof(T7NativeStartOptions) == 48, "T7NativeStartOptions ABI chan
 static_assert(sizeof(T7NativeCreateArgs) == 24, "T7NativeCreateArgs ABI changed");
 static_assert(sizeof(T7NativeSnapshot) == 120, "T7NativeSnapshot ABI changed");
 static_assert(sizeof(T7NativeOperation) == 32, "T7NativeOperation ABI changed");
+static_assert(sizeof(T7NativeGraphicsSnapshot) == 64, "T7NativeGraphicsSnapshot ABI changed");
+static_assert(sizeof(T7NativeAudioSnapshot) == 40, "T7NativeAudioSnapshot ABI changed");
 
 extern "C" {
+// identifier is the 16-byte D3D9 DeviceIdentifier; all zero selects the system default.
+// Copied into subsequent Check/Start commands; does not change a running device.
+T7NB_EXPORT int32_t T7NB_CALL t7_native_set_output_device(T7NativeSessionHandle session, const uint8_t* identifier, uint32_t length);
+T7NB_EXPORT int32_t T7NB_CALL t7_native_get_audio(T7NativeSessionHandle session, T7NativeAudioSnapshot* snapshot);
+T7NB_EXPORT int32_t T7NB_CALL t7_native_apply_audio(T7NativeSessionHandle session, const T7NativeAudioSnapshot* settings);
+// Apply acknowledges a queued request. Poll until state leaves APPLYING for readback.
+// revision must match the last read; CONFLICT never overwrites newer game settings.
+T7NB_EXPORT int32_t T7NB_CALL t7_native_get_graphics(T7NativeSessionHandle session, T7NativeGraphicsSnapshot* snapshot);
+T7NB_EXPORT int32_t T7NB_CALL t7_native_apply_graphics(T7NativeSessionHandle session, const T7NativeGraphicsSnapshot* settings);
 T7NB_EXPORT int32_t T7NB_CALL t7_native_get_abi(uint32_t* version, uint32_t* snapshotSize);
 // Create starts one native lifecycle worker.  Release only requests cleanup;
 // callers must stop using the opaque handle after it returns.

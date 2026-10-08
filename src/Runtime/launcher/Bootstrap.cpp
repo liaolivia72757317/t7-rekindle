@@ -4,7 +4,6 @@
 #include "EndpointStorage.h"
 #include "ClientPath.h"
 #include "MovementOverlay.h"
-#include <d3d9.h>
 #include <sstream>
 #include <utility>
 
@@ -56,13 +55,6 @@ void write(HANDLE process, uintptr_t address, const void* source, size_t size) {
         throw std::runtime_error("WriteProcessMemory address=" + hexValue(address) + " error=" + std::to_string(error));
     }
     if (actual != size) throw std::runtime_error("short process write at " + hexValue(address));
-}
-void verifyGraphics() {
-    auto d3d = Direct3DCreate9(D3D_SDK_VERSION);
-    if (!d3d) throw std::runtime_error("host D3D9 unavailable");
-    D3DCAPS9 caps{}; auto hr = d3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &caps); d3d->Release();
-    if (FAILED(hr) || caps.PixelShaderVersion < D3DPS_VERSION(3,0) || caps.VertexShaderVersion < D3DVS_VERSION(3,0))
-        throw std::runtime_error("host D3D9 capability gate failed");
 }
 void inject(HANDLE process, uintptr_t base, uint32_t expectedObject,
             const Config& config, const std::function<void(std::string)>& log) {
@@ -184,7 +176,8 @@ void Bootstrap::check(const fs::path& directory, const Config& config, const std
         throw std::runtime_error("unsupported client/protocol baseline");
     if (fs::exists(directory / "TesSafe.sys") && log)
         log("Bin/TesSafe.sys 保持原样；客户端适配仅在本次进程内存中进行。");
-    verifyGraphics();
+    const auto device = resolveOutputDevice(config.outputDevice);
+    if (log) log("Output device preflight: " + device.name + " (adapter " + std::to_string(device.ordinal) + ")");
 }
 void Bootstrap::launch(const fs::path& directory, const Config& config, const std::function<void(std::string)>& log,
                        const std::function<bool()>& cancelled, const std::function<void()>& adapting,
@@ -200,6 +193,8 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const st
     if (process_ || debugClient_) stop();
     if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
     check(directory, config, log);
+    outputDevice_ = resolveOutputDevice(config.outputDevice);
+    outputDeviceVerified_ = !outputDevice_.selected;
     if (adapting) adapting();
     auto image = recoverClientImage(readFile(directory / "TieJiClient.exe"), cancelled);
     applyMemoryPatches(image.bytes, clientMemoryPatches(image.bytes));
@@ -211,13 +206,16 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const st
     const auto executable = (directory / "TieJiClient.exe").make_preferred();
     debugClient_ = std::make_unique<DebugClient>();
     const auto base = static_cast<uintptr_t>(image.imageBase);
+    clientImageBase_ = image.imageBase;
     try {
         debugClient_->start(executable, CLIENT_HASH, {rule}, [&](HANDLE process, HANDLE thread) {
             const auto module = findMappedImageBase(process, executable);
             if (module.base != base) throw std::runtime_error("client mapped image identity mismatch before preparation");
             installClientImage(process, thread, image, cancelled);
+            installOutputDevice(process, static_cast<uint32_t>(base), outputDevice_);
             startupGate_.install(process, static_cast<uint32_t>(base));
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
+            graphicsSettings_.install(process, static_cast<uint32_t>(base), GetThreadId(thread));
             if (log) log("Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
         }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH}},
         [this](DWORD threadId, uintptr_t address) {
@@ -271,7 +269,39 @@ void Bootstrap::stop() {
         if (!cleanupError.empty()) cleanupError += "; ";
         cleanupError += error.what();
     }
+    try { graphicsSettings_.clear(); }
+    catch (const std::exception& error) {
+        if (!cleanupError.empty()) cleanupError += "; ";
+        cleanupError += error.what();
+    }
     if (!cleanupError.empty()) throw std::runtime_error(cleanupError);
     debugClient_.reset(); process_ = nullptr; pid_ = 0;
+}
+bool Bootstrap::pollGraphics(GraphicsValues& values, uint32_t& result, bool& applied) {
+    if (testAdapter_.launch) return testAdapter_.pollGraphics && testAdapter_.pollGraphics(values, result, applied);
+    const auto completed = graphicsSettings_.poll(values, result, applied);
+    if (completed && result != 0 && !outputDeviceVerified_) {
+        verifyOutputDevice(process_, clientImageBase_, outputDevice_);
+        outputDeviceVerified_ = true;
+    }
+    return completed;
+}
+void Bootstrap::applyGraphics(const GraphicsValues& values) {
+    if (testAdapter_.launch) {
+        if (!testAdapter_.applyGraphics) throw std::runtime_error("test graphics adapter unavailable");
+        testAdapter_.applyGraphics(values); return;
+    }
+    graphicsSettings_.apply(values);
+}
+bool Bootstrap::pollAudio(AudioValues& values, uint32_t& result, bool& applied) {
+    if (testAdapter_.launch) return testAdapter_.pollAudio && testAdapter_.pollAudio(values, result, applied);
+    return graphicsSettings_.audio().poll(values, result, applied);
+}
+void Bootstrap::applyAudio(const AudioValues& values) {
+    if (testAdapter_.launch) {
+        if (!testAdapter_.applyAudio) throw std::runtime_error("test audio adapter unavailable");
+        testAdapter_.applyAudio(values); return;
+    }
+    graphicsSettings_.audio().apply(values);
 }
 }

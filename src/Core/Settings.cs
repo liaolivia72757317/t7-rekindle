@@ -16,6 +16,7 @@ namespace T7.Rekindle.Core
         public bool StartWithWindows { get; set; }
         public bool SkipStartupAnimation { get; set; }
         public string UpdateChannel { get; set; } = "stable";
+        public string OutputDeviceId { get; set; } = string.Empty;
     }
 
     public static class SettingsSchema
@@ -30,6 +31,8 @@ namespace T7.Rekindle.Core
             }
 
             if (settings.UpdateChannel != "stable" && settings.UpdateChannel != "preview") return false;
+            if (settings.OutputDeviceId == null || (settings.OutputDeviceId.Length != 0
+                && !Guid.TryParseExact(settings.OutputDeviceId, "D", out _))) return false;
 
             if (settings.PlayerName == null || (settings.PlayerName.Length != 0
                 && PlayerNameRules.Validate(settings.PlayerName).Length != 0)) return false;

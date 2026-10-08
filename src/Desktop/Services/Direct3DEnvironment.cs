@@ -7,6 +7,80 @@ namespace T7.Rekindle.Desktop.Services
 {
     internal static class Direct3DEnvironment
     {
+        internal static IReadOnlyList<OutputDeviceOption> ReadOutputDevices()
+        {
+            var d3d = Direct3DCreate9(32);
+            if (d3d == IntPtr.Zero) throw new InvalidOperationException("未检出可用的 D3D9 接口。");
+            try
+            {
+                var result = new List<OutputDeviceOption>();
+                var seen = new HashSet<Guid>();
+                var count = Method<GetAdapterCount>(d3d, 4)(d3d);
+                for (uint index = 0; index < count; index++)
+                {
+                    var status = Method<GetAdapterIdentifier>(d3d, 5)(d3d, index, 0, out var adapter);
+                    if (status < 0) Marshal.ThrowExceptionForHR(status);
+                    var capsStatus = Method<GetDeviceCaps>(d3d, 14)(d3d, index, 1, out var caps);
+                    if (capsStatus < 0 || caps.VertexShaderVersion < 0xfffe0300 || caps.PixelShaderVersion < 0xffff0300) continue;
+                    if (seen.Add(adapter.DeviceIdentifier)) result.Add(new OutputDeviceOption(adapter.DeviceIdentifier, adapter.Description));
+                }
+                return result.ToArray();
+            }
+            finally { Marshal.Release(d3d); }
+        }
+
+        private static uint FindAdapter(IntPtr d3d, Guid identifier)
+        {
+            if (identifier == Guid.Empty) return 0;
+            var count = Method<GetAdapterCount>(d3d, 4)(d3d);
+            for (uint index = 0; index < count; index++)
+            {
+                var result = Method<GetAdapterIdentifier>(d3d, 5)(d3d, index, 0, out var adapter);
+                if (result < 0) Marshal.ThrowExceptionForHR(result);
+                if (adapter.DeviceIdentifier == identifier) return index;
+            }
+            throw new InvalidOperationException("所选输出设备未连接或驱动已变化，请重新选择。");
+        }
+
+        internal static IReadOnlyList<string> ReadResolutions() => ReadResolutions(Guid.Empty);
+
+        internal static IReadOnlyList<string> ReadResolutions(Guid identifier)
+        {
+            var d3d = Direct3DCreate9(32);
+            if (d3d == IntPtr.Zero) throw new InvalidOperationException("未检出可用的 D3D9 接口。");
+            try
+            {
+                var count = Method<GetAdapterModeCount>(d3d, 6);
+                var enumerate = Method<EnumAdapterModes>(d3d, 7);
+                var adapter = FindAdapter(d3d, identifier);
+                return ReadResolutions(format => count(d3d, adapter, format), (format, index) =>
+                {
+                    var result = enumerate(d3d, adapter, format, index, out var mode);
+                    if (result < 0) Marshal.ThrowExceptionForHR(result);
+                    return mode;
+                });
+            }
+            finally { Marshal.Release(d3d); }
+        }
+
+        internal static IReadOnlyList<string> ReadResolutions(Func<uint, uint> countModes, Func<uint, uint, DisplayMode> readMode)
+        {
+            var resolutions = new List<string>();
+            // Match the game's 32-bit modes, retaining enumeration order and collapsing refresh rates.
+            foreach (var format in new uint[] { 21, 22 }) // D3DFMT_A8R8G8B8, D3DFMT_X8R8G8B8
+            {
+                var count = countModes(format);
+                for (uint index = 0; index < count; index++)
+                {
+                    var mode = readMode(format, index);
+                    var resolution = mode.Width.ToString(CultureInfo.InvariantCulture) + "x" + mode.Height.ToString(CultureInfo.InvariantCulture);
+                    if (!resolutions.Contains(resolution)) resolutions.Add(resolution);
+                }
+            }
+            if (resolutions.Count == 0) throw new InvalidOperationException("输出设备未返回可用的 D3D9 分辨率。");
+            return resolutions.ToArray();
+        }
+
         internal static Information Read()
         {
             var d3d = Direct3DCreate9(32);
@@ -39,7 +113,7 @@ namespace T7.Rekindle.Desktop.Services
         internal static string DescribeCapabilities(uint vertexShader, uint pixelShader) =>
             "HAL x64 · " + (vertexShader >= 0xfffe0300 && pixelShader >= 0xffff0300 ? "PS/VS 3.0 达标"
                 : "PS " + ShaderVersion(pixelShader) + " / VS " + ShaderVersion(vertexShader) + " 未达标（需 PS/VS 3.0）")
-            + " · 预检使用默认显卡";
+            + " · 此处检测系统默认显卡";
 
         internal sealed class Information
         {
@@ -76,7 +150,15 @@ namespace T7.Rekindle.Desktop.Services
             [FieldOffset(204)] public uint PixelShaderVersion;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct DisplayMode
+        {
+            public uint Width, Height, RefreshRate, Format;
+        }
+
         [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate uint GetAdapterCount(IntPtr instance);
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate uint GetAdapterModeCount(IntPtr instance, uint adapter, uint format);
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int EnumAdapterModes(IntPtr instance, uint adapter, uint format, uint index, out DisplayMode mode);
         [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int GetAdapterIdentifier(IntPtr instance, uint adapter, uint flags, out AdapterIdentifier identifier);
         [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int GetDeviceCaps(IntPtr instance, uint adapter, uint deviceType, out DeviceCapabilities capabilities);
         [DllImport("d3d9.dll", ExactSpelling = true)]

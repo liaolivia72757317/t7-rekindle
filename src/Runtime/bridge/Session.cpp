@@ -93,6 +93,14 @@ void Session::startWorker() {
     std::thread([self] { self->workerLoop(); }).detach();
 }
 
+int32_t Session::setOutputDevice(const GUID& identifier) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (closing_) return T7NB_INVALID_HANDLE;
+    if (snapshot_.operation != T7NB_OPERATION_NONE || !commands_.empty()) return T7NB_BUSY;
+    outputDevice_ = identifier;
+    return T7NB_OK;
+}
+
 int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId,
                         std::string playerName, bool skipStartupAnimation) {
     if (kind != T7NB_OPERATION_CHECK && kind != T7NB_OPERATION_START && kind != T7NB_OPERATION_STOP)
@@ -134,7 +142,7 @@ int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& op
         snapshot_.phase = "cancelling-before-stop";
     }
     operations_[operationId] = {operationId, kind, T7NB_OPERATION_QUEUED, 0, {}};
-    commands_.push_back({operationId, kind, std::move(clientDirectory), std::move(playerName), skipStartupAnimation});
+    commands_.push_back({operationId, kind, std::move(clientDirectory), std::move(playerName), skipStartupAnimation, outputDevice_});
     if (!active) {
         snapshot_.operation = kind;
         snapshot_.operationId = operationId;
@@ -347,7 +355,7 @@ void Session::monitorClient() {
         setFailure(0, T7NB_ERROR_OPERATION, std::string("owned client status failed: ") + error.what());
         return;
     }
-    if (alive) return;
+    if (alive) { monitorGraphics(); monitorAudio(); return; }
     DWORD exitCode = 0;
     try { exitCode = bootstrap_.exitCode(); }
     catch (const std::exception& error) {
@@ -389,6 +397,7 @@ void Session::execute(const Command& command) {
 void Session::executeCheck(const Command& command) {
     if (cancelled(command.id)) throw std::runtime_error("check cancelled");
     Config config;
+    config.outputDevice = command.outputDevice;
     config.ports[0] = 1; config.ports[1] = 2; config.ports[2] = 3;
     bootstrap_.check(fs::path(wide(command.clientDirectory)), config, [this](std::string line) { log(line); });
     log("client preflight passed");
@@ -396,6 +405,13 @@ void Session::executeCheck(const Command& command) {
 
 void Session::executeStart(const Command& command) {
     if (cancelled(command.id)) throw std::runtime_error("start cancelled");
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        graphics_.state = T7NB_GRAPHICS_UNAVAILABLE;
+        ++graphics_.revision; graphicsQueued_ = false;
+        audio_.state = T7NB_AUDIO_UNAVAILABLE;
+        ++audio_.revision; audioQueued_ = false;
+    }
     if (!winsockStarted_) {
         WSADATA data{};
         if (WSAStartup(MAKEWORD(2, 2), &data) != 0) throw std::runtime_error("WSAStartup failed");
@@ -406,6 +422,7 @@ void Session::executeStart(const Command& command) {
     config.advertisedAddress = "127.0.0.1";
     config.playerName = command.playerName;
     config.skipStartupAnimation = command.skipStartupAnimation;
+    config.outputDevice = command.outputDevice;
     config.ports[0] = config.ports[1] = config.ports[2] = 0;
     {
         std::lock_guard<std::mutex> lock(mutex_);

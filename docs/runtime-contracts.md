@@ -6,13 +6,15 @@
 
 导出函数使用 `extern "C" __cdecl`，当前 ABI 版本为 1。参数结构使用 `#pragma pack(push, 8)`，首两个字段固定为 `abiVersion` 和 `structSize`。跨边界只使用固定宽度整数、UTF-8 byte buffer 和不透明 session handle；不传递 STL、异常、`PyObject*` 或内部句柄。
 
-[头文件](../src/Runtime/bridge/T7NativeBridge.h)定义参数和返回值，[导出表](../src/Runtime/bridge/T7NativeBridge.def)固定以下 13 个符号：
+[头文件](../src/Runtime/bridge/T7NativeBridge.h)定义参数和返回值，[导出表](../src/Runtime/bridge/T7NativeBridge.def)固定以下符号：
 
 | 用途 | 导出函数 |
 | --- | --- |
 | ABI 与会话 | `t7_native_get_abi`、`t7_native_create`、`t7_native_release` |
 | 提交操作 | `t7_native_submit_check`、`t7_native_submit_start`、`t7_native_submit_start_named`、`t7_native_submit_start_options`、`t7_native_submit_stop`、`t7_native_cancel` |
 | 查询结果 | `t7_native_get_snapshot`、`t7_native_get_operation`、`t7_native_get_error`、`t7_native_read_logs` |
+| 输出设备 | `t7_native_set_output_device` |
+| 画面与声音 | `t7_native_get_graphics`、`t7_native_apply_graphics`、`t7_native_get_audio`、`t7_native_apply_audio` |
 
 路径输入在提交函数返回前复制，拒绝 NUL、非法 UTF-8、相对路径和超过 32768 bytes 的输入。带名称的启动入口接收 UTF-8 名称，再按客户端 GBK 规则校验；原启动入口和 ABI 1 结构保持兼容。玩家名称随会话配置传入 Python 状态，不通过全局常量或客户端文件传递。
 
@@ -72,6 +74,40 @@ MovementOverlay 只在挂起状态安装或撤销三个入口：资源路径别�
 
 关闭时不拦截该资源；启动中或运行中切换选项只影响下次启动。新手关片头、地图加载、VFS 优先级和磁盘资源均不变；目标 XML 结构不匹配时终止本次启动并沿用会话清理。
 
+## 游戏配置文件与模式切换
+
+输出设备是启动偏好，独立于游戏画面配置，保存在 `settings.json` 的 `outputDeviceId`：空字符串表示系统默认，否则使用 D3D9 `DeviceIdentifier` 的 GUID（D 格式），不保存可能变化的枚举序号。设备列表仅包含 HAL PS/VS 3.0 达标的适配器；已保存但未检测到的设备保留并提示，不代选其他设备。
+
+`t7_native_set_output_device` 复制 16 字节 GUID，全零表示默认；后续 Check/Start 命令各自固定该标识，操作执行期间拒绝修改。启动时重新解析设备序号并检查能力。显式选择时，在客户端首次恢复执行前校验并安装渲染初始化与分辨率枚举入口，使两者使用同一适配器；默认选择保持原入口不变。首次画面快照就绪时回读渲染器设备序号和 GUID，确认一致后才报告已确认，磁盘二进制不变。
+
+游戏未运行时，“设置 → 游戏设置”直接读取客户端 `Bin/../Data/UserData/UserData.cfg`，保存后下次启动游戏生效。此文件为 `PropertySheet Version="100"` XML，画面与声音值位于 `Record Name="Config"`，缺少记录值时沿用 `Header` 默认值；旧配置缺少 `Swoosh` 时视为 `0`，保存画面设置时补齐类型声明。
+
+离线保存只更新对应组的字段，保留其他设置、记录、注释、XML 编码和 BOM；不修改 `PlayerConfig.cfg` 或其他用户配置。使用同目录临时文件、`Flush(true)` 和原子替换，旧文件保留为 `UserData.cfg.bak`。保存前回读并比较该组原值，发现冲突时同步文件中的最新值，不覆盖外部修改。文件缺失、格式无效或写入失败会在设置组内提示，不以默认值覆盖损坏文件。
+
+离线时每秒回读文件，未变化的配置不影响编辑草稿；外部修改只更新变化的设置组。游戏启动或结束期间暂停编辑，运行后仅使用内存同步，不因内存尚未就绪或同步失败而回退写文件。游戏退出并完成清理后重新读取文件。切换模式或客户端目录不自动提交未保存草稿；目录尚在编辑、验证中时禁用保存。检测到同目录中非本次启动器托管的游戏进程时暂停文件编辑，不附加其他进程。
+
+## 画面设置同步
+
+“设置 → 游戏设置”提供分辨率、显示模式、画质、视野距离、视野雾、死亡物理效果、垂直同步、帧数限制和刀光。编辑只改变草稿，点击“保存设置”才写入当前数据源。“初始化设置”也需要保存，“撤销修改”恢复配置文件或运行中游戏的当前值。
+
+分辨率选项与游戏一样枚举输出设备的 D3D9 32-bit 显示模式，合并不同刷新率的重复尺寸并保留枚举顺序，不使用固定预设列表。未运行时使用当前选择，运行时使用本次启动固定的设备；运行中修改输出设备只影响下次启动。进入文件编辑或运行时同步、离线切换输出设备时重新枚举；当前配置中的自定义分辨率仍可显示，读取失败时仅保留当前值并提示，不影响其他画面选项的保存。
+
+`t7_native_get_graphics` 返回独立的 64-byte 快照（ABI 1），`t7_native_apply_graphics` 接收同结构的值和期望 `revision`，仅排队而不阻塞 UI。状态为 `Unavailable / Ready / Applying / Failed / Conflict`。内存模式下，游戏未就绪、停止中或同步失败时禁用编辑；只操作本次启动器拥有的进程。
+
+启动前安装帧线程邮箱，配置查询及应用均在原游戏线程执行并保留寄存器、FPU/SSE 状态。应用使用原画面设置处理函数，由游戏更新渲染状态并保存当前用户配置，不修改客户端磁盘二进制。`ConfigLevel` 与五档画质反向映射，帧数限制对应 60 / 200；启用垂直同步时沿用游戏的同步限帧行为。
+
+显示模式读取渲染器已生效的模式和实际窗口样式，而非仅依赖配置中的 `FullScreen`。从全屏切回窗口时，先在游戏线程恢复窗口，再执行原设置流程；只有渲染模式、窗口样式及恢复状态均确认成功后才报告已应用。设备未就绪或切换失败时不以配置保存成功代替应用确认。普通窗口内设置修改和声音设置保存不主动恢复窗口。
+
+原生工作线程以 100 ms 间隔推进读请求，启动器每 250 ms 读取缓存。游戏内保存后自动回读，不触发反向写入；新值到来时替换未保存草稿并提示。提交时核对 revision，游戏线程执行前再次比较当前原始配置；发生冲突只回读新值，不覆盖游戏。画面设置保存在游戏配置中，不在 `settings.json` 再保存一份或启动时自动覆盖。
+
+## 声音设置同步
+
+“设置 → 游戏设置”中的声音设置提供背景音乐、游戏音效的独立开关和 0–100% 音量。关闭声音保留原音量，不修改 Windows 系统音量。编辑、保存、初始化、撤销和冲突处理与画面设置一致；两类设置各自保存，不互相覆盖。
+
+`t7_native_get_audio` / `t7_native_apply_audio` 使用独立的 40-byte 快照（ABI 1），音量以 0–1 浮点数传递，静音标记为 0 / 1。声音邮箱复用原游戏帧线程入口，但有独立请求、revision 和失败状态。调用原音乐、音效设置函数更新声音引擎，再以仅声音变更标记调用原保存函数；不触发分辨率或显示模式变更。
+
+回读使用游戏当前声音状态，因此游戏内调整音量或静音时即可同步，不必等到保存。启动器不在 `settings.json` 保存第二份声音配置，也不自动回写游戏内变更。
+
 ## 服务就绪与端口
 
 `Server::start` 先在 `127.0.0.1:0` 绑定三个 listener，通过 `getsockname` 保存实际端口，再启动 IO loop 和 Python business loop。
@@ -107,6 +143,7 @@ MovementOverlay 只在挂起状态安装或撤销三个入口：资源路径别�
 | `minimizeToTray` | `false` | 检测到本次受管理游戏进程后收起到托盘 |
 | `startWithWindows` | `false` | 当前用户登录时打开启动器，不启动游戏；对应 HKCU Run 中的 `T7-Rekindle` 项 |
 | `skipStartupAnimation` | `false` | 下次启动时跳过登录片头；不跳过新手关过场或地图加载 |
+| `outputDeviceId` | `""` | 系统默认输出设备；显式选择保存 D3D9 DeviceIdentifier 的 GUID，下一次启动生效 |
 | `updateChannel` | `"stable"` | 更新订阅渠道，仅接受 `stable`（正式版）或 `preview`（预览版），与当前构建身份独立 |
 
 首次启动或旧设置缺少名称字段时使用“新玩家”，已保存的名称保持不变。设置允许空目录和空名称，开始游戏前仍须完成验证。旧配置缺少启动偏好字段时使用 `false`。设置读取拒绝未知字段和 JSON 尾随内容。

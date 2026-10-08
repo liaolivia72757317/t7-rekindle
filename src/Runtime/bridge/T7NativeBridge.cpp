@@ -66,6 +66,63 @@ extern "C" int32_t T7NB_CALL t7_native_get_abi(uint32_t* version, uint32_t* snap
     *version = T7NB_ABI_VERSION; *snapshotSize = sizeof(T7NativeSnapshot); return T7NB_OK;
 }
 
+extern "C" int32_t T7NB_CALL t7_native_set_output_device(T7NativeSessionHandle handle, const uint8_t* identifier, uint32_t length) {
+    return guard([&]() -> int32_t {
+        if (!identifier || length != sizeof(GUID)) return T7NB_INVALID_ARGUMENT;
+        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
+        GUID value{}; std::memcpy(&value, identifier, sizeof(value));
+        return session->setOutputDevice(value);
+    });
+}
+
+extern "C" int32_t T7NB_CALL t7_native_get_graphics(T7NativeSessionHandle handle, T7NativeGraphicsSnapshot* output) {
+    return guard([&]() -> int32_t {
+        if (!output) return T7NB_INVALID_ARGUMENT;
+        if (!validHeader(output->abiVersion, output->structSize, sizeof(*output))) return T7NB_INVALID_ABI;
+        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
+        t7::bridge::GraphicsSnapshot snapshot; status = session->graphics(snapshot); if (status != T7NB_OK) return status;
+        T7NativeGraphicsSnapshot value{}; value.abiVersion = T7NB_ABI_VERSION; value.structSize = sizeof(value);
+        value.revision = snapshot.revision; value.state = snapshot.state;
+        static_assert(sizeof(value.values) == sizeof(snapshot.values), "graphics value layout");
+        std::memcpy(&value.values, &snapshot.values, sizeof(value.values));
+        *output = value; return T7NB_OK;
+    });
+}
+extern "C" int32_t T7NB_CALL t7_native_apply_graphics(T7NativeSessionHandle handle, const T7NativeGraphicsSnapshot* input) {
+    return guard([&]() -> int32_t {
+        if (!input) return T7NB_INVALID_ARGUMENT;
+        if (!validHeader(input->abiVersion, input->structSize, sizeof(*input))) return T7NB_INVALID_ABI;
+        if (input->reserved || input->state != T7NB_GRAPHICS_READY) return T7NB_INVALID_ARGUMENT;
+        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
+        t7::GraphicsValues values; std::memcpy(&values, &input->values, sizeof(values));
+        return session->applyGraphics(input->revision, values);
+    });
+}
+
+extern "C" int32_t T7NB_CALL t7_native_get_audio(T7NativeSessionHandle handle, T7NativeAudioSnapshot* output) {
+    return guard([&]() -> int32_t {
+        if (!output) return T7NB_INVALID_ARGUMENT;
+        if (!validHeader(output->abiVersion, output->structSize, sizeof(*output))) return T7NB_INVALID_ABI;
+        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
+        t7::bridge::AudioSnapshot snapshot; status = session->audio(snapshot); if (status != T7NB_OK) return status;
+        T7NativeAudioSnapshot value{}; value.abiVersion = T7NB_ABI_VERSION; value.structSize = sizeof(value);
+        value.revision = snapshot.revision; value.state = snapshot.state;
+        static_assert(sizeof(value.values) == sizeof(snapshot.values), "audio value layout");
+        std::memcpy(&value.values, &snapshot.values, sizeof(value.values));
+        *output = value; return T7NB_OK;
+    });
+}
+extern "C" int32_t T7NB_CALL t7_native_apply_audio(T7NativeSessionHandle handle, const T7NativeAudioSnapshot* input) {
+    return guard([&]() -> int32_t {
+        if (!input) return T7NB_INVALID_ARGUMENT;
+        if (!validHeader(input->abiVersion, input->structSize, sizeof(*input))) return T7NB_INVALID_ABI;
+        if (input->reserved || input->state != T7NB_AUDIO_READY) return T7NB_INVALID_ARGUMENT;
+        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7NB_OK) return status;
+        t7::AudioValues values; std::memcpy(&values, &input->values, sizeof(values));
+        return session->applyAudio(input->revision, values);
+    });
+}
+
 extern "C" int32_t T7NB_CALL t7_native_create(const T7NativeCreateArgs* args, T7NativeSessionHandle* session) {
     return guard([&]() -> int32_t {
         if (!args || !session) return T7NB_INVALID_ARGUMENT;

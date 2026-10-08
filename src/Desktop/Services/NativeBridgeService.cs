@@ -12,16 +12,21 @@ namespace T7.Rekindle.Desktop.Services
 {
     public interface INativeBridge
     {
+        void SetOutputDevice(Guid identifier);
         Task<OperationSnapshot> CheckAsync(string clientDirectory, CancellationToken cancellationToken);
         Task<OperationSnapshot> StartAsync(string clientDirectory, CancellationToken cancellationToken);
         Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, CancellationToken cancellationToken);
         Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, bool skipStartupAnimation, CancellationToken cancellationToken);
         Task<OperationSnapshot> StopAsync(CancellationToken cancellationToken);
         SessionSnapshot GetSnapshot();
+        GraphicsSettingsSnapshot GetGraphicsSettings();
+        void ApplyGraphicsSettings(ulong revision, GraphicsSettingsValues values);
+        AudioSettingsSnapshot GetAudioSettings();
+        void ApplyAudioSettings(ulong revision, AudioSettingsValues values);
         LogReadResult ReadLogRecords(ref ulong cursor);
     }
 
-    public sealed class NativeBridgeService : INativeBridge
+    public sealed partial class NativeBridgeService : INativeBridge
     {
         private const uint LoadLibrarySearchDllLoadDir = 0x00000100;
         private const uint LoadLibrarySearchSystem32 = 0x00000800;
@@ -603,7 +608,7 @@ namespace T7.Rekindle.Desktop.Services
             }
         }
 
-        private sealed class NativeMethods
+        private sealed partial class NativeMethods
         {
             [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
             internal delegate NativeStatus GetAbiDelegate(out uint version, out uint snapshotSize);
@@ -648,6 +653,11 @@ namespace T7.Rekindle.Desktop.Services
 
             private NativeMethods(IntPtr module)
             {
+                SetOutputDevice = Resolve<OutputDeviceDelegate>(module, "t7_native_set_output_device");
+                GetGraphics = Resolve<GraphicsDelegate>(module, "t7_native_get_graphics");
+                ApplyGraphics = Resolve<GraphicsDelegate>(module, "t7_native_apply_graphics");
+                GetAudio = Resolve<AudioDelegate>(module, "t7_native_get_audio");
+                ApplyAudio = Resolve<AudioDelegate>(module, "t7_native_apply_audio");
                 GetAbi = Resolve<GetAbiDelegate>(module, "t7_native_get_abi");
                 Create = Resolve<CreateDelegate>(module, "t7_native_create");
                 Release = Resolve<ReleaseDelegate>(module, "t7_native_release");

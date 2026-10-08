@@ -29,6 +29,7 @@ struct Config {
     // the launcher has installed the memory-only client overlay.
     bool runtimeMovement = true;
     bool skipStartupAnimation = false;
+    GUID outputDevice{};
     // Raw socket bytes are diagnostic-sensitive and stay disabled unless a
     // local fixture explicitly opts in. Journal metadata is always kept.
     bool captureWire = false;

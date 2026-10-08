@@ -51,6 +51,8 @@ namespace T7.ManagedHarness
             var merged = JObject.Parse(File.ReadAllText(Path.Combine(directory, "settings.json"), Encoding.UTF8));
             Assert((string)merged["updateChannel"] == "preview", "legacy update channel was not merged into settings.json");
             merged.Remove("updateChannel");
+            Assert((string)merged["outputDeviceId"] == "", "legacy settings did not default to the system output device");
+            merged.Remove("outputDeviceId");
             Assert(JToken.DeepEquals(merged, original) && loaded.PlayerName == "保留玩家" && loaded.SkipStartupAnimation,
                 "channel migration lost unrelated settings");
             Assert(JToken.DeepEquals(JObject.Parse(File.ReadAllText(Path.Combine(directory, "settings.json.bak"), Encoding.UTF8)), original),

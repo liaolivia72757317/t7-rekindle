@@ -55,11 +55,49 @@ int main() {
                               reinterpret_cast<const uint8_t*>(root.data()), static_cast<uint32_t>(root.size()), 0};
     assert(t7_native_create(&create, &session) == T7NB_OK && session);
 
+    uint8_t outputDevice[16]{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+    assert(t7_native_set_output_device(nullptr, outputDevice, sizeof(outputDevice)) == T7NB_INVALID_HANDLE);
+    assert(t7_native_set_output_device(session, nullptr, sizeof(outputDevice)) == T7NB_INVALID_ARGUMENT);
+    assert(t7_native_set_output_device(session, outputDevice, 15) == T7NB_INVALID_ARGUMENT);
+    assert(t7_native_set_output_device(session, outputDevice, 17) == T7NB_INVALID_ARGUMENT);
+    assert(t7_native_set_output_device(session, outputDevice, sizeof(outputDevice)) == T7NB_OK);
+    std::memset(outputDevice, 0, sizeof(outputDevice));
+    assert(t7_native_set_output_device(session, outputDevice, sizeof(outputDevice)) == T7NB_OK);
+
     T7NativeSnapshot snapshot{T7NB_ABI_VERSION, sizeof(T7NativeSnapshot)};
     assert(t7_native_get_snapshot(session, &snapshot) == T7NB_OK);
     assert(snapshot.state == T7NB_STATE_IDLE && snapshot.flags == 1);
     T7NativeSnapshot shortSnapshot{T7NB_ABI_VERSION, 8};
     assert(t7_native_get_snapshot(session, &shortSnapshot) == T7NB_INVALID_ABI);
+
+    T7NativeGraphicsSnapshot graphics{T7NB_ABI_VERSION, sizeof(T7NativeGraphicsSnapshot)};
+    assert(t7_native_get_graphics(session, &graphics) == T7NB_OK && graphics.state == T7NB_GRAPHICS_UNAVAILABLE);
+    assert(t7_native_get_graphics(nullptr, &graphics) == T7NB_INVALID_HANDLE);
+    assert(t7_native_get_graphics(session, nullptr) == T7NB_INVALID_ARGUMENT);
+    graphics.structSize = 8;
+    assert(t7_native_get_graphics(session, &graphics) == T7NB_INVALID_ABI);
+    assert(t7_native_apply_graphics(session, &graphics) == T7NB_INVALID_ABI);
+    graphics.structSize = sizeof(graphics); graphics.state = T7NB_GRAPHICS_READY;
+    graphics.values = {1920, 1080, 0, 4, 0, 0, 128, 1, 0, 1};
+    assert(t7_native_apply_graphics(session, &graphics) == T7NB_NOT_READY);
+    graphics.values.fullScreen = 2;
+    assert(t7_native_apply_graphics(session, &graphics) == T7NB_INVALID_ARGUMENT);
+    graphics.values.fullScreen = 0; graphics.reserved = 1;
+    assert(t7_native_apply_graphics(session, &graphics) == T7NB_INVALID_ARGUMENT);
+    assert(t7_native_apply_graphics(session, nullptr) == T7NB_INVALID_ARGUMENT);
+    T7NativeAudioSnapshot audio{T7NB_ABI_VERSION, sizeof(T7NativeAudioSnapshot)};
+    assert(t7_native_get_audio(session, &audio) == T7NB_OK && audio.state == T7NB_AUDIO_UNAVAILABLE);
+    assert(t7_native_get_audio(session, nullptr) == T7NB_INVALID_ARGUMENT);
+    assert(t7_native_apply_audio(session, nullptr) == T7NB_INVALID_ARGUMENT);
+    audio.structSize = 8;
+    assert(t7_native_get_audio(session, &audio) == T7NB_INVALID_ABI);
+    assert(t7_native_apply_audio(session, &audio) == T7NB_INVALID_ABI);
+    audio.structSize = sizeof(audio); audio.state = T7NB_AUDIO_READY; audio.values = {0, .5f, 0, .5f};
+    assert(t7_native_apply_audio(session, &audio) == T7NB_NOT_READY);
+    audio.values.musicVolume = 2;
+    assert(t7_native_apply_audio(session, &audio) == T7NB_INVALID_ARGUMENT);
+    audio.values.musicVolume = 1; audio.reserved = 1;
+    assert(t7_native_apply_audio(session, &audio) == T7NB_INVALID_ARGUMENT);
 
     const uint8_t badUtf8[]{0xC3, 0x28};
     T7NativePath bad{T7NB_ABI_VERSION, sizeof(T7NativePath), badUtf8, sizeof(badUtf8)};

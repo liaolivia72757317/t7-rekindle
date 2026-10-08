@@ -38,6 +38,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         {
             var directory = ClientDirectory;
             var version = _validationVersion;
+            var outputDevice = ParseOutputDevice(SelectedOutputDeviceId);
             return ExecuteAsync(async token =>
             {
                 var result = await _inspectDirectory(directory);
@@ -48,6 +49,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 }
                 if (!result.IsValid) throw new InvalidOperationException(result.Message);
                 token.ThrowIfCancellationRequested();
+                _bridge.SetOutputDevice(outputDevice);
                 var check = await _bridge.CheckAsync(result.Directory, token);
                 if (version == _validationVersion && check.Status == OperationStatus.Succeeded) SaveValidatedFields();
                 return check;
@@ -60,6 +62,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             var directory = ClientDirectory;
             var name = PlayerName.Trim();
             var skipStartupAnimation = SkipStartupAnimation;
+            var outputDevice = ParseOutputDevice(SelectedOutputDeviceId);
             return ExecuteAsync(async token =>
             {
                 var result = await _inspectDirectory(directory);
@@ -69,9 +72,12 @@ namespace T7.Rekindle.Desktop.ViewModels
                 SetProperty(ref _clientDirectory, result.Root, nameof(ClientDirectory));
                 SetProperty(ref _playerName, name, nameof(PlayerName));
                 if (!SaveValidatedFields()) throw new InvalidOperationException(SettingsFeedback);
+                _bridge.SetOutputDevice(outputDevice);
                 var check = await _bridge.CheckAsync(result.Directory, token);
                 if (check.Status != OperationStatus.Succeeded) return check;
                 token.ThrowIfCancellationRequested();
+                _activeOutputDevice = outputDevice;
+                _outputDeviceConfirmed = false;
                 return await _bridge.StartAsync(result.Directory, name, skipStartupAnimation, token);
             }, OperationKind.Start, "启动");
         }
@@ -173,6 +179,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 }
                 UpdatePresentation();
                 if (gameEnded) GameSessionEnded?.Invoke();
+                RefreshGameSettings();
             }
             catch (Exception error)
             {
@@ -226,6 +233,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             MainActionCommand?.NotifyCanExecuteChanged();
             CancelCommand?.NotifyCanExecuteChanged();
             StopCommand?.NotifyCanExecuteChanged();
+            NotifyGraphics();
+            NotifyAudio();
         }
 
         private void Present(string title, string description, string tone, string symbol, string action)

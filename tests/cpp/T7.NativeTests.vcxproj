@@ -13,6 +13,13 @@
   <ItemDefinitionGroup><Link><SubSystem>Console</SubSystem></Link></ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AbiLayoutTests.cpp" />
+    <ClCompile Include="GraphicsSettingsTests.cpp" />
+    <ClCompile Include="OutputDeviceTests.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/OutputDevice.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/GraphicsValues.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/GraphicsHookCode.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/AudioSettings.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/AudioHookCode.cpp" />
     <ClCompile Include="ModuleLookupTests.cpp" />
     <ClCompile Include="Ap32Tests.cpp" />
     <ClCompile Include="..\..\src\Runtime\launcher\Ap32.cpp" />

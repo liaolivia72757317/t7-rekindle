@@ -3,6 +3,8 @@
 #include "MovementOverlay.h"
 #include "DebugClient.h"
 #include "StartupGate.h"
+#include "GraphicsSettings.h"
+#include "OutputDevice.h"
 #include <functional>
 #include <memory>
 namespace t7 {
@@ -17,6 +19,10 @@ public:
         std::function<bool()> running;
         std::function<void()> stop;
         std::function<DWORD()> exitCode;
+        std::function<bool(GraphicsValues&, uint32_t&, bool&)> pollGraphics;
+        std::function<void(const GraphicsValues&)> applyGraphics;
+        std::function<bool(AudioValues&, uint32_t&, bool&)> pollAudio;
+        std::function<void(const AudioValues&)> applyAudio;
     };
     explicit Bootstrap(TestAdapter adapter = {});
     ~Bootstrap();
@@ -27,12 +33,20 @@ public:
     bool running() const;
     DWORD exitCode() const;
     void stop();
+    bool pollGraphics(GraphicsValues& values, uint32_t& result, bool& applied);
+    void applyGraphics(const GraphicsValues& values);
+    bool pollAudio(AudioValues& values, uint32_t& result, bool& applied);
+    void applyAudio(const AudioValues& values);
 private:
     HANDLE process_ = nullptr;
     std::unique_ptr<DebugClient> debugClient_;
     DWORD pid_ = 0;
     MovementOverlay movementOverlay_;
     StartupGate startupGate_;
+    GraphicsSettings graphicsSettings_;
+    OutputDevice outputDevice_;
+    uint32_t clientImageBase_ = 0;
+    bool outputDeviceVerified_ = false;
     TestAdapter testAdapter_;
     bool testRunning_ = false;
 };

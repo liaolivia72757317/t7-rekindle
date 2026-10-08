@@ -26,6 +26,9 @@ namespace T7.ManagedHarness
             try
             {
                 LaunchControlsLayoutTests.Run(settingsDirectory, outputDirectory);
+                GraphicsSettingsTests.Render(settingsDirectory, outputDirectory);
+                OutputDeviceTests.Render(settingsDirectory, outputDirectory);
+                AudioSettingsTests.Render(settingsDirectory, outputDirectory);
                 AboutPageLayoutTests.Run(settingsDirectory, outputDirectory);
                 AnnouncementTests.Run(settingsDirectory, outputDirectory);
                 LauncherUpdatePageTests.Run(settingsDirectory, outputDirectory);
@@ -130,6 +133,26 @@ namespace T7.ManagedHarness
             LauncherTests.Assert(element.ActualHeight > 0 && position.X >= 0 && position.Y >= 0
                 && position.X + element.ActualWidth <= width + 1 && position.Y + element.ActualHeight <= height + 1,
                 "element escaped the client viewport: " + element.Name);
+        }
+
+        internal static void AssertSettingsHeader(UserControl panel, string applyButtonName)
+        {
+            var title = FindText(panel);
+            var apply = (Button)panel.FindName(applyButtonName);
+            var actions = (Panel)apply.Parent;
+            var titlePosition = title.TranslatePoint(new Point(), panel);
+            var centerY = titlePosition.Y + title.ActualHeight / 2;
+            var previousRight = titlePosition.X + title.ActualWidth;
+            foreach (Button button in actions.Children)
+            {
+                var position = button.TranslatePoint(new Point(), panel);
+                LauncherTests.Assert(Math.Abs(position.Y + button.ActualHeight / 2 - centerY) <= 1,
+                    "settings action is not aligned with its section title: " + button.Content);
+                LauncherTests.Assert(position.X >= previousRight + 12,
+                    "settings header title and actions overlap or lack spacing: " + button.Content);
+                AssertWithin(button, panel, panel.ActualWidth, panel.ActualHeight);
+                previousRight = position.X + button.ActualWidth;
+            }
         }
 
         internal static void Render(FrameworkElement root, MainWindow window, string outputDirectory,

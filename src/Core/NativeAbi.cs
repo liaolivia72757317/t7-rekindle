@@ -91,6 +91,10 @@ namespace T7.Rekindle.Core
                 || Marshal.SizeOf(typeof(NativeCreateArgs)) != 24
                 || Marshal.SizeOf(typeof(NativeSnapshot)) != 120
                 || Marshal.SizeOf(typeof(NativeOperation)) != 32
+                || Marshal.SizeOf(typeof(NativeGraphicsSnapshot)) != 64
+                || Marshal.SizeOf(typeof(NativeAudioSnapshot)) != 40
+                || (int)Marshal.OffsetOf(typeof(NativeAudioSnapshot), nameof(NativeAudioSnapshot.Values)) != 20
+                || (int)Marshal.OffsetOf(typeof(NativeGraphicsSnapshot), nameof(NativeGraphicsSnapshot.Values)) != 20
                 || (int)Marshal.OffsetOf(typeof(NativeSnapshot), nameof(NativeSnapshot.Phase)) != 56)
             {
                 throw new InvalidOperationException("NativeBridge managed ABI layout mismatch.");

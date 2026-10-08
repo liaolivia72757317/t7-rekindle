@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style x:Key="GraphicsLabel" TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
+      <Setter Property="FontWeight" Value="Normal" /><Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+    <Style x:Key="GraphicsSlider" TargetType="Slider">
+      <Setter Property="Height" Value="28" /><Setter Property="IsSnapToTickEnabled" Value="True" />
+      <Setter Property="TickFrequency" Value="1" /><Setter Property="SmallChange" Value="1" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider">
+        <Grid x:Name="SliderRoot" Background="Transparent" Margin="6,0">
+          <Border Height="4" VerticalAlignment="Center" Background="{DynamicResource DividerBrush}" CornerRadius="2" />
+          <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}">
+            <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
+            <Track.Thumb><Thumb Width="14" Height="24"><Thumb.Template><ControlTemplate TargetType="Thumb">
+              <Path Data="M 1,1 L 13,1 13,17 7,23 1,17 Z" Fill="{DynamicResource GoldBrush}" Stroke="{DynamicResource TextBrush}" StrokeThickness="0.5" />
+            </ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+            <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
+          </Track>
+        </Grid>
+        <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter TargetName="SliderRoot" Property="Opacity" Value="0.5" /></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+</ResourceDictionary>

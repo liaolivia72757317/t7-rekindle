@@ -40,6 +40,16 @@ struct LogRecord {
     uint64_t cursor = 0;
     std::string text;
 };
+struct GraphicsSnapshot {
+    uint64_t revision = 0;
+    uint32_t state = T7NB_GRAPHICS_UNAVAILABLE;
+    GraphicsValues values;
+};
+struct AudioSnapshot {
+    uint64_t revision = 0;
+    uint32_t state = T7NB_AUDIO_UNAVAILABLE;
+    AudioValues values;
+};
 
 class Session final : public std::enable_shared_from_this<Session> {
 public:
@@ -58,7 +68,12 @@ public:
     int32_t submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId,
                    std::string playerName = u8"新玩家", bool skipStartupAnimation = false);
     int32_t cancel(uint64_t operationId);
+    int32_t setOutputDevice(const GUID& identifier);
     int32_t snapshot(Snapshot& result) const;
+    int32_t graphics(GraphicsSnapshot& result) const;
+    int32_t applyGraphics(uint64_t revision, const GraphicsValues& values);
+    int32_t audio(AudioSnapshot& result) const;
+    int32_t applyAudio(uint64_t revision, const AudioValues& values);
     int32_t operation(uint64_t operationId, Operation& result) const;
     int32_t error(uint64_t operationId, std::string& result, uint32_t& errorCode) const;
     int32_t readLogs(uint64_t& cursor, uint8_t* buffer, uint32_t capacity,
@@ -71,6 +86,7 @@ private:
         std::string clientDirectory;
         std::string playerName;
         bool skipStartupAnimation;
+        GUID outputDevice;
     };
 
     explicit Session(std::string packageRoot, Bootstrap::TestAdapter adapter = {});
@@ -82,6 +98,8 @@ private:
     void executeStart(const Command& command);
     void executeStop(const Command& command);
     void monitorClient();
+    void monitorGraphics();
+    void monitorAudio();
     void setFailure(uint64_t operationId, uint32_t code, const std::string& message);
     std::string cleanup() noexcept;
     void log(const std::string& text, const char* level = "INFO");
@@ -105,6 +123,15 @@ private:
     std::function<void()> afterOperationForTest_;
 #endif
     Snapshot snapshot_;
+    GUID outputDevice_{};
+    GraphicsSnapshot graphics_;
+    GraphicsValues requestedGraphics_;
+    uint64_t requestedGraphicsRevision_ = 0;
+    bool graphicsQueued_ = false;
+    AudioSnapshot audio_;
+    AudioValues requestedAudio_;
+    uint64_t requestedAudioRevision_ = 0;
+    bool audioQueued_ = false;
     std::atomic<uint64_t> cancelOperation_{0};
     std::unique_ptr<Server> server_;
     Bootstrap bootstrap_;

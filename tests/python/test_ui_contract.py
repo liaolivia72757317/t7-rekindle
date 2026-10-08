@@ -442,4 +442,9 @@ def test_native_bridge_exports_are_explicit_and_versioned():
         "t7_native_get_operation",
         "t7_native_get_error",
         "t7_native_read_logs",
+        "t7_native_get_graphics",
+        "t7_native_apply_graphics",
+        "t7_native_get_audio",
+        "t7_native_apply_audio",
+        "t7_native_set_output_device",
     ]

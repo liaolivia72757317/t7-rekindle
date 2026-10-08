@@ -25,6 +25,12 @@ namespace T7.ManagedHarness
                 DirectorySelectionTests.Run(directory);
                 TestPersistence(directory);
                 SettingsMergeTests.Run(directory);
+                GameSettingsFileTests.Run(directory);
+                OfflineGameSettingsTests.Run(directory);
+                GraphicsSettingsTests.Run(directory);
+                GraphicsResolutionTests.Run(directory);
+                OutputDeviceTests.Run(directory);
+                AudioSettingsTests.Run(directory);
                 UpdateChannelPreferenceTests.Run(directory);
                 TestSettingsNavigation(directory);
                 TestStartPreflight(directory);

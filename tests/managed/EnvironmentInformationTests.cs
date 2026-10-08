@@ -32,7 +32,7 @@ namespace T7.ManagedHarness
             Assert(RuntimeEnvironmentInformation.FormatMemory(16UL * 1024 * 1024 * 1024) == "16.0 GiB", "physical memory uses incorrect units");
             Assert(RuntimeEnvironmentInformation.FormatMemory(0) == "0.0 GiB", "zero available memory was lost");
             Assert(Direct3DEnvironment.DescribeCapabilities(0xfffe0300, 0xffff0300)
-                == "HAL x64 · PS/VS 3.0 达标 · 预检使用默认显卡", "shader summary does not match the reference format");
+                == "HAL x64 · PS/VS 3.0 达标 · 此处检测系统默认显卡", "shader summary does not match the reference format");
             Assert(Direct3DEnvironment.DescribeCapabilities(0xfffe0200, 0xffff0300).Contains("未达标"), "old vertex shader was accepted");
             Assert(Direct3DEnvironment.DescribeCapabilities(0xfffe0300, 0xffff0200).Contains("未达标"), "old pixel shader was accepted");
             Assert(Direct3DEnvironment.DescribeCapabilities(0, 0).Contains("未达标"), "missing shader capability was accepted");

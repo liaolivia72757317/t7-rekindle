@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstddef>
 
+bool verifyGraphicsSettings();
+bool verifyOutputDevice();
 bool verifyModuleLookup();
 bool verifyAp32();
 bool verifyClientCode();
@@ -46,7 +48,7 @@ int main() {
     assert(t7::MovementOverlayInfo::kEntitySheetLoadRva == 0x00275A70u);
     assert(t7::MovementOverlayInfo::kLocalHeroResourceId == 110001u);
     assert(t7::MovementOverlayInfo::kGravityMilli == -10000);
-    return verifyModuleLookup() && verifyAp32() && verifyClientCode() && verifyClientImports()
+    return verifyOutputDevice() && verifyGraphicsSettings() && verifyModuleLookup() && verifyAp32() && verifyClientCode() && verifyClientImports()
         && verifyClientAdaptation() && verifyCameraInput() && verifyRemoteImage() && verifyInputMethodRegistry() && verifyInputMethodDebugClient()
         && verifyDebugClient() && verifyMovementResources()
         && verifyStartupAnimation() && verifyEndpointStorage() && verifyStartupGate() ? 0 : 1;
