@@ -34,12 +34,14 @@ def battleEntry(flow):
     if flow.session.get("battleEntered") or not flow.session.get("heroChosen"):
         return
     flow.session["battleEntered"] = True
-    actorState = 6 if controls.groundEnabled(flow) else 8
-    flow.send(0x36, wire.actorState(flow.now, actorState), "actor-state-after-battle-confirm")
+    # IN_SCENE closes hero selection before returning to the preparation input lock.
+    flow.send(0x36, wire.actorState(flow.now, 6), "actor-in-scene-after-battle-confirm")
     flow.send(0xE, vision_flow.encode_vision_del_event(), "actor-vision-del-after-battle-confirm")
     flow.send(0xE, wire.actorVision(flow.session["camp"], flow.session["heroId"], flow.playerName,
                                     runtimeMovement=controls.runtimeMovement(flow)),
               "actor-vision-add-after-battle-confirm")
+    if not controls.groundEnabled(flow):
+        flow.send(0x36, wire.actorState(flow.now, 8), "actor-ready-play-after-battle-confirm")
     if flow.session.get("controlBaseline") == wire.BASELINE_ID:
         if not controls.runtimeMovement(flow):
             ground = controls.groundState(flow)

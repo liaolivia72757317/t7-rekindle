@@ -64,18 +64,47 @@ def test_runtime_vision_carries_gravity_without_resource_overlay_files():
     assert struct.unpack_from(">h", body, 79)[0] == -10000
 
 
-@pytest.mark.parametrize("playing,actor_state", [(False, 8), (True, 6)])
-def test_runtime_entry_initializes_idle_once_without_position_stop(playing, actor_state):
+@pytest.mark.parametrize("playing", [False, True])
+def test_runtime_entry_initializes_idle_once_without_position_stop(playing):
     flow = make_runtime_flow(playing=playing)
     flow.session.update(battleEntered=False, heroChosen=True, heroId=110001,
                         instanceStartedAt=100, moveClock=controls.MOVE_CLOCK)
     scene.battleEntry(flow)
     sends = list(flow.result["send"])
-    assert [item["command"] for item in sends] == [0x36, 0xE, 0xE, 4]
-    assert sends[0]["body"] == wire.actorState(flow.now, actor_state)
+    commands = [0x36, 0xE, 0xE] + ([] if playing else [0x36]) + [4]
+    assert [item["command"] for item in sends] == commands
+    assert sends[0]["body"] == wire.actorState(flow.now, 6)
+    if not playing:
+        assert sends[-2]["body"] == wire.actorState(flow.now, 8)
     assert struct.unpack(">HHHHIH", sends[-1]["body"]) == (3, 1, 1, 2, 900, 0)
     scene.battleEntry(flow)
     assert flow.result["send"] == sends
+
+
+def test_runtime_battle_confirmation_closes_selection_before_countdown():
+    flow = make_runtime_flow(playing=False)
+    flow.session.update(battleEntered=False, loaded=True)
+    flow.later("round-start", wire.PREPARE_MS - wire.START_MS)
+    pending = dict(flow.session["pending"])
+
+    assert scene.message(flow, 0x36, 0x32, struct.pack(">Hi", 0x32, 1))
+    flow.result["send"].clear()
+    assert scene.message(flow, 0x36, 0x64, struct.pack(">HHb", 0x64, 1, 0))
+
+    sends = flow.result["send"]
+    # IN_SCENE completes the selection UI transition; READY_PLAY keeps input locked.
+    states = [item["body"] for item in sends
+              if item["command"] == 0x36 and item["body"][:2] == b"\0\1"]
+    assert states == [wire.actorState(flow.now, 6), wire.actorState(flow.now, 8)]
+    assert [item["command"] for item in sends] == [0x36, 0x36, 0xE, 0xE, 0x36, 4]
+    assert not controls.groundEnabled(flow)
+    assert flow.session["pending"] == pending
+
+    flow.result["send"].clear()
+    assert scene.message(flow, 0x36, 0x64, struct.pack(">HHb", 0x64, 1, 0))
+    assert len(flow.result["send"]) == 1
+    assert flow.result["send"][0]["reason"] == "actor-play-result-zero"
+    assert not controls.groundEnabled(flow)
 
 
 def test_runtime_object_refresh_preserves_position_and_gravity():
