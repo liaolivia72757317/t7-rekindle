@@ -15,6 +15,7 @@ namespace T7.Rekindle.Core
         public bool MinimizeToTray { get; set; }
         public bool StartWithWindows { get; set; }
         public bool SkipStartupAnimation { get; set; }
+        public string UpdateChannel { get; set; } = "stable";
     }
 
     public static class SettingsSchema
@@ -27,6 +28,8 @@ namespace T7.Rekindle.Core
             {
                 return false;
             }
+
+            if (settings.UpdateChannel != "stable" && settings.UpdateChannel != "preview") return false;
 
             if (settings.PlayerName == null || (settings.PlayerName.Length != 0
                 && PlayerNameRules.Validate(settings.PlayerName).Length != 0)) return false;

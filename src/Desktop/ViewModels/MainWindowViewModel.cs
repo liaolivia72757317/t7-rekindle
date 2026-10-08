@@ -299,6 +299,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             MinimizeToTray = _minimizeToTray,
             StartWithWindows = _startWithWindows,
             SkipStartupAnimation = _skipStartupAnimation,
+            UpdateChannel = _updateChannel == UpdateChannel.Preview ? "preview" : "stable",
             WindowWidth = _windowWidth,
             WindowHeight = _windowHeight
         };

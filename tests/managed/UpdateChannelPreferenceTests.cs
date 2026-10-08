@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using T7.Rekindle.Core;
 using T7.Rekindle.Desktop.Services;
 using T7.Rekindle.Desktop.ViewModels;
@@ -40,22 +42,23 @@ namespace T7.ManagedHarness
             Assert(settings.LoadUpdateChannel(out var warning) == UpdateChannel.Stable && warning.Length == 0,
                 "missing channel did not default to stable");
             settings.Save(new UserSettings { PlayerName = "保留玩家", ClientDirectory = @"C:\Games\T7" });
-            var original = File.ReadAllText(Path.Combine(directory, "settings.json"));
             settings.SaveUpdateChannel(UpdateChannel.Stable);
             settings.SaveUpdateChannel(UpdateChannel.Preview);
-            Assert(File.ReadAllText(Path.Combine(directory, "settings.json")) == original
+            Assert((string)JObject.Parse(File.ReadAllText(Path.Combine(directory, "settings.json"), Encoding.UTF8))["updateChannel"] == "preview"
                 && settings.Load().PlayerName == "保留玩家" && settings.LastWarning.Length == 0,
-                "channel preference broke legacy settings compatibility");
+                "channel was not saved in the unified settings file");
+            Assert(!File.Exists(Path.Combine(directory, "update-settings.json"))
+                && !File.Exists(Path.Combine(directory, "update-settings.json.bak")), "saving channel still created separate settings files");
             using (var model = Model(settings, _ => Task.FromResult(PreviewInfo())))
             {
                 Assert(model.SelectedUpdateChannel == UpdateChannel.Preview, "channel did not survive reopening");
                 model.SaveSettings();
                 Assert(settings.LoadUpdateChannel(out warning) == UpdateChannel.Preview, "saving window settings lost the channel");
             }
-            File.WriteAllText(Path.Combine(directory, "update-settings.json"), "invalid");
-            Assert(settings.LoadUpdateChannel(out warning) == UpdateChannel.Stable && warning.Contains("备份"),
-                "invalid channel did not restore backup");
-            File.WriteAllText(Path.Combine(directory, "update-settings.json.bak"), "{\"schemaVersion\":1,\"channel\":\"unknown\"}");
+            File.WriteAllText(Path.Combine(directory, "settings.json"), "invalid");
+            Assert(settings.LoadUpdateChannel(out warning) == UpdateChannel.Preview && warning.Contains("备份"),
+                "invalid unified settings did not restore backup");
+            File.WriteAllText(Path.Combine(directory, "settings.json.bak"), "{\"schemaVersion\":1,\"updateChannel\":\"unknown\"}");
             Assert(settings.LoadUpdateChannel(out warning) == UpdateChannel.Stable && warning.Length != 0,
                 "invalid channel and backup did not fall back visibly");
         }

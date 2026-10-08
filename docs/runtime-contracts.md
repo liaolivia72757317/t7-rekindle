@@ -101,7 +101,10 @@ MovementOverlay 只在挂起状态安装或撤销三个入口：资源路径别�
 | `minimizeToTray` | `false` | 检测到本次受管理游戏进程后收起到托盘 |
 | `startWithWindows` | `false` | 当前用户登录时打开启动器，不启动游戏；对应 HKCU Run 中的 `T7-Rekindle` 项 |
 | `skipStartupAnimation` | `false` | 下次启动时跳过登录片头；不跳过新手关过场或地图加载 |
+| `updateChannel` | `"stable"` | 更新订阅渠道，仅接受 `stable`（正式版）或 `preview`（预览版），与当前构建身份独立 |
 
 首次启动或旧设置缺少名称字段时使用“新玩家”，已保存的名称保持不变。设置允许空目录和空名称，开始游戏前仍须完成验证。旧配置缺少启动偏好字段时使用 `false`。设置读取拒绝未知字段和 JSON 尾随内容。
+
+旧配置缺少 `updateChannel` 时，读取同目录的 `update-settings.json`，无效时尝试其 `.bak`，将渠道与其余设置一起原子保存到 `settings.json`；两份旧渠道配置均无效时使用正式渠道并提示。已有 `updateChannel` 的主配置或恢复备份优先，不再导入旧渠道文件。迁移不删除旧文件，完成后不再维护它们；迁移写入失败会提示并保留原文件，后续读取重试。主配置和备份都损坏时，不以迁移为由覆盖原文件。回退到尚不识别 `updateChannel` 的旧版启动器时，该版本可能拒绝此配置。
 
 写入使用同目录临时文件、`Flush(true)` 和原子替换；替换已有文件时保留上一份为备份。读取损坏配置时保留原文件、尝试备份并反馈警告；两者均不可用时加载默认设置。具体实现见 [UserSettings / SettingsSchema](../src/Core/Settings.cs) 和 [SettingsService](../src/Desktop/Services/SettingsService.cs)。

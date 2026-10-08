@@ -99,8 +99,7 @@ Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $clientRoot 'Bin/TieJiWeb
 
 | 相对路径 | 内容 |
 | --- | --- |
-| `settings.json`、`settings.json.bak` | 客户端目录、玩家名称、窗口尺寸、主题与启动偏好，以及设置备份 |
-| `update-settings.json`、`update-settings.json.bak` | 更新渠道及备份；独立保存，兼容回退旧正式版 |
+| `settings.json`、`settings.json.bak` | 客户端目录、玩家名称、窗口尺寸、主题、启动偏好和更新渠道，以及统一的设置备份 |
 | `logs/desktop.log` | 启动器界面和托管服务日志 |
 | `logs/native.log` | 原生运行时诊断 |
 | `data/` | 会话 Journal 和业务脚本 revision 记录，不是游戏存档 |

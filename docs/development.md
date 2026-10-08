@@ -151,7 +151,7 @@ Compress-Archive -Path artifacts/package/* -DestinationPath dist/T7-Rekindle-win
 
 CI 通过 `GITHUB_SHA` 写入 Git 提交元数据。项目文件同时生成项目名称、介绍及仓库、发布页、CI 构建和 Issues 的地址元数据。
 
-`prepare-build` 同时生成构建渠道、数字版本及可发布预览的 CI 身份，分别写入程序集和程序包 `manifest.json` 的 `build` 对象。正式 tag 标记为 `stable`；默认分支的 push 或手动 CI 标记为可比较的 `preview`，使用 `runId`、`runNumber`、`runAttempt`、`commitHash`。其他分支及本地构建没有可比较的预览序号。用户订阅渠道与构建身份独立，首次默认正式，偏好保存在 `update-settings.json`。
+`prepare-build` 同时生成构建渠道、数字版本及可发布预览的 CI 身份，分别写入程序集和程序包 `manifest.json` 的 `build` 对象。正式 tag 标记为 `stable`；默认分支的 push 或手动 CI 标记为可比较的 `preview`，使用 `runId`、`runNumber`、`runAttempt`、`commitHash`。其他分支及本地构建没有可比较的预览序号。用户订阅渠道与构建身份独立，首次默认正式，偏好统一保存在 `settings.json` 的 `updateChannel` 字段；旧渠道文件自动迁移，规则见[设置格式](runtime-contracts.md#设置格式)。
 
 程序启动时、运行中每 30 分钟，以及游戏结束并完成会话清理后自动检查更新，也支持用户手动点击。所有触发共用同一个检查命令，已有检查时跳过重叠触发，不排队；手动检查和游戏结束检查不重置定时周期。检查结果不自动打开弹窗、下载或安装。
 

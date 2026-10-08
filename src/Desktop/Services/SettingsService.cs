@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using T7.Rekindle.Core;
 
@@ -32,29 +34,32 @@ namespace T7.Rekindle.Desktop.Services
         public UserSettings Load()
         {
             LastWarning = string.Empty;
-            var settings = TryRead(_path);
-            if (settings != null)
+            var settings = TryRead(_path, out var hasUpdateChannel);
+            if (settings == null)
             {
-                return settings;
+                if (File.Exists(_path))
+                {
+                    LastWarning = "设置文件无效，已保留原文件并尝试恢复备份。";
+                }
+
+                settings = TryRead(_backupPath, out hasUpdateChannel);
+                if (settings != null)
+                {
+                    LastWarning += "已从 settings.json.bak 恢复。";
+                }
+                else if (File.Exists(_backupPath))
+                {
+                    LastWarning += "备份也无效，请重新选择客户端目录。";
+                }
             }
 
-            if (File.Exists(_path))
+            var canMigrate = settings != null || (!File.Exists(_path) && !File.Exists(_backupPath));
+            settings = settings ?? new UserSettings();
+            if (!hasUpdateChannel)
             {
-                LastWarning = "设置文件无效，已保留原文件并尝试恢复备份。";
+                MigrateUpdateChannel(settings, canMigrate);
             }
-
-            var backup = TryRead(_backupPath);
-            if (backup != null)
-            {
-                LastWarning += "已从 settings.json.bak 恢复。";
-                return backup;
-            }
-
-            if (File.Exists(_backupPath))
-            {
-                LastWarning += "备份也无效，请重新选择客户端目录。";
-            }
-            return new UserSettings();
+            return settings;
         }
 
         public void Save(UserSettings settings)
@@ -116,8 +121,9 @@ namespace T7.Rekindle.Desktop.Services
             }
         }
 
-        private static UserSettings TryRead(string path)
+        private static UserSettings TryRead(string path, out bool hasUpdateChannel)
         {
+            hasUpdateChannel = false;
             try
             {
                 if (!File.Exists(path))
@@ -125,13 +131,18 @@ namespace T7.Rekindle.Desktop.Services
                     return null;
                 }
 
-                var settings = JsonConvert.DeserializeObject<UserSettings>(File.ReadAllText(path), new JsonSerializerSettings
+                var serializerSettings = new JsonSerializerSettings
                 {
                     TypeNameHandling = TypeNameHandling.None,
+                    DateParseHandling = DateParseHandling.None,
                     MissingMemberHandling = MissingMemberHandling.Error,
                     CheckAdditionalContent = true,
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
-                });
+                };
+                var value = JsonConvert.DeserializeObject<JObject>(File.ReadAllText(path, Encoding.UTF8), serializerSettings);
+                if (value == null) return null;
+                hasUpdateChannel = value.Property("updateChannel", StringComparison.OrdinalIgnoreCase) != null;
+                var settings = value.ToObject<UserSettings>(JsonSerializer.Create(serializerSettings));
                 return SettingsSchema.IsValid(settings) ? settings : null;
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)

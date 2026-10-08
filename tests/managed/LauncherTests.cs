@@ -24,6 +24,7 @@ namespace T7.ManagedHarness
                 ClientDirectorySearchTests.Run(directory);
                 DirectorySelectionTests.Run(directory);
                 TestPersistence(directory);
+                SettingsMergeTests.Run(directory);
                 UpdateChannelPreferenceTests.Run(directory);
                 TestSettingsNavigation(directory);
                 TestStartPreflight(directory);
