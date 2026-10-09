@@ -15,6 +15,9 @@ namespace T7.Rekindle.Desktop.Views
             UpdateBody.Height = Math.Max(440, e.NewSize.Height);
         }
 
+        private void OnHistorySizeChanged(object sender, SizeChangedEventArgs e) =>
+            HistoryContent.Height = Math.Max(320, e.NewSize.Height);
+
         private void OnChangelogDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (e.OldValue is AboutViewModel previous)

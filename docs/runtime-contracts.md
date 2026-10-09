@@ -151,3 +151,13 @@ MovementOverlay 只在挂起状态安装或撤销三个入口：资源路径别�
 旧配置缺少 `updateChannel` 时，读取同目录的 `update-settings.json`，无效时尝试其 `.bak`，将渠道与其余设置一起原子保存到 `settings.json`；两份旧渠道配置均无效时使用正式渠道并提示。已有 `updateChannel` 的主配置或恢复备份优先，不再导入旧渠道文件。迁移不删除旧文件，完成后不再维护它们；迁移写入失败会提示并保留原文件，后续读取重试。主配置和备份都损坏时，不以迁移为由覆盖原文件。回退到尚不识别 `updateChannel` 的旧版启动器时，该版本可能拒绝此配置。
 
 写入使用同目录临时文件、`Flush(true)` 和原子替换；替换已有文件时保留上一份为备份。读取损坏配置时保留原文件、尝试备份并反馈警告；两者均不可用时加载默认设置。具体实现见 [UserSettings / SettingsSchema](../src/Core/Settings.cs) 和 [SettingsService](../src/Desktop/Services/SettingsService.cs)。
+
+### 回退设置契约
+
+新程序包声明 `rollbackProtocol: 1` 和 `settingsSchemaVersion`。打包验证设置 schema 与 `SettingsSchema.CurrentVersion`、安装器中的 `RollbackSettingsSchemaVersion` 一致。后续增加旧版不接受的字段或改变字段含义时，必须提升设置 schema 并实现对应的正常升级迁移；不得仅依据版本号猜测兼容性。
+
+回退安装器等待启动器退出后，将 `settings.json`、`settings.json.bak`、`update-settings.json`、`update-settings.json.bak` 中实际存在的文件复制到 `%LOCALAPPDATA%\T7-Rekindle\settings-backups\<operationId>.backup`。`backup.ini` 记录原始文件存在状态、本项目 HKCU Run 登录启动项及安装目录。备份失败停止安装；已有备份不覆盖、不自动删除。
+
+schema 相同时保留设置；不同时，程序安装成功后才清除上述四份配置并写入目标 schema 与选中的 `updateChannel`，其余字段由目标版本默认值初始化，同时移除本项目登录启动项。普通安装和普通更新不执行此重置。重置失败尝试恢复全部配置与启动项，显示备份位置并停止自动启动；该流程不提供程序目录的原子恢复。
+
+手动恢复设置时，先确认 `backup.ini` 的 `installation.complete=1`，安装与备份 schema 兼容的启动器并完全退出，再按文件存在记录将原本存在的文件复制回设置目录，移除原本不存在的同名文件。登录启动项可在启动器设置中重新启用；不要将高版本设置直接恢复给不兼容的旧版。备份仅保存在本机，不随发布上传。

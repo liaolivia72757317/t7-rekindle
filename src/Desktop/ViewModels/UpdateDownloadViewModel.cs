@@ -27,11 +27,14 @@ namespace T7.Rekindle.Desktop.ViewModels
         private bool _cancelRequested;
         private bool _disposed;
         private UpdateDownloadControl _downloadControl;
+        private readonly LauncherHistoryEntry _historyEntry;
+        internal Func<bool> CanStartOperation { get; set; } = () => true;
 
         internal UpdateDownloadViewModel(LauncherUpdateInfo info,
             Func<LauncherUpdateAsset, IProgress<UpdateDownloadProgress>, CancellationToken, UpdateDownloadControl, Task<string>> download,
-            Func<string, Task<bool>> install, Action<string> openAddress)
+            Func<string, Task<bool>> install, Action<string> openAddress, LauncherHistoryEntry historyEntry = null)
         {
+            _historyEntry = historyEntry;
             Info = info ?? throw new ArgumentNullException(nameof(info));
             _download = download ?? throw new ArgumentNullException(nameof(download));
             _install = install ?? throw new ArgumentNullException(nameof(install));
@@ -39,7 +42,7 @@ namespace T7.Rekindle.Desktop.ViewModels
             _sourceNotice = info.SourceNotice ?? string.Empty;
             _statusText = info.Installer == null && info.IsNewVersion
                 ? "该版本缺少可校验的安装包，请从发布页手动下载。" : string.Empty;
-            PrimaryCommand = new AsyncRelayCommand(ActAsync, () => !_disposed && HasPrimaryAction && !IsDownloading && !IsInstalling);
+            PrimaryCommand = new AsyncRelayCommand(ActAsync, () => !_disposed && HasPrimaryAction && !IsDownloading && !IsInstalling && CanStartOperation());
             PauseDownloadCommand = new RelayCommand(TogglePause, () => IsDownloading && !_cancelRequested && !_disposed);
             CancelDownloadCommand = new RelayCommand(CancelDownload, () => IsDownloading && !_cancelRequested);
         }
@@ -51,10 +54,12 @@ namespace T7.Rekindle.Desktop.ViewModels
         public bool IsInstalling => _isInstalling;
         public bool CanClose => !IsInstalling;
         public bool HasDownloadedInstaller => !string.IsNullOrEmpty(_installerPath);
-        public bool HasPrimaryAction => Info.IsNewVersion && (CanDownloadInstaller || Info.HasDownloadAddress);
-        private bool CanDownloadInstaller => Info.IsNewVersion && Info.Installer != null;
+        public bool HasPrimaryAction => _historyEntry != null ? _historyEntry.CanRollback && CanDownloadInstaller
+            : Info.IsNewVersion && (CanDownloadInstaller || Info.HasDownloadAddress);
+        private bool CanDownloadInstaller => (_historyEntry?.CanRollback ?? Info.IsNewVersion) && Info.Installer != null;
         public string PrimaryActionText => IsInstalling ? "准备安装…" : IsDownloading ? (IsPaused ? "已暂停" : "下载中…")
-            : HasDownloadedInstaller ? "立即安装" : "下载更新";
+            : HasDownloadedInstaller ? (_historyEntry == null ? "立即安装" : "立即回退")
+            : _historyEntry == null ? "下载更新" : "下载此版本";
         public string StatusText
         {
             get => _statusText;
@@ -82,7 +87,7 @@ namespace T7.Rekindle.Desktop.ViewModels
 
         private async Task ActAsync()
         {
-            if (_disposed || !HasPrimaryAction || IsDownloading || IsInstalling) return;
+            if (_disposed || !HasPrimaryAction || IsDownloading || IsInstalling || !CanStartOperation()) return;
             ErrorText = string.Empty;
             if (!CanDownloadInstaller)
             {
@@ -140,7 +145,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                     _installerPath = await _download(Info.Installer, progress, cancellation.Token, _downloadControl).ConfigureAwait(true);
                     Percent = 100;
                     ProgressText = string.Format("100% · {0:F1} MiB · SHA-256 校验通过", Info.Installer.Size / 1048576.0);
-                    StatusText = "下载完成。点击“立即安装”后将确认退出当前启动器。";
+                    StatusText = "下载完成。点击“" + (_historyEntry == null ? "立即安装" : "立即回退") + "”后将确认退出当前启动器。";
                 }
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
                 {
@@ -197,6 +202,8 @@ namespace T7.Rekindle.Desktop.ViewModels
             PauseDownloadCommand.NotifyCanExecuteChanged();
             CancelDownloadCommand.NotifyCanExecuteChanged();
         }
+
+        internal void RefreshAvailability() => PrimaryCommand.NotifyCanExecuteChanged();
 
         public void Dispose()
         {

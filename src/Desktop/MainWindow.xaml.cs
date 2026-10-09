@@ -170,11 +170,17 @@ namespace T7.Rekindle.Desktop
             (DataContext as System.IDisposable)?.Dispose();
         }
 
-        internal async Task<bool> InstallUpdateAsync(string installerPath)
+        internal async Task<bool> InstallUpdateAsync(string installerPath, LauncherHistoryEntry rollback = null)
         {
             if (_closePending || _closeAfterCleanup) return false;
             if (!(DataContext is MainWindowViewModel model)) throw new InvalidOperationException("启动器状态尚未就绪。");
-            if (!DesktopInteraction.ConfirmAction("安装更新？", "更新将覆盖当前启动器目录。结束当前游戏并退出启动器后，将直接开始安装。", "退出并安装")) return false;
+            if (rollback != null && !rollback.CanRollback) throw new InvalidOperationException("所选版本不支持回退。");
+            var message = rollback == null ? "更新将覆盖当前启动器目录。结束当前游戏并退出启动器后，将直接开始安装。"
+                : LauncherInformation.DisplayVersion + " → " + rollback.DisplayVersion + "\n覆盖目录：" + AppContext.BaseDirectory
+                    + "\n将结束当前游戏并退出启动器。\n" + rollback.SettingsNotice
+                    + "\n备份保存在 %LOCALAPPDATA%\\T7-Rekindle\\settings-backups。";
+            if (!DesktopInteraction.ConfirmAction(rollback == null ? "安装更新？" : "回退版本？", message,
+                rollback == null ? "退出并安装" : "退出并回退")) return false;
             _closePending = true;
             try
             {
@@ -183,7 +189,7 @@ namespace T7.Rekindle.Desktop
                     path =>
                     {
                         using (var launcher = Process.GetCurrentProcess())
-                        using (var installer = Process.Start(UpdateInstallationService.CreateStartInfo(path, AppContext.BaseDirectory, launcher.Id)))
+                        using (var installer = Process.Start(UpdateInstallationService.CreateStartInfo(path, AppContext.BaseDirectory, launcher.Id, rollback)))
                         {
                             if (installer == null) throw new InvalidOperationException("安装程序未成功启动。");
                         }

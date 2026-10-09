@@ -14,6 +14,28 @@ namespace T7.ManagedHarness
         [STAThread]
         private static int Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--rollback-tests")
+            {
+                try
+                {
+                    Console.WriteLine("Checking rollback services and state...");
+                    ReleaseHistoryTests.Run();
+                    Console.WriteLine("Checking rollback layout...");
+                    var app = new T7.Rekindle.Desktop.App(false);
+                    app.InitializeComponent();
+                    app.ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+                    ReleaseHistoryTests.Render(args.Length == 2 ? args[1] : null);
+                    app.Shutdown();
+                    Console.WriteLine("rollback checks passed");
+                    return 0;
+                }
+                catch (Exception error)
+                {
+                    Console.Error.WriteLine(error.GetType().FullName + ": " + error.Message);
+                    Console.Error.WriteLine(error.StackTrace);
+                    return 1;
+                }
+            }
             if (args.Length == 2 && args[0] == "--native-ui")
             {
                 NativeWindowUiTests.Run(args[1]);
@@ -47,6 +69,7 @@ namespace T7.ManagedHarness
             UpdateFeedTests.Run();
             UpdateChannelTests.Run();
             ReleaseNotesTests.Run();
+            ReleaseHistoryTests.Run();
             UpdateDownloadTests.Run();
             UpdateDownloadViewModelTests.Run();
             LauncherTests.Run();

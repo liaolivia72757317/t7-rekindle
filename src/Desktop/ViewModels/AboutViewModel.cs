@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -25,12 +27,15 @@ namespace T7.Rekindle.Desktop.ViewModels
         private string _updateError = string.Empty;
         private bool _isCheckingUpdate;
         private UpdateChannel _channel;
+        private bool _isHistorySelected;
 
         public AboutViewModel(IDesktopInteraction interaction)
             : this(interaction, LauncherInformation.CheckUpdateAsync) { }
 
         internal AboutViewModel(IDesktopInteraction interaction, Func<Task<LauncherUpdateInfo>> checkUpdate,
-            Func<LauncherUpdateInfo, UpdateDownloadViewModel> createDownload = null)
+            Func<LauncherUpdateInfo, UpdateDownloadViewModel> createDownload = null,
+            Func<UpdateChannel, CancellationToken, Task<IReadOnlyList<LauncherHistoryEntry>>> loadHistory = null,
+            Func<LauncherHistoryEntry, UpdateDownloadViewModel> createRollbackDownload = null)
         {
             _interaction = interaction;
             _checkUpdate = checkUpdate;
@@ -38,6 +43,11 @@ namespace T7.Rekindle.Desktop.ViewModels
                 LauncherInformation.DownloadInstallerAsync, DesktopInteraction.InstallUpdateAsync, _interaction.OpenAddress));
             ShowContactCommand = new RelayCommand(() => OpenAddress(ContactAddress), () => HasContactAddress);
             CheckUpdateCommand = new AsyncRelayCommand(CheckUpdateAsync, () => !_disposed && !IsCheckingUpdate && !IsUpdating);
+            History = new ReleaseHistoryViewModel(loadHistory ?? LauncherInformation.GetHistoryAsync,
+                createRollbackDownload ?? (entry => new UpdateDownloadViewModel(entry.ToInstallInfo(), LauncherInformation.DownloadInstallerAsync,
+                    path => DesktopInteraction.InstallRollbackAsync(path, entry), _interaction.OpenAddress, entry)),
+                () => IsCheckingUpdate || UpdateDownload?.IsDownloading == true || UpdateDownload?.IsInstalling == true);
+            History.ActivityChanged += OnHistoryActivityChanged;
             CopyHashCommand = new RelayCommand(() => Copy(LauncherInformation.CommitHash, "完整 hash 已复制。"),
                 () => LauncherInformation.CommitHash.Length != 0);
             ShowChangelogCommand = new RelayCommand(() => ShowDocument("版本日志", "CHANGELOG.md"));
@@ -96,7 +106,19 @@ namespace T7.Rekindle.Desktop.ViewModels
             return string.IsNullOrWhiteSpace(info.ReleaseNotesNotice) ? body : info.ReleaseNotesNotice + "\n\n" + body;
         }
         public UpdateDownloadViewModel UpdateDownload => _updateDownload;
-        public bool IsUpdating => UpdateDownload?.IsDownloading == true || UpdateDownload?.IsInstalling == true;
+        public bool IsUpdating => UpdateDownload?.IsDownloading == true || UpdateDownload?.IsInstalling == true || History.IsBusy;
+        public ReleaseHistoryViewModel History { get; }
+        public bool IsHistorySelected
+        {
+            get => _isHistorySelected;
+            set
+            {
+                if (!SetProperty(ref _isHistorySelected, value)) return;
+                OnPropertyChanged(nameof(IsLatestSelected));
+                LoadHistoryIfNeeded();
+            }
+        }
+        public bool IsLatestSelected { get => !IsHistorySelected; set { if (value) IsHistorySelected = false; } }
         public RelayCommand ShowContactCommand { get; }
         public string ProjectName => LauncherInformation.ProjectName;
         public string ProjectDescription => LauncherInformation.ProjectDescription;
@@ -129,6 +151,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 if (!SetProperty(ref _isCheckingUpdate, value)) return;
                 UpdateActionPresentation();
                 CheckUpdateCommand?.NotifyCanExecuteChanged();
+                History?.RefreshAvailability();
             }
         }
         private bool HasUpdateAction => HasNewUpdate && UpdateDownload != null;
@@ -180,6 +203,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 IsCheckingUpdate = false;
                 UpdatePresentation();
                 if (!_disposed) UpdateFinished?.Invoke();
+                LoadHistoryIfNeeded();
             }
         }
 
@@ -195,6 +219,7 @@ namespace T7.Rekindle.Desktop.ViewModels
         {
             if (IsCheckingUpdate || IsUpdating) throw new InvalidOperationException("更新任务进行中。");
             _channel = channel;
+            History.ResetChannel(channel);
             _lastUpdate = null;
             _lastCheck = null;
             Feedback = UpdateError = string.Empty;
@@ -222,7 +247,11 @@ namespace T7.Rekindle.Desktop.ViewModels
                 _updateDownload.Dispose();
             }
             _updateDownload = info.IsNewVersion ? _createDownload(info) : null;
-            if (_updateDownload != null) _updateDownload.PropertyChanged += OnDownloadChanged;
+            if (_updateDownload != null)
+            {
+                _updateDownload.CanStartOperation = () => !History.IsBusy;
+                _updateDownload.PropertyChanged += OnDownloadChanged;
+            }
             OnPropertyChanged(nameof(UpdateDownload));
             OnPropertyChanged(nameof(IsUpdating));
         }
@@ -235,13 +264,34 @@ namespace T7.Rekindle.Desktop.ViewModels
                 && e.PropertyName != nameof(UpdateDownloadViewModel.IsInstalling)) return;
             OnPropertyChanged(nameof(IsUpdating));
             CheckUpdateCommand.NotifyCanExecuteChanged();
+            History.RefreshAvailability();
+            LoadHistoryIfNeeded();
         }
 
-        internal Task CancelUpdateDownloadAsync() => UpdateDownload?.CancelAndWaitAsync() ?? Task.CompletedTask;
+        private void OnHistoryActivityChanged()
+        {
+            OnPropertyChanged(nameof(IsUpdating));
+            CheckUpdateCommand.NotifyCanExecuteChanged();
+            UpdateDownload?.RefreshAvailability();
+        }
+
+        private void LoadHistoryIfNeeded()
+        {
+            if (!_disposed && IsHistorySelected && !History.HasLoaded && History.RefreshCommand.CanExecute(null))
+                History.RefreshCommand.Execute(null);
+        }
+
+        internal async Task CancelUpdateDownloadAsync()
+        {
+            if (UpdateDownload != null) await UpdateDownload.CancelAndWaitAsync().ConfigureAwait(true);
+            await History.CancelAndWaitAsync().ConfigureAwait(true);
+        }
 
         public void Dispose()
         {
             _disposed = true;
+            History.ActivityChanged -= OnHistoryActivityChanged;
+            History.Dispose();
             if (_updateDownload != null)
             {
                 _updateDownload.PropertyChanged -= OnDownloadChanged;

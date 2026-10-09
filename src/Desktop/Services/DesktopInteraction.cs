@@ -99,5 +99,12 @@ namespace T7.Rekindle.Desktop.Services
                 throw new InvalidOperationException("未找到启动器主窗口。");
             return window.InstallUpdateAsync(path);
         }
+
+        internal static Task<bool> InstallRollbackAsync(string path, LauncherHistoryEntry entry)
+        {
+            if (!(Application.Current?.MainWindow is MainWindow window))
+                throw new InvalidOperationException("未找到启动器主窗口。");
+            return window.InstallUpdateAsync(path, entry);
+        }
     }
 }

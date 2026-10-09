@@ -4,12 +4,15 @@
              xmlns:views="clr-namespace:T7.Rekindle.Desktop.Views">
   <Border Style="{StaticResource PagePanel}" DataContext="{Binding About}">
     <Grid>
-      <Grid.RowDefinitions><RowDefinition Height="80" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+      <Grid.RowDefinitions><RowDefinition Height="80" /><RowDefinition Height="54" /><RowDefinition Height="*" /></Grid.RowDefinitions>
       <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
         <Grid Margin="0,0,0,20">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <StackPanel x:Name="UpdateTitle" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,16,0"><views:Icon Kind="refresh" Width="32" Height="32" Margin="0,0,20,0" /><TextBlock Text="更新" Style="{StaticResource PageTitle}" /></StackPanel>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="HistoryRefreshButton" Grid.Column="1" Content="刷新列表" Command="{Binding History.RefreshCommand}" Height="52" MinWidth="144"
+                  Visibility="{Binding IsHistorySelected, Converter={StaticResource BoolVisibility}}"
+                  AutomationProperties.Name="刷新历史版本" TabIndex="8" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding IsLatestSelected, Converter={StaticResource BoolVisibility}}">
             <Button x:Name="CancelDownloadButton" Content="取消下载" Command="{Binding UpdateDownload.CancelDownloadCommand}"
                     Style="{StaticResource {x:Type Button}}" Height="52" MinWidth="112" Margin="0,0,12,0"
                     Visibility="{Binding UpdateDownload.IsDownloading, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}"
@@ -20,7 +23,16 @@
           </StackPanel>
         </Grid>
       </Border>
-      <ScrollViewer x:Name="UpdateScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" SizeChanged="OnBodySizeChanged">
+      <StackPanel Grid.Row="1" Orientation="Horizontal">
+        <RadioButton Content="最新版本" GroupName="UpdateSections" IsChecked="{Binding IsLatestSelected}" Style="{StaticResource NavigationTab}" AutomationProperties.Name="最新版本" TabIndex="6" />
+        <RadioButton Content="历史版本" GroupName="UpdateSections" IsChecked="{Binding IsHistorySelected}" Style="{StaticResource NavigationTab}" AutomationProperties.Name="历史版本" TabIndex="7" />
+        <TextBlock Text="{Binding UpdateChannelText}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="20,0,0,0" />
+      </StackPanel>
+      <ScrollViewer Grid.Row="2" Visibility="{Binding IsHistorySelected, Converter={StaticResource BoolVisibility}}"
+                    VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" SizeChanged="OnHistorySizeChanged">
+        <views:ReleaseHistoryPanel x:Name="HistoryContent" DataContext="{Binding History}" Height="600" />
+      </ScrollViewer>
+      <ScrollViewer x:Name="UpdateScroll" Grid.Row="2" Visibility="{Binding IsLatestSelected, Converter={StaticResource BoolVisibility}}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" SizeChanged="OnBodySizeChanged">
       <Grid x:Name="UpdateBody" Height="660">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
       <Border Grid.Row="0" Style="{StaticResource Card}" Background="{DynamicResource WindowBackgroundBrush}" Margin="0,24,0,24" Padding="28" MinHeight="196">

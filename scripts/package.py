@@ -12,6 +12,7 @@ import stat
 import struct
 import zipfile
 from release_metadata import package_build_metadata
+from rollback_history import build_rollback_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_ARCHIVE_MEMBERS = 20000
@@ -312,6 +313,8 @@ def verify_package(output: Path, require_runtime: bool = False, require_license:
     if not manifest_path.is_file():
         raise FileNotFoundError("package manifest is missing")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if any(type(manifest.get(key)) is not int or manifest[key] != value for key, value in build_rollback_metadata().items()):
+        raise ValueError("package rollback contract does not match this build")
     if (manifest.get("schemaVersion") != 1
             or manifest.get("product") != "T7-Rekindle"
             or manifest.get("architecture") != "x64"
@@ -425,6 +428,7 @@ def _package(output: Path, python_archive: Path | None = None, release: bool = F
         raise FileNotFoundError("release packaging requires a root LICENSE file")
     manifest = {
         "schemaVersion": 1,
+        **build_rollback_metadata(),
         "build": package_build_metadata(os.environ),
         "product": "T7-Rekindle",
         "architecture": "x64",

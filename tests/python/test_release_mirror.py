@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import zipfile
 from unittest.mock import patch
 from urllib.parse import quote
 
@@ -76,6 +77,9 @@ def release_fixture(tmp_path, version="v1.2.3"):
     for name in (f"T7-Rekindle-{version}-Setup.exe", f"T7-Rekindle-windows-x64-{version}.zip"):
         path = directory / name
         path.write_bytes((version + name).encode())
+        if path.suffix == ".zip":
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr(zipfile.ZipInfo("manifest.json"), json.dumps({"schemaVersion": 1}))
         assets[name] = path
     release = {"tag_name": version, "draft": False, "prerelease": False, "body": "发布说明",
                "assets": [{"name": name, "state": "uploaded", "size": path.stat().st_size}

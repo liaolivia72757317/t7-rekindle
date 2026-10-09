@@ -32,6 +32,7 @@ namespace T7.ManagedHarness
                 AboutPageLayoutTests.Run(settingsDirectory, outputDirectory);
                 AnnouncementTests.Run(settingsDirectory, outputDirectory);
                 LauncherUpdatePageTests.Run(settingsDirectory, outputDirectory);
+                ReleaseHistoryTests.Render(outputDirectory);
                 UpdateReminderTests.Run(settingsDirectory, outputDirectory);
                 EnvironmentInformationTests.Run(outputDirectory);
                 LauncherDesignTests.Run(settingsDirectory, outputDirectory);

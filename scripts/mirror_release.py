@@ -15,6 +15,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from release_metadata import asset_names, build_manifest, file_digest, normalize_base_url, parse_version
+from rollback_history import publish_history, read_rollback_metadata
 from release_history import (LATEST_NAMES, STABLE_KEY, backfill_notes, indexed_versions, read_stable,
                              seed_legacy_notes, sorted_versions, write_notes, write_stable)
 
@@ -119,6 +120,7 @@ def publish_release(release: dict, assets: dict[str, Path], store, base_url: str
     manifest = build_manifest(release, assets, base_url)
     version = manifest["version"]
     names = asset_names(version)
+    rollback = read_rollback_metadata(assets[names["portable"]], "stable", version)
     previous = read_stable(store, work_directory)
     comparison = 1 if previous is None else (
         (parse_version(version) > parse_version(previous["version"]))
@@ -157,6 +159,7 @@ def publish_release(release: dict, assets: dict[str, Path], store, base_url: str
         write_notes("latest/changelog.md", manifest["summary"], store, base_url, work_directory, verify_notes)
     result = {**(manifest if comparison >= 0 else previous),
               "versions": sorted_versions([*indexed_versions(previous), version])}
+    publish_history(manifest, rollback, "stable", store, base_url, work_directory)
     write_stable(result, store, work_directory)
     print(f"Published stable feed for {result['version']} with {len(result['versions'])} versions.")
     return comparison >= 0

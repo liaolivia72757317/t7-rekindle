@@ -11,6 +11,7 @@ import zipfile
 
 from mirror_release import AwsR2Store, IMMUTABLE_CACHE, run_command, verify_public_asset
 from release_metadata import file_digest, normalize_base_url, validate_preview_build
+from rollback_history import publish_history, read_rollback_metadata
 
 
 PREVIEW_KEY = "updates/preview.json"
@@ -38,6 +39,8 @@ def publish_preview(build: dict, assets: dict[str, Path], store, base_url: str, 
     manifest = {"schemaVersion": 1, "channel": "preview", "version": "v" + build["version"].lstrip("vV"),
                 "build": build, "summary": summary}
     prefix = f"previews/{build['runId']}/{build['runAttempt']}/"
+    rollback = read_rollback_metadata(assets["portable"], "preview", manifest["version"], build)
+    advance = True
     for kind, name in ASSET_NAMES.items():
         size = assets[kind].stat().st_size
         if size <= 0:
@@ -51,7 +54,9 @@ def publish_preview(build: dict, assets: dict[str, Path], store, base_url: str, 
             raise ValueError("Existing preview feed is invalid.")
         previous_build = validate_preview_build(previous.get("build"))
         if sequence(build) < sequence(previous_build):
-            return False
+            advance = False
+            if rollback is None:
+                return False
         if sequence(build) == sequence(previous_build):
             if build != previous_build or any(previous.get(kind) != manifest[kind] for kind in ASSET_NAMES):
                 raise ValueError("An immutable preview build already exists with different content.")
@@ -73,6 +78,9 @@ def publish_preview(build: dict, assets: dict[str, Path], store, base_url: str, 
                          cache_control=IMMUTABLE_CACHE, sha256=asset["sha256"])
         verify(asset["url"], asset)
 
+    publish_history(manifest, rollback, "preview", store, base_url, work_directory)
+    if not advance:
+        return False
     destination = work_directory / "preview.json"
     destination.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     store.upload(PREVIEW_KEY, destination, content_type="application/json; charset=utf-8", cache_control="no-store")

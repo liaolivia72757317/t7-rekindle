@@ -24,14 +24,18 @@ namespace T7.Rekindle.Desktop.Services
             _closeApplication = closeApplication ?? throw new ArgumentNullException(nameof(closeApplication));
         }
 
-        internal static ProcessStartInfo CreateStartInfo(string installerPath, string launcherDirectory, int launcherProcessId)
+        internal static ProcessStartInfo CreateStartInfo(string installerPath, string launcherDirectory, int launcherProcessId,
+            LauncherHistoryEntry rollback = null)
         {
             if (launcherProcessId <= 0) throw new ArgumentOutOfRangeException(nameof(launcherProcessId));
+            if (rollback != null && !rollback.CanRollback) throw new InvalidOperationException("所选版本不支持回退。");
             return new ProcessStartInfo(installerPath)
             {
                 UseShellExecute = true,
                 Arguments = "/SILENT /SP- /NORESTART /NORESTARTAPPLICATIONS /DIR=\"" + Path.GetFullPath(launcherDirectory)
                     + "\" /LAUNCHERPID=" + launcherProcessId.ToString(CultureInfo.InvariantCulture)
+                    + (rollback == null ? string.Empty : " /ROLLBACK=1 /RESETSETTINGS=" + (rollback.ResetsSettings ? "1" : "0")
+                        + " /UPDATECHANNEL=" + (rollback.Channel == UpdateChannel.Stable ? "stable" : "preview"))
             };
         }
 

@@ -68,6 +68,9 @@ namespace T7.Rekindle.Desktop.Services
         public static Task<LauncherUpdateInfo> CheckUpdateAsync(UpdateChannel channel) =>
             new ReleaseUpdateService(UpdateClient, RepositoryAddress, UpdateBaseAddress).CheckAsync(CurrentBuild, channel);
 
+        public static Task<IReadOnlyList<LauncherHistoryEntry>> GetHistoryAsync(UpdateChannel channel, CancellationToken cancellation) =>
+            new ReleaseHistoryService(UpdateClient, RepositoryAddress, UpdateBaseAddress, CurrentBuild).GetHistoryAsync(channel, cancellation);
+
         internal static Task<string> DownloadInstallerAsync(LauncherUpdateAsset asset,
             IProgress<UpdateDownloadProgress> progress, CancellationToken cancellation, UpdateDownloadControl control) =>
             new UpdateDownloadService(DownloadClient, Path.Combine(

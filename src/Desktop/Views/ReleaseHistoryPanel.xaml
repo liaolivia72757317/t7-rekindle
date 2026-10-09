@@ -1,0 +1,78 @@
+<UserControl x:Class="T7.Rekindle.Desktop.Views.ReleaseHistoryPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="0,20,0,0" MinHeight="300">
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+    <StackPanel Margin="0,0,0,16">
+      <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      <TextBlock Text="{Binding ErrorText}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,6,0,0"
+                 Visibility="{Binding HasError, Converter={StaticResource BoolVisibility}}" AutomationProperties.LiveSetting="Assertive" />
+      <ProgressBar Height="3" Margin="0,8,0,0" Style="{StaticResource BusyProgress}" Visibility="{Binding IsLoading, Converter={StaticResource BoolVisibility}}" AutomationProperties.Name="正在读取历史版本" />
+    </StackPanel>
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="200" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+      <ListBox x:Name="HistoryList" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry, Mode=TwoWay}" IsEnabled="{Binding CanSelect}"
+               Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource DividerBrush}"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
+               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" HorizontalContentAlignment="Stretch"
+               AutomationProperties.Name="历史版本列表" TabIndex="10">
+        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+          <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="BorderBrush" Value="Transparent" />
+          <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocus}" />
+          <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Margin="2">
+              <ContentPresenter HorizontalAlignment="Stretch" />
+            </Border>
+          </ControlTemplate></Setter.Value></Setter>
+          <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource GoldBrush}" /></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.65" /></Trigger>
+          </Style.Triggers>
+        </Style></ListBox.ItemContainerStyle>
+        <ListBox.ItemTemplate><DataTemplate>
+          <StackPanel Margin="8,10">
+            <TextBlock Text="{Binding DisplayVersion}" FontFamily="{StaticResource CodeFontFamily}" FontSize="16" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding PublishedText}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+            <TextBlock Text="{Binding AvailabilityText}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+          </StackPanel>
+        </DataTemplate></ListBox.ItemTemplate>
+      </ListBox>
+      <Border Grid.Column="1" Style="{StaticResource Card}" Padding="20" Margin="16,0,0,0">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+          <StackPanel Visibility="{Binding HasSelection, Converter={StaticResource BoolVisibility}}" Margin="0,0,0,14">
+            <TextBlock Text="{Binding SelectedEntry.DisplayVersion}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding SelectedEntry.SettingsNotice}" TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+          </StackPanel>
+          <FlowDocumentScrollViewer x:Name="HistoryNotes" Grid.Row="1" IsToolBarVisible="False" IsSelectionEnabled="True"
+                                    FontFamily="{StaticResource UiFontFamily}" Foreground="{DynamicResource TextBrush}"
+                                    VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                    DataContextChanged="OnHistoryChanged" AutomationProperties.Name="历史版本说明" />
+          <StackPanel Grid.Row="2" DataContext="{Binding Download}" Margin="0,12,0,0">
+            <ProgressBar Height="6" Minimum="0" Maximum="100" Value="{Binding Percent, Mode=OneWay}"
+                         Foreground="{DynamicResource PrimaryBrush}" Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}"
+                         Visibility="{Binding HasProgress, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" AutomationProperties.Name="回退安装包下载进度" />
+            <TextBlock Text="{Binding ProgressText}" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Visibility="{Binding HasProgress, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" />
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite"
+                       Visibility="{Binding HasStatusText, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" />
+            <TextBlock Text="{Binding SourceNotice}" TextWrapping="Wrap" Style="{StaticResource MutedText}"
+                       Visibility="{Binding HasSourceNotice, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" />
+            <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" Foreground="{DynamicResource ErrorBrush}" AutomationProperties.LiveSetting="Assertive"
+                       Visibility="{Binding HasError, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" />
+            <WrapPanel Margin="0,12,0,0">
+              <Button Content="{Binding PrimaryActionText}" Command="{Binding PrimaryCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"
+                      Visibility="{Binding HasPrimaryAction, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" AutomationProperties.Name="{Binding PrimaryActionText}" TabIndex="11" />
+              <Button Content="{Binding PauseActionText}" Command="{Binding PauseDownloadCommand}" Margin="0,0,8,8"
+                      Visibility="{Binding IsDownloading, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" AutomationProperties.Name="{Binding PauseActionText}" TabIndex="12" />
+              <Button Content="取消下载" Command="{Binding CancelDownloadCommand}" Margin="0,0,0,8"
+                      Visibility="{Binding IsDownloading, Converter={StaticResource BoolVisibility}, FallbackValue=Collapsed}" AutomationProperties.Name="取消回退安装包下载" TabIndex="13" />
+            </WrapPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

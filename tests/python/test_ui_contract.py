@@ -266,7 +266,9 @@ def test_project_information_uses_the_public_repository():
 def test_update_page_reuses_header_actions_without_a_result_dialog():
     root = _xaml(ROOT / "src/Desktop/Views/LauncherUpdatePage.xaml")
     buttons = {button.attrib.get("{" + XAML + "}Name"): button for button in _find(root, "Button")}
-    assert set(buttons) == {"UpdateButton", "CancelDownloadButton"}
+    assert set(buttons) == {"UpdateButton", "CancelDownloadButton", "HistoryRefreshButton"}
+    assert buttons["HistoryRefreshButton"].attrib["Command"] == "{Binding History.RefreshCommand}"
+    assert buttons["HistoryRefreshButton"].attrib["Visibility"] == "{Binding IsHistorySelected, Converter={StaticResource BoolVisibility}}"
     assert buttons["UpdateButton"].attrib["Command"] == "{Binding UpdateActionCommand}"
     assert buttons["UpdateButton"].attrib["Style"] == "{StaticResource PrimaryButton}"
     assert buttons["UpdateButton"].attrib["AutomationProperties.Name"] == "{Binding UpdateButtonText}"
@@ -274,13 +276,25 @@ def test_update_page_reuses_header_actions_without_a_result_dialog():
     assert buttons["CancelDownloadButton"].attrib["Style"] == "{StaticResource {x:Type Button}}"
     parents = {child: parent for parent in root.iter() for child in parent}
     assert parents[buttons["UpdateButton"]] is parents[buttons["CancelDownloadButton"]]
-    body = _find(root, "ScrollViewer")[0]
+    body = next(item for item in _find(root, "ScrollViewer") if item.attrib.get("{" + XAML + "}Name") == "UpdateScroll")
     assert not _find(body, "Button")
     progress = next(item for item in _find(root, "ProgressBar")
                     if item.attrib.get("{" + XAML + "}Name") == "DownloadProgress")
     assert progress.attrib["Value"] == "{Binding Percent, Mode=OneWay}"
     assert not (ROOT / "src/Desktop/Views/UpdateDialog.xaml").exists()
     assert not (ROOT / "src/Desktop/Views/UpdateDialog.xaml.cs").exists()
+
+
+def test_history_page_keeps_selection_and_download_separate_from_latest():
+    root = _xaml(ROOT / "src/Desktop/Views/LauncherUpdatePage.xaml")
+    assert [item.attrib["Content"] for item in _find(root, "RadioButton")] == ["最新版本", "历史版本"]
+    panel = _xaml(ROOT / "src/Desktop/Views/ReleaseHistoryPanel.xaml")
+    selection = _find(panel, "ListBox")[0]
+    assert selection.attrib["IsEnabled"] == "{Binding CanSelect}"
+    assert selection.attrib["SelectedItem"] == "{Binding SelectedEntry, Mode=TwoWay}"
+    assert selection.attrib["VirtualizingPanel.IsVirtualizing"] == "True"
+    assert [item.attrib["Command"] for item in _find(panel, "Button")] == [
+        "{Binding PrimaryCommand}", "{Binding PauseDownloadCommand}", "{Binding CancelDownloadCommand}"]
 
 
 def test_interface_copy_has_no_prototype_annotations():

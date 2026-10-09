@@ -113,6 +113,18 @@ updates/preview.json
 
 尚未内置镜像地址的旧启动器，首次需手动安装新版本。下载域名应长期保持可用；修改仓库变量不会改变已发布客户端内置的域名。
 
+### 历史版本回退
+
+新发布流程增加 `updates/stable-history.json` 和 `updates/preview-history.json`，均使用 `no-store`，由现有 `/updates/*` 缓存规则覆盖。最新版本清单和日志索引协议不变。历史列表独立加载，正式版安装包保留同版本 GitHub 备用地址，预览版仍仅使用 R2。
+
+历史清单结构为 `schemaVersion: 1`、`channel: "stable" | "preview"`、`entries: [...]`。每条记录包含 `version`、首次入表的 UTC `publishedAt`、单版 `summary`、正整数 `settingsSchemaVersion`、原有格式的 `installer`；预览记录还包含完整 `build`。正式版按数字版本降序，预览版按 `(runNumber, runAttempt)` 降序。`publishedAt` 在重跑时保留，说明允许更正，安装包、构建身份和设置契约不可变。
+
+只有便携包清单明确声明 `rollbackProtocol: 1`、构建身份一致且安装器／便携包均验证成功的版本才加入历史。没有协议标记的旧包仍可按原流程发布，但不补录历史。较旧预览任务补发时可以上传其不可变产物并增加历史，不改变最新版本入口；发布失败可幂等重跑，不以空列表覆盖损坏的历史清单，不自动清理历史。
+
+安装器使用 `/ROLLBACK=1 /RESETSETTINGS=0|1 /UPDATECHANNEL=stable|preview`，同时要求现有 `/LAUNCHERPID`。普通更新不传回退参数。设置备份与恢复见[运行契约](runtime-contracts.md#回退设置契约)。安装仍覆盖同名文件并新增文件，不清空安装目录、不删除目标版本未包含的文件。
+
+先部署支持协议的安装器与发布脚本，再验证客户端历史入口。每个渠道至少需要两个支持协议的构建，才可完成同渠道回退验收。可运行 `T7.ManagedHarness.exe --rollback-tests`，以及 `python -m pytest -q tests/python/test_rollback_history.py tests/python/test_installer_update.py`；安装集成测试使用临时目录和隔离注册表项。
+
 ## 5. 上线验收与用量
 
 1. 发布测试版本，确认 GitHub 与 R2 两端文件 SHA-256 相同，清单返回 JSON 且无缓存命中。
