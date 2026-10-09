@@ -2,7 +2,7 @@
 from copy import deepcopy
 import struct
 
-from . import contracts as wire, scene, controls
+from . import contracts as wire, scene, controls, battle
 from .codec import login_flow, protocol, room_flow
 from .codec.method3 import Method3UplinkMessage
 
@@ -120,7 +120,7 @@ def handleTimer(flow, name):
         flow.send(0x1E, room_flow.encode_room_enter_instance_notify(
             room_id=1, user_camp=1, notify_type=0), "match-enter-instance-notify")
         flow.phase("instance-notified")
-    elif not controls.timer(flow, name) and not scene.timer(flow, name):
+    elif not battle.timer(flow, name) and not controls.timer(flow, name) and not scene.timer(flow, name):
         raise ValueError(f"unknown business timer: {name}")
 
 
@@ -171,6 +171,8 @@ def handleMessage(flow, event):
     if scene.message(flow, command, selector, body):
         return
     if controls.message(flow, command, selector, body):
+        return
+    if battle.message(flow, command, selector, body):
         return
     if flow.session["role"] == "logic":
         message = Method3UplinkMessage(event["sequence"], command, event["serverTimeMs"], body)
