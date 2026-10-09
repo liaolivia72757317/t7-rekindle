@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('一次性密码')}"></head>
+<body class="shell">
+<aside th:replace="~{fragments :: nav('accounts')}"></aside>
+<main class="content"><header class="page-header"><div><p class="eyebrow">凭证交付</p><h1>一次性密码</h1></div></header>
+  <section class="panel narrow" th:if="${result != null}"><h2>操作成功</h2><p>请妥善交付以下凭证。离开或刷新页面后不再显示。</p><dl><dt>登录名</dt><dd th:text="${result.loginName}"></dd><dt>新密码</dt><dd><code class="secret" data-secret th:text="${result.password}"></code></dd></dl></section>
+  <section class="panel narrow" th:unless="${result != null}"><h2>密码已显示或结果已过期</h2><p>如未保存密码，请回到账户详情重新生成。该页面不会重复执行密码重置。</p></section>
+  <a class="back-link" th:href="@{/admin/accounts}">返回账户目录 →</a>
+</main>
+</body>
+</html>

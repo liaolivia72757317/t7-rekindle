@@ -1,0 +1,160 @@
+openapi: 3.1.0
+info:
+  title: T7 Rekindle Authentication API
+  version: 1.0.0
+  description: |
+    普通账户的凭证与在线资格分离。Session 创建后固定有效 30 天，无 refresh 接口。
+    登录不占用在线资格；显式上线接管当前连接。被接管的 session 仍可鉴权。
+    客户端每 15 秒心跳，租约 45 秒；心跳不会延长 session 有效期。
+    收到 ONLINE_TAKEN_OVER 或 NOT_ONLINE 后停止心跳，由用户显式重新上线。
+    服务端响应使用 Cache-Control: no-store。部署环境必须使用 HTTPS。
+servers:
+  - url: https://HOST
+security:
+  - sessionBearer: []
+paths:
+  /api/v1/auth/sessions:
+    post:
+      operationId: createSession
+      summary: 密码登录，不改变在线归属
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [loginName, password]
+              properties:
+                loginName: {type: string, minLength: 3, maxLength: 64, pattern: '^[a-z0-9_.-]+$'}
+                password: {type: string, minLength: 8, maxLength: 128, writeOnly: true, description: 按原样校验，不 trim}
+      responses:
+        '201':
+          description: 新的 30 天 session；token 仅在此返回
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SessionCredentials'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Error'}
+  /api/v1/auth/session:
+    get:
+      operationId: getCurrentSession
+      summary: 验证已保存的凭证，不续期
+      responses:
+        '200':
+          description: 当前身份；不返回 token 或其他连接的标识
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Identity'}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: revokeCurrentSession
+      summary: 撤销当前 session，同时释放它持有的在线资格
+      responses:
+        '204': {description: 已撤销；重复使用已撤销凭证返回 401}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /api/v1/auth/online:
+    post:
+      operationId: acquireOnlineConnection
+      summary: 显式上线，原子接管账户的在线资格
+      description: 每次调用生成新的 connectionId，包括复用同一 session 的不同客户端。
+      responses:
+        '200':
+          description: 新在线连接
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OnlineConnection'}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /api/v1/auth/online/{connectionId}/heartbeat:
+    parameters:
+      - {$ref: '#/components/parameters/ConnectionId'}
+    post:
+      operationId: heartbeat
+      summary: 仅为当前匹配且尚未过期的在线连接续租
+      responses:
+        '200':
+          description: 租约截止时间不晚于 session 截止时间
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OnlineConnection'}
+        '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/OnlineConflict'}
+        '503': {$ref: '#/components/responses/Error'}
+  /api/v1/auth/online/{connectionId}:
+    parameters:
+      - {$ref: '#/components/parameters/ConnectionId'}
+    delete:
+      operationId: leaveOnlineConnection
+      summary: 下线但不撤销 session
+      description: 已过时、已离线或不属于当前 session 的 connectionId 为幂等空操作，绝不影响新的在线归属。
+      responses:
+        '204': {description: 请求已处理，session 仍然有效}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    sessionBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-session-token
+      description: 32 随机字节的无填充 Base64URL；sessionId 本身不是凭证
+  parameters:
+    ConnectionId:
+      name: connectionId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  schemas:
+    SessionCredentials:
+      type: object
+      required: [sessionId, sessionToken, expiresAt]
+      properties:
+        sessionId: {type: string, format: uuid}
+        sessionToken: {type: string, pattern: '^[A-Za-z0-9_-]{43}$'}
+        expiresAt: {type: string, format: date-time}
+    Identity:
+      type: object
+      required: [accountId, sessionId, loginName, expiresAt]
+      properties:
+        accountId: {type: string, format: uuid}
+        sessionId: {type: string, format: uuid}
+        loginName: {type: string}
+        expiresAt: {type: string, format: date-time}
+    OnlineConnection:
+      type: object
+      required: [connectionId, leaseExpiresAt, heartbeatIntervalSeconds]
+      properties:
+        connectionId: {type: string, format: uuid}
+        leaseExpiresAt: {type: string, format: date-time}
+        heartbeatIntervalSeconds: {type: integer, const: 15}
+    Error:
+      type: object
+      required: [code, message, requestId, retryable]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        requestId: {type: string, format: uuid}
+        retryable: {type: boolean}
+  responses:
+    Error:
+      description: INVALID_INPUT / INVALID_CREDENTIALS / SERVICE_UNAVAILABLE；503 可重试，401 需要重新登录
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    RateLimited:
+      description: LOGIN_RATE_LIMITED
+      headers:
+        Retry-After: {schema: {type: integer, const: 300}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    OnlineConflict:
+      description: ONLINE_TAKEN_OVER 或 NOT_ONLINE。停止心跳；如需上线，显式调用 acquireOnlineConnection。
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}

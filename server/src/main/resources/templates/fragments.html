@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${title} + ' · T7 Rekindle'">T7 Rekindle</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/admin/assets/mark.svg}">
+  <link rel="stylesheet" th:href="@{/admin/assets/admin.css}">
+  <script defer th:src="@{/admin/assets/admin.js}"></script>
+</head>
+<body>
+<aside class="sidebar" th:fragment="nav(section)">
+  <a class="brand" th:href="@{/admin/accounts}"><span class="brand-seal" aria-hidden="true">T7</span><span>REKINDLE<small>服务管理</small></span></a>
+  <nav aria-label="管理导航">
+    <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">账户与会话</a>
+    <a th:href="@{/admin/audit}" th:attr="aria-current=${section == 'audit' ? 'page' : null}">操作记录</a>
+    <a th:href="@{/admin/password}" th:attr="aria-current=${section == 'password' ? 'page' : null}">管理员密码</a>
+  </nav>
+  <div class="sidebar-footer"><span class="muted">管理员 / admin</span><form th:action="@{/admin/logout}" method="post"><button class="quiet" type="submit">退出登录</button></form></div>
+</aside>
+</body>
+</html>

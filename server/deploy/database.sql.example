@@ -1,0 +1,6 @@
+-- Replace HOST and TOKEN before execution. Use distinct generated passwords for both users.
+CREATE DATABASE rekindle CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'rekindle_migration'@'HOST' IDENTIFIED BY 'TOKEN';
+GRANT ALL PRIVILEGES ON rekindle.* TO 'rekindle_migration'@'HOST';
+CREATE USER 'rekindle_runtime'@'HOST' IDENTIFIED BY 'TOKEN';
+GRANT SELECT, INSERT, UPDATE, DELETE ON rekindle.* TO 'rekindle_runtime'@'HOST';

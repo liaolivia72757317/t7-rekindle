@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('操作记录')}"></head>
+<body class="shell">
+<aside th:replace="~{fragments :: nav('audit')}"></aside>
+<main class="content"><header class="page-header"><div><p class="eyebrow">访问与变更</p><h1>操作记录</h1><p class="muted">记录认证结果和管理操作，不保存密码及 session token。</p></div></header>
+  <section class="panel"><div class="table-scroll" tabindex="0" aria-label="操作记录"><table><thead><tr><th>时间（UTC）</th><th>操作者</th><th>动作</th><th>对象</th></tr></thead><tbody>
+    <tr th:each="item : ${records}"><td class="time" th:text="${item.createdAt}"></td><td><code th:text="${item.actor}"></code></td><td><code th:text="${item.action}"></code></td><td><code th:text="${item.target}"></code></td></tr>
+    <tr th:if="${records.isEmpty()}"><td colspan="4" class="empty">暂无操作记录。</td></tr></tbody></table></div>
+    <nav class="pagination" aria-label="记录分页"><a th:if="${page > 0}" th:href="@{/admin/audit(page=${page - 1})}">上一页</a><span th:text="'第 ' + (${page} + 1) + ' 页'"></span><a th:if="${records.size() == 50}" th:href="@{/admin/audit(page=${page + 1})}">下一页</a></nav>
+  </section>
+</main>
+</body>
+</html>

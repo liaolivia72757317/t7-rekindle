@@ -1,0 +1,43 @@
+name: Server CI
+
+on:
+  push:
+    paths: ['server/**', '.github/workflows/server.yml']
+  pull_request:
+    paths: ['server/**', '.github/workflows/server.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: server/pom.xml
+      - name: Verify against MySQL and Redis
+        run: mvn -B -ntp clean verify
+      - name: Upload server Jar and coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: rekindle-server
+          path: |
+            server/target/rekindle-server-*.jar
+            server/target/site/jacoco/
+          if-no-files-found: error

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('账户详情')}"></head>
+<body class="shell">
+<aside th:replace="~{fragments :: nav('accounts')}"></aside>
+<main class="content">
+  <a class="back-link" th:href="@{/admin/accounts}">← 账户目录</a>
+  <header class="page-header"><div><p class="eyebrow">普通账户</p><h1 th:text="${account.loginName}"></h1><code th:text="${account.accountId}"></code></div><span class="rule-tag" th:text="${account.status == 'ACTIVE' ? '已启用' : '已禁用'}"></span></header>
+  <section class="panel"><h2>账户操作</h2><p class="muted">禁用或重置密码会使现有 session 全部失效，并释放在线资格。重新启用后需要重新登录。</p>
+    <div class="actions">
+      <form th:action="@{/admin/accounts/{id}/status(id=${account.accountId})}" method="post" data-confirm="确认更改账户状态？现有 session 将失效。"><input type="hidden" name="enabled" th:value="${account.status != 'ACTIVE'}"><button type="submit" class="secondary" th:text="${account.status == 'ACTIVE' ? '禁用账户' : '启用账户'}"></button></form>
+      <form th:action="@{/admin/accounts/{id}/password(id=${account.accountId})}" method="post" data-confirm="确认重置密码并撤销所有 session？新密码仅显示一次。"><button type="submit" class="secondary">生成新密码</button></form>
+      <form th:action="@{/admin/accounts/{id}/sessions/revoke-all(id=${account.accountId})}" method="post" data-confirm="确认撤销该账户的所有 session？"><button type="submit" class="danger">撤销全部 session</button></form>
+    </div>
+  </section>
+  <section class="panel"><h2>会话记录</h2><p class="muted">离线不代表凭证失效。其他连接接管后，原 session 仍可在有效期内重新上线。</p>
+    <div class="table-scroll" tabindex="0" aria-label="会话列表"><table><thead><tr><th>Session</th><th>凭证状态</th><th>在线状态</th><th>到期时间（UTC）</th><th>在线租约（UTC）</th><th>操作</th></tr></thead>
+      <tbody><tr th:each="item : ${sessions}"><td><code th:text="${item.sessionId}"></code></td><td><span class="badge" th:text="${item.credentialState == 'VALID' ? '有效' : (item.credentialState == 'EXPIRED' ? '已过期' : '已撤销')}"></span></td><td><span class="badge" th:classappend="${item.online ? 'good' : ''}" th:text="${item.online ? '在线' : '离线'}"></span></td><td class="time" th:text="${item.expiresAt}"></td><td class="time" th:text="${item.leaseExpiresAt ?: '—'}"></td><td><form th:if="${item.credentialState == 'VALID'}" th:action="@{/admin/accounts/{id}/sessions/{sessionId}/revoke(id=${account.accountId},sessionId=${item.sessionId})}" method="post" data-confirm="确认撤销此 session？"><button type="submit" class="quiet danger">撤销</button></form></td></tr>
+      <tr th:if="${sessions.isEmpty()}"><td colspan="6" class="empty">尚无 session。普通账户登录后将在此显示。</td></tr></tbody></table></div>
+    <nav class="pagination" aria-label="会话分页"><a th:if="${page > 0}" th:href="@{/admin/accounts/{id}(id=${account.accountId},page=${page - 1})}">上一页</a><span th:text="'第 ' + (${page} + 1) + ' 页'"></span><a th:if="${sessions.size() == 50}" th:href="@{/admin/accounts/{id}(id=${account.accountId},page=${page + 1})}">下一页</a></nav>
+  </section>
+</main>
+</body>
+</html>

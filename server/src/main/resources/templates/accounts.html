@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('账户与会话')}"></head>
+<body class="shell">
+<aside th:replace="~{fragments :: nav('accounts')}"></aside>
+<main class="content">
+  <header class="page-header"><div><p class="eyebrow">账户目录</p><h1>账户与会话</h1><p class="muted">一个账户可持有多个凭证，同一时刻只保留一个在线连接。</p></div><span class="rule-tag">30 天固定有效期</span></header>
+  <section class="panel">
+    <form th:action="@{/admin/accounts}" method="get" class="toolbar">
+      <div class="field"><label for="query">按登录名前缀查找</label><input id="query" name="query" th:value="${query}" maxlength="64" placeholder="例如 player"></div>
+      <button class="secondary" type="submit">查找账户</button><a th:href="@{/admin/accounts}">清除筛选</a>
+    </form>
+    <div class="table-scroll" tabindex="0" aria-label="账户列表">
+      <table><thead><tr><th>登录名</th><th>状态</th><th>创建时间（UTC）</th><th>管理</th></tr></thead>
+        <tbody><tr th:each="item : ${accounts}"><td><strong th:text="${item.loginName}"></strong><code class="subline" th:text="${item.accountId}"></code></td><td><span class="badge" th:classappend="${item.status == 'ACTIVE' ? 'good' : ''}" th:text="${item.status == 'ACTIVE' ? '已启用' : '已禁用'}"></span></td><td class="time" th:text="${item.createdAt}"></td><td><a th:href="@{/admin/accounts/{id}(id=${item.accountId})}">查看会话与操作 →</a></td></tr>
+        <tr th:if="${accounts.isEmpty()}"><td colspan="4" class="empty">没有匹配账户。调整筛选，或在下方创建账户。</td></tr></tbody>
+      </table>
+    </div>
+    <nav class="pagination" aria-label="账户分页"><a th:if="${page > 0}" th:href="@{/admin/accounts(query=${query},page=${page - 1})}">上一页</a><span th:text="'第 ' + (${page} + 1) + ' 页'"></span><a th:if="${accounts.size() == 50}" th:href="@{/admin/accounts(query=${query},page=${page + 1})}">下一页</a></nav>
+  </section>
+  <section class="panel create-panel"><div><h2>创建普通账户</h2><p class="muted">系统生成随机密码，仅在创建成功后展示一次。</p></div>
+    <form th:action="@{/admin/accounts}" method="post" class="toolbar"><div class="field"><label for="newLoginName">登录名</label><input id="newLoginName" name="loginName" required minlength="3" maxlength="64" pattern="[a-z0-9_.\-]{3,64}" autocomplete="off" aria-describedby="nameHelp"><span class="footnote" id="nameHelp">3–64 位小写字母、数字或 _ . -</span></div><button type="submit">创建账户</button></form>
+  </section>
+</main>
+</body>
+</html>
