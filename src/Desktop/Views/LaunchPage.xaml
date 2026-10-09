@@ -7,7 +7,7 @@
     <ScrollViewer x:Name="HomeScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" VerticalContentAlignment="Stretch" Focusable="False" Margin="0,0,0,24">
       <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <Border x:Name="HeroPanel" SizeChanged="OnHeroSizeChanged" Height="384" CornerRadius="8" Background="{DynamicResource PrimaryBrush}" ClipToBounds="True" AutomationProperties.Name="重燃战意：十年之约再战江湖">
+        <Border x:Name="HeroPanel" SizeChanged="OnHeroSizeChanged" Height="384" CornerRadius="8" Background="{DynamicResource PrimaryBrush}" ClipToBounds="True" AutomationProperties.Name="刀锋再起：熟悉的武将，久违的交锋。">
           <Grid>
             <Image x:Name="HeroArtwork" Source="/T7-Rekindle;component/Resources/Assets/art/home-banner.png" Stretch="UniformToFill" Visibility="{DynamicResource LauncherArtworkVisibility}"
                    ImageFailed="OnHeroFailed" IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality" />

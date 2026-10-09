@@ -211,7 +211,7 @@ namespace T7.ManagedHarness
             }
             var image = (Image)window.FindName("SceneArtwork");
             var source = image.Source as BitmapSource;
-            LauncherTests.Assert(source != null && source.PixelWidth == 1476 && source.PixelHeight == 1066
+            LauncherTests.Assert(source != null && source.PixelWidth == 1476 && source.PixelHeight == 1065
                 && image.Stretch == Stretch.UniformToFill, "full window artwork is missing or distorted");
         }
 
@@ -250,7 +250,7 @@ namespace T7.ManagedHarness
             var source = artwork.Source as BitmapSource;
             var fallback = (StackPanel)home.FindName("HeroFallback");
             var visibility = (Visibility)Application.Current.Resources["LauncherArtworkVisibility"];
-            LauncherTests.Assert(source != null && source.PixelWidth == 1991 && source.PixelHeight == 790
+            LauncherTests.Assert(source != null && source.PixelWidth == 1989 && source.PixelHeight == 790
                 && artwork.Stretch == Stretch.UniformToFill, "home banner resource is missing or distorted");
             LauncherTests.Assert(fallback != null && artwork.Visibility == visibility
                 && fallback.Visibility == (visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible),

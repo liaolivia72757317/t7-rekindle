@@ -11,7 +11,7 @@ namespace T7.Rekindle.Desktop.Views
         public LaunchPage() { InitializeComponent(); }
         private void OnHeroSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            HeroPanel.Height = e.NewSize.Width * 790 / 1991;
+            HeroPanel.Height = e.NewSize.Width * 790 / 1989;
             HeroArtwork.Clip = new RectangleGeometry(new Rect(e.NewSize), 8, 8);
         }
         private void OnHeroFailed(object sender, ExceptionRoutedEventArgs e)

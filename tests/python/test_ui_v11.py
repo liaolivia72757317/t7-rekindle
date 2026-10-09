@@ -83,7 +83,7 @@ def test_home_banner_uses_embedded_artwork_without_duplicate_title():
     assert artwork.attrib["Source"] == "/T7-Rekindle;component/Resources/Assets/art/home-banner.png"
     assert artwork.attrib["Stretch"] == "UniformToFill"
     assert artwork.attrib["Visibility"] == "{DynamicResource LauncherArtworkVisibility}"
-    assert named["HeroPanel"].attrib["AutomationProperties.Name"] == "重燃战意：十年之约再战江湖"
+    assert named["HeroPanel"].attrib["AutomationProperties.Name"] == "刀锋再起：熟悉的武将，久违的交锋。"
     fallback = named["HeroFallback"]
     style = fallback.find(f"{{{WPF}}}StackPanel.Style/{{{WPF}}}Style")
     setter = style.find(f"{{{WPF}}}Setter")
@@ -96,7 +96,7 @@ def test_home_banner_uses_embedded_artwork_without_duplicate_title():
     with (DESKTOP / "Resources/Assets/art/home-banner.png").open("rb") as stream:
         header = stream.read(26)
     assert header[:8] == b"\x89PNG\r\n\x1a\n"
-    assert struct.unpack(">IIBB", header[16:26]) == (1991, 790, 8, 2)
+    assert struct.unpack(">IIBB", header[16:26]) == (1989, 790, 8, 2)
 
 
 def test_v11_settings_commit_editing_instead_of_saving_every_keystroke():
