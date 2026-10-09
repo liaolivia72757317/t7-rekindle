@@ -136,6 +136,7 @@ namespace T7.ManagedHarness
                         : severity == NoticeSeverity.Warning ? "检查更新失败，不影响本地启动" : "设置未保存，请重试", severity);
                     Render(window, output, "toast-" + severity.ToString().ToLowerInvariant(), 1200, 900);
                 }
+                VerifyNoticeViewport(window, model, output);
                 var rooms = (MultiplayerPage)window.FindName("RoomsPage");
                 model.IsMultiplayerSelected = true;
                 Render(window, output, "battle-construction", 1200, 900);
@@ -152,6 +153,49 @@ namespace T7.ManagedHarness
                 RenderArtworkWithoutUi(window, output);
                 window.DataContext = null;
                 window.Close();
+            }
+        }
+
+        private static void VerifyNoticeViewport(MainWindow window, MainWindowViewModel model, string output)
+        {
+            foreach (var notice in new System.Collections.Generic.List<Notice>(model.Notices.Visible)) model.Notices.Dismiss(notice);
+            model.Notices.Publish("viewport", "设置未保存，请检查后重试", NoticeSeverity.Error, "重试", () => { });
+            var root = (Grid)window.Content;
+            ToastHost host = null;
+            foreach (var child in root.Children) if (child is ToastHost toast) host = toast;
+            LauncherTests.Assert(host != null, "toast host must be a sibling of the content scroll viewer");
+            var scroll = (ScrollViewer)window.FindName("ContentScroll");
+            foreach (var scale in new[] { 1.0, 1.5, 2.0 })
+            {
+                Render(window, output, "toast-narrow-" + (int)(scale * 100), 720, 600, scale);
+                LauncherTests.Assert(scroll.ScrollableWidth > 0, "narrow viewport did not exercise horizontal scrolling");
+                scroll.ScrollToLeftEnd();
+                root.UpdateLayout();
+                var position = host.TranslatePoint(new Point(), root);
+                scroll.ScrollToRightEnd();
+                root.UpdateLayout();
+                LauncherTests.Assert(scroll.HorizontalOffset > 0 && host.TranslatePoint(new Point(), root) == position,
+                    "horizontal scrolling moved the notification overlay");
+                LauncherLayoutTests.AssertWithin(host, root, root.ActualWidth, root.ActualHeight);
+                var buttons = 0;
+                foreach (var element in NoticeElements(host))
+                {
+                    if (element is Button) buttons++;
+                    if (element is Button || element is TextBlock)
+                        LauncherLayoutTests.AssertWithin(element, host, host.ActualWidth, host.ActualHeight);
+                }
+                LauncherTests.Assert(buttons == 2, "notice action or close button is missing");
+            }
+            scroll.ScrollToLeftEnd();
+        }
+
+        private static System.Collections.Generic.IEnumerable<FrameworkElement> NoticeElements(DependencyObject parent)
+        {
+            for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, index);
+                if (child is FrameworkElement element) yield return element;
+                foreach (var descendant in NoticeElements(child)) yield return descendant;
             }
         }
 

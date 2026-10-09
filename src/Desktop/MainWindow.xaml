@@ -102,9 +102,9 @@
         <views:LauncherUpdatePage x:Name="UpdatePage" Visibility="{Binding IsUpdateSelected, Converter={StaticResource BoolVisibility}}" />
         <views:GameSettingsPage x:Name="SettingsPage" Visibility="{Binding IsSettingsSelected, Converter={StaticResource BoolVisibility}}" />
         <views:AboutPage x:Name="ProjectPage" Visibility="{Binding IsAboutSelected, Converter={StaticResource BoolVisibility}}" />
-        <views:ToastHost Panel.ZIndex="20" VerticalAlignment="Top" Margin="16" />
       </Grid>
     </ScrollViewer>
+    <views:ToastHost Grid.Row="1" Grid.Column="1" Panel.ZIndex="20" VerticalAlignment="Top" Margin="36,32,36,44" />
     <Border Grid.ColumnSpan="2" Grid.RowSpan="2" BorderThickness="1" BorderBrush="{DynamicResource ControlBorderBrush}" IsHitTestVisible="False" />
   </Grid>
 </Window>

@@ -139,6 +139,12 @@ def test_notices_are_interactive_overlays_at_top_of_content():
     host = root.find(".//{clr-namespace:T7.Rekindle.Desktop.Views}ToastHost")
     assert host.attrib["VerticalAlignment"] == "Top"
     assert int(host.attrib["Panel.ZIndex"]) > 0
+    parents = {child: parent for parent in root.iter() for child in parent}
+    scroll = next(item for item in _find(root, "ScrollViewer")
+                  if item.attrib.get("{http://schemas.microsoft.com/winfx/2006/xaml}Name") == "ContentScroll")
+    assert parents[host] is parents[scroll]
+    assert host.attrib["Grid.Row"] == scroll.attrib["Grid.Row"]
+    assert host.attrib["Grid.Column"] == scroll.attrib["Grid.Column"]
     toast = _xaml(ROOT / "src/Desktop/Views/ToastHost.xaml")
     assert _find(toast, "ItemsControl")[0].attrib["ItemsSource"] == "{Binding Notices.Visible}"
     assert any(item.attrib.get("Command") == "{Binding CloseCommand}" for item in _find(toast, "Button"))
