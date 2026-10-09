@@ -27,6 +27,7 @@ namespace T7.ManagedHarness
 
         private static async Task RunAsync()
         {
+            TestDisplayVersion();
             var configured = Environment.GetEnvironmentVariable("T7_BUILD_CHANNEL");
             var embedded = LauncherInformation.CurrentBuild;
             if (!string.IsNullOrEmpty(configured))
@@ -68,7 +69,7 @@ namespace T7.ManagedHarness
                         .CheckAsync(current, UpdateChannel.Preview);
                     var expected = current.Channel == UpdateChannel.Stable || current.RunNumber == 0 || current.RunNumber < 12;
                     Assert(info.IsNewVersion == expected && info.Channel == UpdateChannel.Preview
-                        && info.Installer.FallbackAddress == null && info.TargetDisplayVersion.Contains("12.1")
+                        && info.Installer.FallbackAddress == null && info.TargetDisplayVersion == "v0.1.0p12.1"
                         && info.UpdateIdentity == "preview:112:1", "preview identity/comparison failed");
                 }
             }
@@ -110,6 +111,19 @@ namespace T7.ManagedHarness
                     Assert(failed && handler.RequestCount == 1, "invalid preview was accepted or changed source");
                 }
             }
+        }
+
+        private static void TestDisplayVersion()
+        {
+            var preview = Preview(128, 2);
+            Assert(preview.DisplayVersion == "v0.1.0p128.2" && Preview(128).DisplayVersion == "v0.1.0p128.1",
+                "preview display version did not use the compact format without a hyphen or hash");
+            Assert(preview.Version == "v0.1.0" && preview.Identity == "preview:228:2" && preview.CommitHash == new string('a', 40),
+                "compact display changed the numeric version, build identity or stored commit hash");
+            Assert(new LauncherBuild(UpdateChannel.Stable, "v0.1.0").DisplayVersion == "v0.1.0",
+                "compact preview format changed the stable version");
+            Assert(new LauncherBuild(UpdateChannel.Preview, "v0.1.0").DisplayVersion == "v0.1.0 · 开发构建",
+                "preview without CI identity fabricated a build number");
         }
     }
 }

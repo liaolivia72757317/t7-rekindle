@@ -6,6 +6,9 @@
 - CommunityToolkit.Mvvm 8.4.2 — MIT
 - Newtonsoft.Json 13.0.4 — MIT
 - NLog 6.2.1 — BSD-3-Clause
+- Lucide Icons 1.8.0（shield-check、flask-conical 两个矢量图标）— ISC
+  项目：https://lucide.dev/；上游：https://github.com/lucide-icons/lucide
+  路径保存在 src/Desktop/Resources/VersionCapsule.xaml，不引入图标运行时依赖。
 
 托管传递依赖包括 Microsoft.Bcl.AsyncInterfaces 10.0.1、System.Buffers 4.6.1、
 System.ComponentModel.Annotations 5.0.0、System.Memory 4.6.3、System.Numerics.Vectors 4.6.1、

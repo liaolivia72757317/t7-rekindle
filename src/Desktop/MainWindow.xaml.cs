@@ -33,7 +33,6 @@ namespace T7.Rekindle.Desktop
         {
             var compact = e.NewSize.Height < 600;
             SidebarBrandRow.Height = new GridLength(compact ? 124 : 180);
-            SidebarVersionRow.Height = new GridLength(compact ? 48 : 64);
             foreach (System.Windows.Controls.RadioButton item in SidebarNavigation.Children) item.Height = compact ? 48 : 60;
         }
 

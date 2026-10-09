@@ -14,7 +14,7 @@
     <shell:WindowChrome CaptionHeight="60" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
   </shell:WindowChrome.WindowChrome>
   <Grid Background="{DynamicResource WindowBackgroundBrush}" ClipToBounds="True" SizeChanged="OnViewportSizeChanged">
-    <Grid.ColumnDefinitions><ColumnDefinition Width="216" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="216" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
     <Grid.RowDefinitions><RowDefinition Height="60" /><RowDefinition Height="*" /></Grid.RowDefinitions>
     <Image x:Name="SceneArtwork" Grid.ColumnSpan="2" Grid.RowSpan="2"
            Source="/T7-Rekindle;component/Resources/Assets/art/launcher-background.png"
@@ -31,9 +31,9 @@
       <Button Style="{StaticResource CaptionButton}" Click="OnCloseClick" ToolTip="关闭" AutomationProperties.Name="关闭启动器" TabIndex="2"><views:Icon Kind="x" /></Button>
     </StackPanel>
     <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="Sidebar">
-      <Grid.RowDefinitions><RowDefinition x:Name="SidebarBrandRow" Height="180" /><RowDefinition Height="*" /><RowDefinition x:Name="SidebarVersionRow" Height="64" /></Grid.RowDefinitions>
+      <Grid.RowDefinitions><RowDefinition x:Name="SidebarBrandRow" Height="180" /><RowDefinition Height="*" /><RowDefinition x:Name="SidebarVersionRow" Height="Auto" /></Grid.RowDefinitions>
       <Image x:Name="BrandLogo" Source="/T7-Rekindle;component/Resources/Assets/brand/logo-stacked-no-slogan-sidebar.png"
-             Margin="24,15,24,15" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
+             Margin="24,15,24,15" MaxWidth="168" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
              IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality"
              Visibility="{DynamicResource LauncherArtworkVisibility}" ImageFailed="OnBrandLogoFailed" AutomationProperties.Name="T7-Rekindle 品牌标识">
         <Image.RenderTransform><ScaleTransform ScaleX="1.05" ScaleY="1.05" /></Image.RenderTransform>
@@ -52,42 +52,59 @@
           <RadioButton Content="关于" Tag="info" IsChecked="{Binding IsAboutSelected}" GroupName="Pages" Style="{StaticResource SidebarItem}" AutomationProperties.Name="关于" TabIndex="7" />
         </StackPanel>
       </ScrollViewer>
-      <Button x:Name="VersionCapsule" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"
-              MaxWidth="184" Margin="16,0" HorizontalContentAlignment="Stretch"
-              Command="{Binding ShowUpdatePageCommand}" Style="{StaticResource PrimaryButton}" Padding="16,6" MinHeight="0" FontWeight="Normal"
-              BorderBrush="{DynamicResource ControlBorderBrush}" Cursor="Hand" ToolTip="{Binding About.VersionCapsuleHint}"
+      <Button x:Name="VersionCapsule" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+              Margin="8,8,8,28" Command="{Binding ShowUpdatePageCommand}" Style="{StaticResource VersionCapsuleButton}"
+              ToolTip="{Binding About.VersionCapsuleHint}"
               AutomationProperties.Name="{Binding About.VersionCapsuleHint}" TabIndex="8">
-        <Button.Template><ControlTemplate TargetType="Button">
-          <Border CornerRadius="18" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-          </Border>
-        </ControlTemplate></Button.Template>
         <Grid>
-          <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-          <TextBlock x:Name="CapsuleVersion" Text="{Binding About.Version}" FontSize="16" VerticalAlignment="Center"
-                     TextTrimming="CharacterEllipsis" AutomationProperties.Name="当前启动器版本" />
-          <Border x:Name="VersionUpdateReminder" Grid.Column="1" CornerRadius="12" Margin="8,0,0,0" Padding="6,2"
-                  Background="{DynamicResource GoldSoftBrush}" BorderBrush="{DynamicResource GoldBrush}" BorderThickness="1"
-                  Visibility="{Binding About.HasUpdateReminder, Converter={StaticResource BoolVisibility}}">
+          <Border Height="36" Margin="8,16,8,0" Style="{StaticResource CapsuleBodyStyle}" IsHitTestVisible="False">
+            <Border.Effect><DropShadowEffect Color="#1A2B31" Opacity="0.13" BlurRadius="3" ShadowDepth="1" Direction="270" /></Border.Effect>
+          </Border>
+          <Border x:Name="CapsuleBody" Height="36" Margin="8,16,8,0" Style="{StaticResource CapsuleBodyStyle}">
             <StackPanel Orientation="Horizontal">
-              <views:Icon x:Name="VersionUpdateIcon" Kind="refresh" Width="14" Height="14" Margin="0,0,4,0"
-                          Foreground="{DynamicResource GoldHoverBrush}" VerticalAlignment="Center" />
-              <TextBlock x:Name="VersionUpdateLabel" Text="有更新" FontSize="14" FontWeight="SemiBold"
-                         Foreground="{DynamicResource GoldHoverBrush}" VerticalAlignment="Center" />
+              <Border x:Name="CapsuleChannelPlate" Width="22" Height="22" CornerRadius="11" VerticalAlignment="Center" Style="{StaticResource CapsulePlateStyle}">
+                <Viewbox Width="16" Height="16" IsHitTestVisible="False"><Canvas Width="24" Height="24">
+                  <Path x:Name="CapsuleChannelIcon" Style="{StaticResource CapsuleIconStyle}" />
+                </Canvas></Viewbox>
+              </Border>
+              <TextBlock x:Name="CapsuleVersion" Text="{Binding About.DisplayVersion}" Margin="7,0,0,0"
+                         FontFamily="{StaticResource CapsuleFontFamily}" FontSize="14" FontWeight="Normal"
+                         Height="20" LineHeight="20" LineStackingStrategy="BlockLineHeight" VerticalAlignment="Center"
+                         TextTrimming="None" TextWrapping="NoWrap" />
             </StackPanel>
           </Border>
+          <Border Margin="9,17,9,1" CornerRadius="17" BorderThickness="0,1,0,0"
+                  Style="{StaticResource CapsuleHighlightStyle}" IsHitTestVisible="False" />
+          <!-- Canvas keeps the external badge out of the body's width calculation. -->
+          <Canvas Height="20" VerticalAlignment="Top" Margin="0,1,2,0">
+            <Border x:Name="VersionUpdateReminder" Canvas.Right="0" Height="20" CornerRadius="10,10,10,3" Padding="6,0"
+                    Background="{DynamicResource CapsuleUpdateBackground}" BorderBrush="{DynamicResource CapsuleUpdateBorder}" BorderThickness="1"
+                    Visibility="{Binding About.HasUpdateReminder, Converter={StaticResource BoolVisibility}}">
+              <Border.Effect><DropShadowEffect Color="#3E2B0E" Opacity="0.15" BlurRadius="2" ShadowDepth="1" Direction="270" /></Border.Effect>
+              <Grid>
+                <Border Margin="-6,0" CornerRadius="9,9,9,2" BorderThickness="0,1,0,0"
+                        BorderBrush="{DynamicResource CapsuleUpdateHighlight}" IsHitTestVisible="False" />
+                <TextBlock x:Name="VersionUpdateLabel" Text="有更新" FontSize="12" FontWeight="Medium" Height="18"
+                           LineHeight="18" LineStackingStrategy="BlockLineHeight" TextWrapping="NoWrap"
+                           Foreground="{DynamicResource CapsuleUpdateText}" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </Canvas>
         </Grid>
       </Button>
     </Grid>
-    <Grid x:Name="ContentViewport" Grid.Row="1" Grid.Column="1" Margin="20,16,20,28">
-      <views:LaunchPage x:Name="HomePage" Visibility="{Binding IsHomeSelected, Converter={StaticResource BoolVisibility}}" />
-      <views:MultiplayerPage x:Name="RoomsPage" Visibility="{Binding IsMultiplayerSelected, Converter={StaticResource BoolVisibility}}" />
-      <views:LauncherUpdatePage x:Name="UpdatePage" Visibility="{Binding IsUpdateSelected, Converter={StaticResource BoolVisibility}}" />
-      <views:GameSettingsPage x:Name="SettingsPage" Visibility="{Binding IsSettingsSelected, Converter={StaticResource BoolVisibility}}" />
-      <views:AboutPage x:Name="ProjectPage" Visibility="{Binding IsAboutSelected, Converter={StaticResource BoolVisibility}}" />
-      <views:ToastHost Panel.ZIndex="20" VerticalAlignment="Top" Margin="16" />
-    </Grid>
+    <ScrollViewer x:Name="ContentScroll" Grid.Row="1" Grid.Column="1" Margin="20,16,20,28"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False"
+                  HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+      <Grid x:Name="ContentViewport" MinWidth="544" Width="{Binding ActualWidth, ElementName=ContentScroll}">
+        <views:LaunchPage x:Name="HomePage" Visibility="{Binding IsHomeSelected, Converter={StaticResource BoolVisibility}}" />
+        <views:MultiplayerPage x:Name="RoomsPage" Visibility="{Binding IsMultiplayerSelected, Converter={StaticResource BoolVisibility}}" />
+        <views:LauncherUpdatePage x:Name="UpdatePage" Visibility="{Binding IsUpdateSelected, Converter={StaticResource BoolVisibility}}" />
+        <views:GameSettingsPage x:Name="SettingsPage" Visibility="{Binding IsSettingsSelected, Converter={StaticResource BoolVisibility}}" />
+        <views:AboutPage x:Name="ProjectPage" Visibility="{Binding IsAboutSelected, Converter={StaticResource BoolVisibility}}" />
+        <views:ToastHost Panel.ZIndex="20" VerticalAlignment="Top" Margin="16" />
+      </Grid>
+    </ScrollViewer>
     <Border Grid.ColumnSpan="2" Grid.RowSpan="2" BorderThickness="1" BorderBrush="{DynamicResource ControlBorderBrush}" IsHitTestVisible="False" />
   </Grid>
 </Window>

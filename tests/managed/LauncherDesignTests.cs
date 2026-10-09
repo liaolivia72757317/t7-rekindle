@@ -274,8 +274,8 @@ namespace T7.ManagedHarness
             LauncherTests.Assert(Math.Abs(brandRow.ActualHeight - brandHeight) < 1
                 && Math.Abs(navigation.TranslatePoint(new Point(), root).Y - brandHeight) < 1,
                 "brand layout shifted the navigation start");
-            LauncherTests.Assert(Math.Abs(version.TranslatePoint(new Point(), root).Y + version.ActualHeight / 2
-                - (root.ActualHeight - (compact ? 48 : 64) / 2.0)) < 1, "brand layout shifted the version capsule");
+            LauncherTests.Assert(Math.Abs(root.ActualHeight - version.TranslatePoint(new Point(0, version.ActualHeight), root).Y
+                - 28) <= 1, "version capsule must retain the content area's 28 DIP bottom inset");
 
             var logo = (Image)window.FindName("BrandLogo");
             var fallback = (TextBlock)window.FindName("BrandFallback");

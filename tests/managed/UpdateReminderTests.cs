@@ -8,11 +8,14 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using CommunityToolkit.Mvvm.Input;
 using T7.Rekindle.Core;
 using T7.Rekindle.Desktop;
 using T7.Rekindle.Desktop.Services;
 using T7.Rekindle.Desktop.ViewModels;
-using T7.Rekindle.Desktop.Views;
 using static T7.ManagedHarness.LauncherTests;
 
 namespace T7.ManagedHarness
@@ -39,6 +42,15 @@ namespace T7.ManagedHarness
             {
                 Assert(!model.HasUpdateReminder && model.UpdateReminderVersion.Length == 0
                     && model.VersionCapsuleHint.Contains(model.Version), "unchecked launcher fabricated an update reminder");
+                var installedPreview = LauncherInformation.CurrentBuild.Channel == UpdateChannel.Preview;
+                Assert(model.IsPreviewBuild == installedPreview
+                    && model.VersionCapsuleHint.Contains(installedPreview ? "预览版" : "正式版"), "capsule omitted installed build metadata");
+                foreach (var channel in new[] { UpdateChannel.Preview, UpdateChannel.Stable })
+                {
+                    model.ResetUpdateChannel(channel);
+                    Assert(model.IsPreviewBuild == installedPreview && model.DisplayVersion == LauncherInformation.DisplayVersion,
+                        "selected update channel changed the installed build presentation");
+                }
                 var checking = model.CheckUpdateCommand.ExecuteAsync(null);
                 pending.SetException(new IOException("update fixture"));
                 RunTask(checking);
@@ -79,6 +91,11 @@ namespace T7.ManagedHarness
                 }
                 Assert(new[] { nameof(model.HasUpdateReminder), nameof(model.UpdateReminderVersion), nameof(model.VersionCapsuleHint) }
                     .All(changed.Contains), "update reminder bindings were not notified");
+                pending = new TaskCompletionSource<LauncherUpdateInfo>();
+                pending.SetResult(new LauncherUpdateInfo { IsNewVersion = true, TargetVersion = string.Empty });
+                RunTask(model.CheckUpdateCommand.ExecuteAsync(null));
+                Assert(model.HasUpdateReminder && model.VersionCapsuleHint.Contains("\n有更新\n打开更新页面"),
+                    "unknown target version hid the reminder or produced an empty version label");
             }
         }
 
@@ -129,7 +146,6 @@ namespace T7.ManagedHarness
                     var root = (FrameworkElement)window.Content;
                     var capsule = (Button)window.FindName("VersionCapsule");
                     var reminder = (Border)window.FindName("VersionUpdateReminder");
-                    var version = (TextBlock)window.FindName("CapsuleVersion");
                     LauncherLayoutTests.Render(root, window, output, "version-reminder-unchecked", 1200, 900);
                     Assert(reminder.Visibility == Visibility.Collapsed, "unchecked capsule displayed an update reminder");
                     model.StartUpdateChecks(DateTime.UtcNow);
@@ -138,8 +154,8 @@ namespace T7.ManagedHarness
                     LauncherLayoutTests.Render(root, window, output, "version-reminder-toast", 1200, 900);
                     Assert(reminder.Visibility == Visibility.Visible && !reminder.HasAnimatedProperties,
                         "update reminder is hidden or continuously animated");
-                    Assert(((Icon)window.FindName("VersionUpdateIcon")).Kind == "refresh"
-                        && ((TextBlock)window.FindName("VersionUpdateLabel")).Text == "有更新", "reminder lacks its icon or text");
+                    Assert(window.FindName("VersionUpdateIcon") == null
+                        && ((TextBlock)window.FindName("VersionUpdateLabel")).Text == "有更新", "reminder changed its text-only design");
                     notice.CloseCommand.Execute(null);
                     var invoke = (IInvokeProvider)new ButtonAutomationPeer(capsule).GetPattern(PatternInterface.Invoke);
                     foreach (var page in new[] { 0, 1, 2, 3, 4 })
@@ -165,20 +181,9 @@ namespace T7.ManagedHarness
                     LauncherLayoutTests.Render(root, window, output, "version-reminder-check-failed", 1200, 900);
                     Assert(reminder.Visibility == Visibility.Visible && capsule.ToolTip.ToString().Contains("上次")
                         && AutomationProperties.GetName(capsule) == capsule.ToolTip.ToString(), "stale tooltip or accessible name was lost");
-                    const string longVersion = "v123456789.123456789.123456789+long-build-version";
-                    capsule.DataContext = new
-                    {
-                        model.ShowUpdatePageCommand,
-                        About = new { Version = longVersion, HasUpdateReminder = true,
-                            VersionCapsuleHint = "当前版本 " + longVersion + "；可用版本 v999999999.0.0；打开更新页面" }
-                    };
-                    LauncherLayoutTests.Render(root, window, output, "version-reminder-long", 928, 460);
-                    AssertCapsuleLayout(window, capsule, reminder);
-                    var natural = new TextBlock { Text = longVersion, FontFamily = version.FontFamily, FontSize = version.FontSize };
-                    natural.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                    Assert(version.Text == longVersion && version.TextTrimming == TextTrimming.CharacterEllipsis
-                        && version.ActualWidth < natural.DesiredSize.Width && capsule.ToolTip.ToString().Contains(longVersion),
-                        "long version was not trimmed visually while retaining its full accessible value");
+                    TestCapsuleStates(window, model, output);
+                    capsule.ClearValue(FrameworkElement.DataContextProperty);
+                    TestNativeCapsule(window, model);
                 }
                 finally { window.DataContext = null; window.Close(); }
             }
@@ -189,12 +194,134 @@ namespace T7.ManagedHarness
             var sidebar = (FrameworkElement)window.FindName("Sidebar");
             var position = capsule.TranslatePoint(new Point(), sidebar);
             Assert(Math.Abs(position.X + capsule.ActualWidth / 2 - sidebar.ActualWidth / 2) < 1
-                && position.X >= 16 && position.X + capsule.ActualWidth <= sidebar.ActualWidth - 16,
+                && position.X >= 7 && position.X + capsule.ActualWidth <= sidebar.ActualWidth - 7,
                 "update capsule is not centered with sidebar insets");
             LauncherLayoutTests.AssertWithin(reminder, capsule, capsule.ActualWidth, capsule.ActualHeight);
             var label = (TextBlock)window.FindName("VersionUpdateLabel");
-            Assert(label.ActualWidth >= 40 && capsule.Focusable && capsule.IsTabStop,
+            var body = (Border)window.FindName("CapsuleBody");
+            var bodyPosition = body.TranslatePoint(new Point(), sidebar);
+            var contentScroll = (ScrollViewer)window.FindName("ContentScroll");
+            Assert(Math.Abs(bodyPosition.X + body.ActualWidth / 2 - sidebar.ActualWidth / 2) < 1
+                && bodyPosition.X >= 15 && bodyPosition.X + body.ActualWidth <= sidebar.ActualWidth - 15,
+                "capsule body is not visually centered with sidebar insets");
+            Assert(Math.Abs(sidebar.ActualHeight - bodyPosition.Y - body.ActualHeight - contentScroll.Margin.Bottom) <= 1,
+                "capsule bottom spacing does not match the page content");
+            var badgePosition = reminder.TranslatePoint(new Point(), body);
+            Assert(Math.Abs(badgePosition.Y + 15) <= 1
+                && Math.Abs(badgePosition.X + reminder.ActualWidth - body.ActualWidth - 6) <= 1
+                && Math.Abs(body.ActualHeight - 36) < 1 && Math.Abs(reminder.ActualHeight - 20) < 1,
+                "external badge geometry changed: " + badgePosition + ", body=" + body.RenderSize + ", badge=" + reminder.RenderSize);
+            Assert(label.FontSize == 12 && label.ActualWidth >= 35
+                && capsule.Focusable && capsule.IsTabStop && capsule.FocusVisualStyle != null,
                 "update label was truncated or the capsule lost keyboard access");
+            LauncherLayoutTests.AssertWithin(label, reminder, reminder.ActualWidth, reminder.ActualHeight);
+            var version = (TextBlock)window.FindName("CapsuleVersion");
+            var textEnd = version.ContentEnd.GetCharacterRect(LogicalDirection.Backward);
+            Assert(version.FontSize == 14 && version.FontWeight == FontWeights.Normal
+                && version.TextTrimming == TextTrimming.None && version.TextWrapping == TextWrapping.NoWrap
+                && !textEnd.IsEmpty && textEnd.Right <= version.ActualWidth + 1,
+                "full version text was clipped, resized or wrapped: " + version.Text
+                    + ", width=" + version.ActualWidth + ", end=" + textEnd);
+            LauncherLayoutTests.AssertWithin(version, body, body.ActualWidth, body.ActualHeight);
+            foreach (var target in new FrameworkElement[] { body, version, (Border)window.FindName("CapsuleChannelPlate"), reminder })
+            {
+                var root = (FrameworkElement)window.Content;
+                var point = target.TranslatePoint(new Point(target.ActualWidth - 4, target.ActualHeight / 2), root);
+                var hit = VisualTreeHelper.HitTest(root, point)?.VisualHit;
+                while (hit != null && !(hit is Button)) hit = VisualTreeHelper.GetParent(hit);
+                Assert(ReferenceEquals(hit, capsule), "capsule region does not hit its single navigation button: " + target.Name);
+            }
+        }
+
+        private static void TestCapsuleStates(MainWindow window, MainWindowViewModel model, string output)
+        {
+            var root = (FrameworkElement)window.Content;
+            var capsule = (Button)window.FindName("VersionCapsule");
+            var body = (Border)window.FindName("CapsuleBody");
+            var version = (TextBlock)window.FindName("CapsuleVersion");
+            var reminder = (Border)window.FindName("VersionUpdateReminder");
+            var icon = (System.Windows.Shapes.Path)window.FindName("CapsuleChannelIcon");
+            foreach (var preview in new[] { false, true })
+            foreach (var longVersion in new[] { false, true })
+            foreach (var scale in new[] { 1.0, 1.25, 1.5, 1.75, 2.0 })
+            {
+                var build = new LauncherBuild(preview ? UpdateChannel.Preview : UpdateChannel.Stable,
+                    longVersion ? "v65534.65534.65534.65534" : "v0.1.0",
+                    preview ? 1 : 0, preview ? (longVersion ? long.MaxValue : 128) : 0,
+                    preview ? (longVersion ? int.MaxValue : 2) : 0, preview ? new string('a', 40) : "");
+                var positions = new List<Rect>();
+                foreach (var hasUpdate in new[] { false, true })
+                {
+                    capsule.DataContext = new
+                    {
+                        model.ShowUpdatePageCommand,
+                        About = new { DisplayVersion = build.DisplayVersion, IsPreviewBuild = preview, HasUpdateReminder = hasUpdate,
+                            VersionCapsuleHint = "当前安装：" + (preview ? "预览版 " : "正式版 ") + build.DisplayVersion
+                                + (hasUpdate ? "\n有更新" : "") + "\n打开更新页面" }
+                    };
+                    var name = "capsule-" + (preview ? "preview" : "stable") + (longVersion ? "-long" : "")
+                        + (hasUpdate ? "-update-" : "-normal-") + (int)(scale * 100);
+                    LauncherLayoutTests.Render(root, window, output, name, longVersion ? 928 : 1200, longVersion ? 460 : 900, scale);
+                    positions.Add(new Rect(body.TranslatePoint(new Point(), root), body.RenderSize));
+                    Assert(version.Text == build.DisplayVersion && ReferenceEquals(icon.Data,
+                        Application.Current.Resources[preview ? "CapsulePreviewIcon" : "CapsuleStableIcon"]),
+                        "capsule did not preserve its installed version or icon");
+                    Assert(ReferenceEquals(body.Background, Application.Current.Resources[preview ? "CapsulePreviewBackground" : "CapsuleStableBackground"])
+                        && ReferenceEquals(capsule.Foreground, Application.Current.Resources[preview ? "CapsulePreviewText" : "CapsuleStableText"]),
+                        "capsule ignored its build colors or high-contrast theme");
+                    Assert(reminder.Visibility == (hasUpdate ? Visibility.Visible : Visibility.Collapsed), "incorrect update badge state");
+                    if (hasUpdate) AssertCapsuleLayout(window, capsule, reminder);
+                    var contentScroll = (ScrollViewer)window.FindName("ContentScroll");
+                    var content = (Grid)window.FindName("ContentViewport");
+                    Assert(content.ActualWidth >= 543, "long version squeezed the page below its supported content width");
+                    if (longVersion && preview)
+                    {
+                        Assert(contentScroll.ScrollableWidth > 0, "compact window cannot scroll its wide page");
+                        contentScroll.ScrollToRightEnd();
+                        window.UpdateLayout();
+                        Pump();
+                        Assert(contentScroll.HorizontalOffset > 0, "wide page content is unreachable");
+                        contentScroll.ScrollToLeftEnd();
+                    }
+                }
+                Assert(positions[0] == positions[1], "badge visibility moved or resized the capsule body");
+            }
+        }
+
+        private static void TestNativeCapsule(MainWindow window, MainWindowViewModel model)
+        {
+            window.Opacity = 0;
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+            window.Show();
+            Pump();
+            var capsule = (Button)window.FindName("VersionCapsule");
+            var reminder = (Border)window.FindName("VersionUpdateReminder");
+            var point = reminder.TranslatePoint(new Point(reminder.ActualWidth - 4, reminder.ActualHeight / 2), window);
+            var hit = window.InputHitTest(point) as DependencyObject;
+            while (hit != null && !(hit is Button)) hit = VisualTreeHelper.GetParent(hit);
+            Assert(ReferenceEquals(hit, capsule), "native external badge is not clickable through its button");
+            var count = 0;
+            capsule.Command = new RelayCommand(() => { count++; model.ShowUpdatePageCommand.Execute(null); });
+            window.Activate();
+            capsule.Focus();
+            Pump();
+            Assert(capsule.IsKeyboardFocused, "native version button cannot receive keyboard focus");
+            var source = PresentationSource.FromVisual(window);
+            foreach (var key in new[] { Key.Enter, Key.Space })
+            {
+                model.IsHomeSelected = true;
+                var before = count;
+                capsule.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key)
+                    { RoutedEvent = Keyboard.KeyDownEvent });
+                capsule.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key)
+                    { RoutedEvent = Keyboard.KeyUpEvent });
+                Pump();
+                Assert(count == before + 1 && model.IsUpdateSelected && !model.About.IsUpdating,
+                    "native capsule key did not navigate exactly once: " + key);
+            }
+            Assert(capsule.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next)) && !capsule.IsKeyboardFocusWithin,
+                "capsule decorations added keyboard stops");
         }
     }
 }

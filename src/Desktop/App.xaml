@@ -38,6 +38,7 @@
         <ResourceDictionary Source="Resources/Icons.xaml" />
         <ResourceDictionary Source="Resources/Controls.xaml" />
         <ResourceDictionary Source="Resources/Navigation.xaml" />
+        <ResourceDictionary Source="Resources/VersionCapsule.xaml" />
       </ResourceDictionary.MergedDictionaries>
       <BooleanToVisibilityConverter x:Key="BoolVisibility" />
     </ResourceDictionary>

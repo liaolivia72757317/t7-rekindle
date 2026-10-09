@@ -116,7 +116,8 @@ namespace T7.ManagedHarness
             if (family != null)
             {
                 LauncherTests.Assert(Equals(family, Application.Current.Resources["UiFontFamily"])
-                    || Equals(family, Application.Current.Resources["CodeFontFamily"]), "inconsistent font family: " + family);
+                    || Equals(family, Application.Current.Resources["CodeFontFamily"])
+                    || Equals(family, Application.Current.Resources["CapsuleFontFamily"]), "inconsistent font family: " + family);
                 LauncherTests.Assert(TextOptions.GetTextFormattingMode(element) == TextFormattingMode.Display,
                     "text formatting did not inherit the window setting");
             }
@@ -159,6 +160,8 @@ namespace T7.ManagedHarness
             string name, double width, double height, double scale = 1)
         {
             VisualTreeHelper.SetRootDpi(root, new DpiScale(scale, scale));
+            // Synthetic DPI changes must remeasure the capsule's untrimmed text.
+            if (window != null) InvalidateMeasurements((FrameworkElement)window.FindName("VersionCapsule"));
             root.Measure(new Size(width, height));
             root.Arrange(new Rect(0, 0, width, height));
             root.UpdateLayout();
@@ -170,7 +173,10 @@ namespace T7.ManagedHarness
                 if (home.Visibility == Visibility.Visible)
                 {
                     var button = (Button)home.FindName("LaunchButton");
-                    AssertWithin(button, root, width, height);
+                    var content = (FrameworkElement)window.FindName("ContentViewport");
+                    var scroll = (ScrollViewer)window.FindName("ContentScroll");
+                    if (scroll.ScrollableWidth > 0) AssertWithin(button, content, content.ActualWidth, content.ActualHeight);
+                    else AssertWithin(button, root, width, height);
                     LauncherTests.Assert(button.ActualHeight >= 42, "launch action collapsed");
                 }
                 var viewport = (Grid)window.FindName("ContentViewport");
@@ -192,6 +198,13 @@ namespace T7.ManagedHarness
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(composite));
             using (var file = File.Create(Path.Combine(outputDirectory, name + ".png"))) encoder.Save(file);
+        }
+
+        private static void InvalidateMeasurements(DependencyObject visual)
+        {
+            if (visual is UIElement element) element.InvalidateMeasure();
+            for (var index = 0; index < VisualTreeHelper.GetChildrenCount(visual); index++)
+                InvalidateMeasurements(VisualTreeHelper.GetChild(visual, index));
         }
 
         private sealed class BindingErrors : TraceListener

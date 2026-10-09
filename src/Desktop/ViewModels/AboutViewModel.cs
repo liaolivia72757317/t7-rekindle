@@ -65,8 +65,9 @@ namespace T7.Rekindle.Desktop.ViewModels
         internal string UpdateReminderIdentity => HasUpdateReminder ? _lastUpdate.UpdateIdentity : string.Empty;
         public string UpdateChannelText => _channel == UpdateChannel.Preview ? "预览渠道" : "正式渠道";
         private string UnpublishedText => _channel == UpdateChannel.Preview ? "暂无预览构建" : "暂无正式发布版本";
-        public string VersionCapsuleHint => "当前版本 " + DisplayVersion
-            + (HasUpdateReminder ? "\n发现新版本 " + UpdateReminderVersion
+        public bool IsPreviewBuild => LauncherInformation.CurrentBuild.Channel == UpdateChannel.Preview;
+        public string VersionCapsuleHint => "当前安装：" + (IsPreviewBuild ? "预览版 " : "正式版 ") + DisplayVersion
+            + (HasUpdateReminder ? "\n有更新" + (string.IsNullOrWhiteSpace(UpdateReminderVersion) ? string.Empty : "：" + UpdateReminderVersion)
                 + (UpdateFailed ? "（本次检查失败，保留上次检查结果）" : string.Empty) : string.Empty)
             + "\n打开更新页面";
         public bool UpdateFailed => UpdateError.Length != 0;

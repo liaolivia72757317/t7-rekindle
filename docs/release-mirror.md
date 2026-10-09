@@ -87,6 +87,8 @@ updates/preview.json
 
 预览清单使用 `schemaVersion: 1`、`channel: "preview"`，含数字 `version` 的字符串表示、`summary`、`build` 及与正式清单相同格式的 `installer`、`portable`。`build` 包含 `channel`、数字版本字符串 `version`、正整数 `runId`、`runNumber`、`runAttempt` 和 `commitHash`，与 ZIP 中程序包清单、程序集身份一致。说明包含本次提交标题和 CI 链接。
 
+预览版本显示为 `v{基础版本}p{runNumber}.{runAttempt}`，例如 `v0.1.0p128.2`。显示文本不附带提交哈希，Git 提交仍在关于页单独展示；清单与程序集中的数字版本和构建身份不变。
+
 按 `(runNumber, runAttempt)` 判断新旧；同一提交重新构建也可产生新版本，仅重试发布使用原产物身份。发布串行执行，先验证两个不可变产物的公开大小及 SHA-256，再写入 `no-store` 清单；失败保留原清单，旧任务补发不回退目标。预览安装器没有 GitHub 备用地址。历史 R2 产物暂不自动清理。
 
 ### 渠道选择与安装

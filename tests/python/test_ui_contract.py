@@ -69,14 +69,26 @@ def test_version_is_centered_in_sidebar_and_update_is_a_page():
     capsule = named["VersionCapsule"]
     assert capsule.tag == "{" + WPF + "}Button"
     assert capsule.attrib["HorizontalAlignment"] == "Center"
+    assert capsule.attrib["VerticalAlignment"] == "Bottom"
+    assert capsule.attrib["Margin"] == "8,8,8,28"
+    assert named["SidebarVersionRow"].attrib["Height"] == "Auto"
     assert capsule.attrib["Command"] == "{Binding ShowUpdatePageCommand}"
     assert capsule.attrib["AutomationProperties.Name"] == "{Binding About.VersionCapsuleHint}"
     assert capsule.attrib["ToolTip"] == "{Binding About.VersionCapsuleHint}"
-    assert named["CapsuleVersion"].attrib["Text"] == "{Binding About.Version}"
-    assert named["CapsuleVersion"].attrib["TextTrimming"] == "CharacterEllipsis"
+    assert "MaxWidth" not in capsule.attrib
+    assert named["CapsuleVersion"].attrib["Text"] == "{Binding About.DisplayVersion}"
+    assert named["CapsuleVersion"].attrib["TextTrimming"] == "None"
+    assert named["CapsuleVersion"].attrib["TextWrapping"] == "NoWrap"
+    assert named["CapsuleVersion"].attrib["FontSize"] == "14"
+    assert named["CapsuleBody"].attrib["Height"] == "36"
+    assert named["CapsuleBody"].attrib["Margin"] == "8,16,8,0"
     assert named["VersionUpdateReminder"].attrib["Visibility"] == "{Binding About.HasUpdateReminder, Converter={StaticResource BoolVisibility}}"
-    assert named["VersionUpdateIcon"].attrib["Kind"] == "refresh"
+    assert named["VersionUpdateReminder"].attrib["Height"] == "20"
+    assert "VersionUpdateIcon" not in named
     assert named["VersionUpdateLabel"].attrib["Text"] == "有更新"
+    assert named["VersionUpdateLabel"].attrib["FontSize"] == "12"
+    assert named["ContentViewport"].attrib["MinWidth"] == "544"
+    assert named["ContentScroll"].attrib["HorizontalScrollBarVisibility"] == "Auto"
     assert "UpdateButton" not in named
     update = _xaml(ROOT / "src/Desktop/Views/LauncherUpdatePage.xaml")
     assert _find(update, "FlowDocumentScrollViewer")[0].attrib["VerticalScrollBarVisibility"] == "Auto"
