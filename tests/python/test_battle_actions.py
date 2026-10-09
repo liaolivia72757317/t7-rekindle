@@ -26,6 +26,12 @@ BLOCKS = [
     (300600, (307, 225, 229)),
     (300610, (306, 226, 230)),
 ]
+ATTACK_TIMES = {
+    300560: (360, 640, 500),
+    300550: (360, 640, 500),
+    300570: (400, 700, 400),
+    300540: (360, 640, 530),
+}
 
 
 def makeFlow(**sessionValues):
@@ -61,9 +67,10 @@ def animationStates(flow):
 @pytest.mark.parametrize("intent,chain", ATTACKS)
 def test_attack_prepares_holds_releases_and_returns_to_idle(intent, chain):
     flow = makeFlow()
+    prepare, process, finish = ATTACK_TIMES[intent]
     sendAction(flow, intent)
     assert animationStates(flow) == [chain[0]]
-    assert flow.session["pending"][ACTION_TIMER] == 1200
+    assert flow.session["pending"][ACTION_TIMER] == 1000 + prepare
     advanceAction(flow)
     assert animationStates(flow) == list(chain[:2])
     assert ACTION_TIMER not in flow.session["pending"]
@@ -72,7 +79,9 @@ def test_attack_prepares_holds_releases_and_returns_to_idle(intent, chain):
     assert animationStates(flow) == list(chain[:2])
     sendAction(flow, 300020)
     assert animationStates(flow) == list(chain[:3])
+    assert flow.session["pending"][ACTION_TIMER] == flow.now + process
     advanceAction(flow)
+    assert flow.session["pending"][ACTION_TIMER] == flow.now + finish
     advanceAction(flow)
     assert animationStates(flow) == [*chain, 2]
     assert ACTION_TIMER not in flow.session["pending"]
@@ -84,30 +93,95 @@ def test_parry_holds_until_matching_release(intent, chain):
     flow = makeFlow()
     sendAction(flow, intent)
     advanceAction(flow)
-    advanceAction(flow)
-    assert animationStates(flow) == list(chain)
+    assert animationStates(flow) == list(chain[:2])
     assert ACTION_TIMER not in flow.session["pending"]
+    flow.now += 1000
+    app.handleTimer(flow, ACTION_TIMER)
     sendAction(flow, 300020)
-    assert animationStates(flow) == list(chain)
+    assert animationStates(flow) == list(chain[:2])
     sendAction(flow, 300620)
+    assert animationStates(flow) == list(chain)
+    assert flow.session["pending"][ACTION_TIMER] == flow.now + 200
+    before = deepcopy(flow.result)
+    sendAction(flow, 300620)
+    assert flow.result == before
+    advanceAction(flow)
     assert animationStates(flow) == [*chain, 2]
+    assert ACTION_TIMER not in flow.session["pending"]
 
 
-@pytest.mark.parametrize("intent,chain", ATTACKS + BLOCKS)
-def test_quick_release_does_not_leave_a_stale_prepare_timer(intent, chain):
+@pytest.mark.parametrize("intent,chain", ATTACKS)
+def test_quick_attack_release_finishes_prepare_before_striking(intent, chain):
     flow = makeFlow()
     sendAction(flow, intent)
     flow.now += 10
-    attack = (intent, chain) in ATTACKS
-    sendAction(flow, 300020 if attack else 300620)
-    assert animationStates(flow) == [chain[0], chain[2] if attack else 2]
+    sendAction(flow, 300020)
+    assert animationStates(flow) == [chain[0]]
+    assert flow.session["pending"][ACTION_TIMER] == 1000 + ATTACK_TIMES[intent][0]
     flow.now = 1200
     app.handleTimer(flow, ACTION_TIMER)
-    assert animationStates(flow) == [chain[0], chain[2] if attack else 2]
-    if attack:
-        advanceAction(flow)
-        advanceAction(flow)
-        assert animationStates(flow)[-1] == 2
+    assert animationStates(flow) == [chain[0]]
+    advanceAction(flow)
+    assert animationStates(flow) == [chain[0], chain[2]]
+    assert flow.session["pending"][ACTION_TIMER] == flow.now + ATTACK_TIMES[intent][1]
+    advanceAction(flow)
+    advanceAction(flow)
+    assert animationStates(flow) == [chain[0], chain[2], chain[3], 2]
+
+
+@pytest.mark.parametrize("intent,chain", BLOCKS)
+def test_quick_parry_release_retracts_before_returning_to_locomotion(intent, chain):
+    flow = makeFlow()
+    sendAction(flow, intent)
+    flow.now += 10
+    sendAction(flow, 300620)
+    assert animationStates(flow) == [chain[0], chain[2]]
+    assert flow.session["pending"][ACTION_TIMER] == 1210
+    flow.now = 1200
+    app.handleTimer(flow, ACTION_TIMER)
+    assert animationStates(flow) == [chain[0], chain[2]]
+    advanceAction(flow)
+    assert animationStates(flow) == [chain[0], chain[2], 2]
+    assert ACTION_TIMER not in flow.session["pending"]
+
+
+@pytest.mark.parametrize("intent,chain", ATTACKS)
+def test_attack_accepts_next_press_at_recovery_end_without_extra_cooldown(intent, chain):
+    flow = makeFlow()
+    sendAction(flow, intent)
+    sendAction(flow, 300020)
+    advanceAction(flow)
+    advanceAction(flow)
+    recoveryEnd = flow.session["pending"][ACTION_TIMER]
+    assert recoveryEnd == 1000 + sum(ATTACK_TIMES[intent])
+    advanceAction(flow)
+    assert flow.now == recoveryEnd
+    sendAction(flow, intent)
+    assert animationStates(flow) == [chain[0], chain[2], chain[3], 2, chain[0]]
+    assert flow.session["pending"][ACTION_TIMER] == recoveryEnd + ATTACK_TIMES[intent][0]
+
+
+@pytest.mark.parametrize("intent,chain", BLOCKS)
+def test_parry_release_keeps_the_current_running_input(intent, chain):
+    flow = makeFlow()
+    ground = {"position": [1., 2., 3.], "heading": 90, "mask": 1, "tick": 200}
+    flow.session["ground"] = deepcopy(ground)
+    sendAction(flow, intent)
+    advanceAction(flow)
+    sendAction(flow, 300620)
+    advanceAction(flow)
+    assert animationStates(flow) == [*chain, 2]
+    assert flow.session["ground"] == ground
+
+
+def test_unmapped_weapon_does_not_reuse_the_default_attack_timing(monkeypatch):
+    flow = makeFlow()
+    before = deepcopy(flow.state)
+    monkeypatch.setattr(wire, "WEAPON_ID", 999999)
+    with pytest.raises(ValueError, match="weapon.*timing"):
+        sendAction(flow, 300560)
+    assert flow.state == before
+    assert flow.result["send"] == flow.result["timers"] == []
 
 
 def test_repeated_press_release_and_conflicting_intents_do_not_restart_action():
@@ -178,7 +252,7 @@ def test_model_actions_preserve_movement_and_only_emit_state_sync():
                for item in flow.result["send"]]
     assert all(item["command"] == 4 for item in flow.result["send"])
     assert [packet.seq_no for packet in packets] == [2, 3, 4, 5, 6]
-    assert [packet.state_change_ms for packet in packets] == [900, 1100, 1100, 1300, 1500]
+    assert [packet.state_change_ms for packet in packets] == [900, 1260, 1260, 1900, 2430]
     assert all(packet.instance_id == 1 and packet.state_time_ms == 0 for packet in packets)
 
 
@@ -218,7 +292,7 @@ def test_host_reload_preserves_action_and_other_connections(tmp_path):
         runtime.prepare()
         encoded = runtime.switch(encoded)
         timer = {**event, "type": "timer", "name": ACTION_TIMER, "body": b"", "command": 0}
-        encoded, sends, _, _ = runtime.dispatch(host_runtime.encode(timer), encoded, context(1200))
+        encoded, sends, _, _ = runtime.dispatch(host_runtime.encode(timer), encoded, context(1360))
         assert battle_flow.decode_battle_state_sync_simple(sends[0]["body"]).state == 237
         value = host_runtime.decode(encoded)
         assert value["sessions"]["2"] == peer

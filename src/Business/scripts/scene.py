@@ -1,11 +1,12 @@
 """Request-driven fixed instance assembly; native timers survive script reload."""
 import struct
 
-from . import contracts as wire, controls
+from . import contracts as wire, controls, battle
 from .codec import battle_flow, leave_flow, login_flow, room_flow, vision_flow
 
 
 def begin(flow):
+    battle.resetAction(flow)
     flow.send(0x2C, flow.syncBody(), "instance-sync-login-rsp-after-auth")
     flow.send(0xA, wire.instanceInfo(flow.now), "instance-minimal-update-after-auth")
     flow.session["instanceStartedAt"] = flow.now
@@ -100,6 +101,7 @@ def timer(flow, name):
 def leave(flow, body):
     backData = leave_flow.decode_sync_logout_request(body)
     flow.cancelTimers()
+    battle.resetAction(flow)
     if flow.session["role"] == "instance":
         flow.send(0xA, wire.roundState(flow.now, 5, 0), "instance-round-state-end")
         flow.send(0xA, leave_flow.encode_si_finish_game(
