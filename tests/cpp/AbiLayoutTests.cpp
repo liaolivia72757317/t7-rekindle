@@ -13,6 +13,7 @@ bool verifyClientAdaptation();
 bool verifyCameraInput();
 bool verifyRemoteImage();
 bool verifyDebugClient();
+bool verifyClientWindowMonitor();
 bool verifyInputMethodRegistry();
 bool verifyInputMethodDebugClient();
 bool verifyEndpointStorage();
@@ -50,6 +51,6 @@ int main() {
     assert(t7::MovementOverlayInfo::kGravityMilli == -10000);
     return verifyOutputDevice() && verifyGraphicsSettings() && verifyModuleLookup() && verifyAp32() && verifyClientCode() && verifyClientImports()
         && verifyClientAdaptation() && verifyCameraInput() && verifyRemoteImage() && verifyInputMethodRegistry() && verifyInputMethodDebugClient()
-        && verifyDebugClient() && verifyMovementResources()
+        && verifyDebugClient() && verifyClientWindowMonitor() && verifyMovementResources()
         && verifyStartupAnimation() && verifyEndpointStorage() && verifyStartupGate() ? 0 : 1;
 }

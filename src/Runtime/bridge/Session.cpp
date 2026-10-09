@@ -124,7 +124,8 @@ int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& op
     const bool active = snapshot_.operation != T7NB_OPERATION_NONE;
     const bool queued = !commands_.empty();
     if (kind == T7NB_OPERATION_START || kind == T7NB_OPERATION_CHECK) {
-        if (snapshot_.state == T7NB_STATE_RUNNING || active || queued) return T7NB_BUSY;
+        if ((snapshot_.state != T7NB_STATE_IDLE && snapshot_.state != T7NB_STATE_FAILED) || active || queued)
+            return T7NB_BUSY;
     }
     if (kind == T7NB_OPERATION_STOP && queued) {
         // A Stop already waiting behind an active operation is enough; do not
@@ -349,15 +350,21 @@ void Session::monitorClient() {
         setFailure(0, T7NB_ERROR_OPERATION, detail);
         return;
     }
-    bool alive = true;
-    try { alive = bootstrap_.running(); }
-    catch (const std::exception& error) {
+    bool alive = true, windowClosed = false;
+    try {
+        alive = bootstrap_.running();
+        if (alive && bootstrap_.windowClosed()) {
+            // Preserve a natural exit or debug failure that raced the window observation.
+            alive = bootstrap_.running();
+            windowClosed = alive;
+        }
+    } catch (const std::exception& error) {
         setFailure(0, T7NB_ERROR_OPERATION, std::string("owned client status failed: ") + error.what());
         return;
     }
-    if (alive) { monitorGraphics(); monitorAudio(); return; }
+    if (alive && !windowClosed) { monitorGraphics(); monitorAudio(); return; }
     DWORD exitCode = 0;
-    try { exitCode = bootstrap_.exitCode(); }
+    try { if (!windowClosed) exitCode = bootstrap_.exitCode(); }
     catch (const std::exception& error) {
         setFailure(0, T7NB_ERROR_OPERATION, error.what());
         return;
@@ -365,17 +372,18 @@ void Session::monitorClient() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.state = T7NB_STATE_STOPPING_CLIENT;
-        snapshot_.phase = "client-exited";
+        snapshot_.phase = windowClosed ? "client-window-closed" : "client-exited";
     }
+    if (windowClosed) log("owned game window closed; stopping remaining session processes");
     auto cleanupError = cleanup();
-    const bool normalExit = exitCode == 0 || exitCode == CLIENT_NORMAL_EXIT_CODE;
+    const bool normalExit = windowClosed || exitCode == 0 || exitCode == CLIENT_NORMAL_EXIT_CODE;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (cleanupError.empty()) {
             snapshot_.state = normalExit ? T7NB_STATE_IDLE : T7NB_STATE_FAILED;
             snapshot_.errorCode = normalExit ? 0 : T7NB_ERROR_CLIENT_EXIT;
             snapshot_.flags |= 1u;
-            snapshot_.phase = normalExit ? "client-exited" : "client-exited-error";
+            snapshot_.phase = windowClosed ? "client-window-closed" : normalExit ? "client-exited" : "client-exited-error";
         } else {
             snapshot_.state = T7NB_STATE_FAILED_CLEANING;
             snapshot_.flags &= ~1u;
@@ -383,8 +391,9 @@ void Session::monitorClient() {
             snapshot_.phase = "failed-cleaning";
         }
     }
-    log(cleanupError.empty() ? "owned client exited; exitCode=" + std::to_string(exitCode) + "; runtime stopped"
-                             : "owned client exited; cleanup=" + cleanupError,
+    const auto reason = windowClosed ? std::string("owned game window closed")
+                                    : "owned client exited; exitCode=" + std::to_string(exitCode);
+    log(reason + (cleanupError.empty() ? "; runtime stopped" : "; cleanup=" + cleanupError),
         cleanupError.empty() && normalExit ? "INFO" : "ERROR");
 }
 

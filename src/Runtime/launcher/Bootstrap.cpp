@@ -157,6 +157,21 @@ bool Bootstrap::running() const {
     if (state == WAIT_FAILED) throw std::runtime_error(errorText("owned client status wait"));
     return state == WAIT_TIMEOUT;
 }
+bool Bootstrap::windowClosed() {
+    if (testAdapter_.launch) return testAdapter_.windowClosed && testAdapter_.windowClosed();
+    if (!process_) return false;
+    if (!windowMonitor_.observed()) {
+        // Bind to the renderer's main window, not a splash screen or helper window.
+        uint32_t object = 0, vtable = 0, window = 0;
+        read(process_, clientImageBase_ + 0x2D379F0, &object, sizeof(object));
+        if (!object) return false;
+        read(process_, object, &vtable, sizeof(vtable));
+        if (vtable != clientImageBase_ + 0x176F28C) return false;
+        read(process_, object + 0x24, &window, sizeof(window));
+        windowMonitor_.observe(reinterpret_cast<HWND>(static_cast<uintptr_t>(window)), pid_);
+    }
+    return windowMonitor_.closed(GetTickCount64());
+}
 DWORD Bootstrap::exitCode() const {
     if (testAdapter_.launch) return testAdapter_.exitCode ? testAdapter_.exitCode() : 0;
     DWORD code = 0;
@@ -242,6 +257,7 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const st
         inject(process_, base, object, config, log);
         debugClient_->check();
         if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
+        windowClosed();
         if (log) log("Endpoint publication verified; releasing startup gate");
         startupGate_.release();
         if (log) log("Startup gate released; server selection may continue");
@@ -276,6 +292,7 @@ void Bootstrap::stop() {
     }
     if (!cleanupError.empty()) throw std::runtime_error(cleanupError);
     debugClient_.reset(); process_ = nullptr; pid_ = 0;
+    windowMonitor_ = {};
 }
 bool Bootstrap::pollGraphics(GraphicsValues& values, uint32_t& result, bool& applied) {
     if (testAdapter_.launch) return testAdapter_.pollGraphics && testAdapter_.pollGraphics(values, result, applied);

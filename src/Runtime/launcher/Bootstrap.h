@@ -5,6 +5,7 @@
 #include "StartupGate.h"
 #include "GraphicsSettings.h"
 #include "OutputDevice.h"
+#include "ClientWindowMonitor.h"
 #include <functional>
 #include <memory>
 namespace t7 {
@@ -17,6 +18,7 @@ public:
         std::function<void(const fs::path&, const Config&, const std::function<void(std::string)>&,
                            const std::function<bool()>&, const std::function<void()>&)> launch;
         std::function<bool()> running;
+        std::function<bool()> windowClosed;
         std::function<void()> stop;
         std::function<DWORD()> exitCode;
         std::function<bool(GraphicsValues&, uint32_t&, bool&)> pollGraphics;
@@ -31,6 +33,7 @@ public:
                 const std::function<bool()>& cancelled = {}, const std::function<void()>& adapting = {},
                 const std::function<void(std::string)>& warning = {});
     bool running() const;
+    bool windowClosed();
     DWORD exitCode() const;
     void stop();
     bool pollGraphics(GraphicsValues& values, uint32_t& result, bool& applied);
@@ -44,6 +47,7 @@ private:
     MovementOverlay movementOverlay_;
     StartupGate startupGate_;
     GraphicsSettings graphicsSettings_;
+    ClientWindowMonitor windowMonitor_;
     OutputDevice outputDevice_;
     uint32_t clientImageBase_ = 0;
     bool outputDeviceVerified_ = false;

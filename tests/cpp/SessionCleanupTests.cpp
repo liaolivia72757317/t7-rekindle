@@ -1,6 +1,7 @@
 #include "../../src/Runtime/bridge/Session.h"
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <thread>
 #include <iostream>
 
@@ -92,6 +93,77 @@ bool verifyFailureCleanup(const t7::fs::path& packageRoot, bool cancel) {
     valid = valid && state->stopObserved && state->correctPhase
         && snapshot.state == (cancel ? T7NB_STATE_IDLE : T7NB_STATE_FAILED)
         && snapshot.ports[0] == 0 && snapshot.ports[1] == 0 && snapshot.ports[2] == 0;
+    session->requestClose();
+    return session->waitForWorkerForTest(std::chrono::seconds(5)) && valid;
+}
+
+bool verifyWindowCloseCleanup(const t7::fs::path& packageRoot, bool failCleanup) {
+    struct State {
+        std::atomic<bool> alive{false}, closed{false}, timedOut{false};
+        std::atomic<unsigned> stops{0};
+        std::promise<void> stopping, resume;
+        std::shared_future<void> resumed = resume.get_future().share();
+    };
+    auto state = std::make_shared<State>();
+    auto stopping = state->stopping.get_future();
+    t7::Bootstrap::TestAdapter adapter;
+    adapter.launch = [state](const t7::fs::path&, const t7::Config&,
+        const std::function<void(std::string)>&, const std::function<bool()>&, const std::function<void()>&) {
+        state->alive = true;
+    };
+    adapter.running = [state] { return state->alive.load(); };
+    adapter.windowClosed = [state] { return state->closed.load(); };
+    adapter.exitCode = [state]() -> DWORD {
+        if (state->alive) throw std::runtime_error("exit code requested before window-close cleanup");
+        return 0;
+    };
+    adapter.stop = [state, failCleanup] {
+        if (++state->stops == 1) {
+            state->stopping.set_value();
+            state->timedOut = state->resumed.wait_for(std::chrono::seconds(5)) != std::future_status::ready;
+            if (failCleanup) throw std::runtime_error("synthetic window-close cleanup failure");
+        }
+        state->alive = false;
+    };
+    auto session = t7::bridge::Session::createForTest(t7::utf8(packageRoot.wstring()), std::move(adapter));
+    const auto directory = t7::utf8((packageRoot / "synthetic-client").wstring());
+    t7::bridge::Snapshot snapshot;
+    const auto waitState = [&](uint32_t expected) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        do {
+            session->snapshot(snapshot);
+            if (snapshot.state == expected && snapshot.operation == T7NB_OPERATION_NONE) return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        } while (std::chrono::steady_clock::now() < deadline);
+        return false;
+    };
+    uint64_t operationId = 0;
+    bool valid = session->submit(T7NB_OPERATION_START, directory, operationId) == T7NB_OK;
+    valid = waitState(T7NB_STATE_RUNNING) && valid;
+    state->closed = true;
+    const bool detected = stopping.wait_for(std::chrono::seconds(2)) == std::future_status::ready;
+    session->snapshot(snapshot);
+    valid = valid && detected && state->alive && snapshot.state == T7NB_STATE_STOPPING_CLIENT
+        && (snapshot.flags & 1u) == 0;
+    if (detected) {
+        uint64_t rejected = 0;
+        valid = session->submit(T7NB_OPERATION_START, directory, rejected) == T7NB_BUSY && valid;
+        valid = session->submit(T7NB_OPERATION_CHECK, directory, rejected) == T7NB_BUSY && valid;
+    }
+    state->resume.set_value();
+    valid = waitState(failCleanup ? T7NB_STATE_FAILED_CLEANING : T7NB_STATE_IDLE) && valid;
+    if (failCleanup) {
+        valid = valid && state->alive && (snapshot.flags & 1u) == 0
+            && snapshot.errorCode == T7NB_ERROR_CLEANUP && snapshot.phase == "failed-cleaning";
+        valid = session->submit(T7NB_OPERATION_STOP, {}, operationId) == T7NB_OK && valid;
+        valid = waitState(T7NB_STATE_IDLE) && valid;
+    } else {
+        valid = valid && snapshot.phase == "client-window-closed";
+    }
+    valid = valid && !state->alive && !state->timedOut && snapshot.errorCode == 0 && (snapshot.flags & 1u)
+        && snapshot.ports[0] == 0 && snapshot.ports[1] == 0 && snapshot.ports[2] == 0;
+    if (!valid) std::cerr << "window-close cleanup: detected=" << detected << " state=" << snapshot.state
+        << " error=" << snapshot.errorCode << " phase=" << snapshot.phase << " flags=" << snapshot.flags << '\n';
     session->requestClose();
     return session->waitForWorkerForTest(std::chrono::seconds(5)) && valid;
 }

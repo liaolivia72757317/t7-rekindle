@@ -275,6 +275,21 @@ namespace T7.ManagedHarness
                 model.IsSettingsSelected = true;
                 model.Refresh();
                 Assert(model.IsSettingsSelected && endedCount == 3, "idle polling reset page navigation or reactivated the window after game exit");
+                RunTask(model.StartCommand.ExecuteAsync(null));
+                bridge.Snapshot = new SessionSnapshot { State = SessionState.StoppingClient, Phase = "client-window-closed" };
+                model.Refresh();
+                Assert(!model.IsManagedGameRunning && model.StatusText == "正在结束游戏…"
+                    && !model.CanStart && !model.CanClose && endedCount == 3,
+                    "window-close cleanup retained running status or enabled restart before cleanup");
+                bridge.Snapshot = new SessionSnapshot { State = SessionState.FailedCleaning, ErrorCode = 1004 };
+                model.Refresh();
+                Assert(model.StatusText == "清理尚未完成" && !model.CanStart && model.CanStop && endedCount == 3,
+                    "window-close cleanup failure enabled restart or ended the session early");
+                bridge.Snapshot = new SessionSnapshot { State = SessionState.Idle, Phase = "client-window-closed", CleanupComplete = true };
+                model.Refresh();
+                Assert(model.StatusText == "准备就绪" && model.MainActionText == "启动游戏"
+                    && model.CanStart && model.IsHomeSelected && endedCount == 4,
+                    "automatic window-close cleanup was reported as a crash or failed to restore launch controls");
                 var previous = service.Load().ClientDirectory;
                 model.ClientDirectory = "";
                 RunTask(model.ValidationTask);

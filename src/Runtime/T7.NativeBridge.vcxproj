@@ -72,6 +72,7 @@
     <ClInclude Include="core\PlayerName.h" />
     <ClInclude Include="core\Protocol.h" />
     <ClInclude Include="launcher\Bootstrap.h" />
+    <ClInclude Include="launcher\ClientWindowMonitor.h" />
     <ClInclude Include="launcher\OutputDevice.h" />
     <ClInclude Include="launcher\StartupGate.h" />
     <ClInclude Include="launcher\Ap32.h" />

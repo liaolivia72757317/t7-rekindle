@@ -29,6 +29,7 @@
     <ClCompile Include="CameraInputTests.cpp" />
     <ClCompile Include="RemoteImageTests.cpp" />
     <ClCompile Include="DebugClientTests.cpp" />
+    <ClCompile Include="ClientWindowMonitorTests.cpp" />
     <ClCompile Include="InputMethodRegistryTests.cpp" />
     <ClCompile Include="InputMethodDebugTests.cpp" />
     <ClCompile Include="..\..\src\Runtime\launcher\InputMethodRegistry.cpp" />

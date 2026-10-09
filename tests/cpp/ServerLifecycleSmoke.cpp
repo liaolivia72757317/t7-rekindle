@@ -14,6 +14,7 @@ bool verifyJournalContracts(const t7::fs::path& fixtureRoot);
 bool verifyDiagnosticLogs(const t7::fs::path& fixtureRoot);
 bool verifyFailureCleanup(const t7::fs::path& packageRoot, bool cancel);
 bool verifyNamedSessionExit(const t7::fs::path& packageRoot, DWORD exitCode, bool normalExit);
+bool verifyWindowCloseCleanup(const t7::fs::path& packageRoot, bool failCleanup);
 bool verifyOperationPublication(const t7::fs::path& packageRoot, uint32_t expectedStatus);
 bool verifyMovementOverlay();
 bool verifyMovementHookExecution();
@@ -417,6 +418,8 @@ int wmain(int argc, wchar_t** argv) {
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 7, false)) result = 29;
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 4660, true)) result = 30;
         if (!verifyNamedSessionExit(t7::fs::path(argv[1]), 0xC0000005, false)) result = 31;
+        if (!verifyWindowCloseCleanup(t7::fs::path(argv[1]), false)) result = 40;
+        if (!verifyWindowCloseCleanup(t7::fs::path(argv[1]), true)) result = 41;
         if (!verifyFailureCleanup(t7::fs::path(argv[1]), true)) result = 26;
         if (!verifyFailureCleanup(t7::fs::path(argv[1]), false)) result = 27;
         if (!verifyOperationPublication(t7::fs::path(argv[1]), T7NB_OPERATION_SUCCEEDED)) result = 32;

@@ -170,6 +170,8 @@ namespace T7.Rekindle.Desktop.ViewModels
                     LogsExpanded = true;
                 if (_snapshot.State == SessionState.Idle && _snapshot.Phase == "client-exited")
                     _completedMessage = "游戏已正常退出";
+                if (_snapshot.State == SessionState.Idle && _snapshot.Phase == "client-window-closed")
+                    _completedMessage = "游戏窗口已关闭，会话已结束";
                 if (_snapshot.State == SessionState.Running) _hasRunningSession = true;
                 var gameEnded = _hasRunningSession && (_snapshot.State == SessionState.Idle || _snapshot.State == SessionState.Failed);
                 if (gameEnded)
