@@ -11,7 +11,6 @@ io.micrometer:micrometer-commons:jar:1.16.7
 io.micrometer:micrometer-core:jar:1.16.7
 io.micrometer:micrometer-jakarta9:jar:1.16.7
 io.micrometer:micrometer-observation:jar:1.16.7
-io.micrometer:micrometer-registry-prometheus:jar:1.16.7
 io.netty:netty-buffer:jar:4.2.17.Final
 io.netty:netty-codec-base:jar:4.2.17.Final
 io.netty:netty-codec-dns:jar:4.2.17.Final
@@ -22,12 +21,6 @@ io.netty:netty-resolver:jar:4.2.17.Final
 io.netty:netty-transport-native-unix-common:jar:4.2.17.Final
 io.netty:netty-transport:jar:4.2.17.Final
 io.projectreactor:reactor-core:jar:3.8.7
-io.prometheus:prometheus-metrics-config:jar:1.4.3
-io.prometheus:prometheus-metrics-core:jar:1.4.3
-io.prometheus:prometheus-metrics-exposition-formats:jar:1.4.3
-io.prometheus:prometheus-metrics-exposition-textformats:jar:1.4.3
-io.prometheus:prometheus-metrics-model:jar:1.4.3
-io.prometheus:prometheus-metrics-tracer-common:jar:1.4.3
 jakarta.activation:jakarta.activation-api:jar:2.1.4
 jakarta.annotation:jakarta.annotation-api:jar:3.0.0
 jakarta.xml.bind:jakarta.xml.bind-api:jar:4.0.5

@@ -25,7 +25,6 @@
 | `io.micrometer:micrometer-core` | 1.16.7 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
 | `io.micrometer:micrometer-jakarta9` | 1.16.7 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
 | `io.micrometer:micrometer-observation` | 1.16.7 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.micrometer:micrometer-registry-prometheus` | 1.16.7 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
 | `io.netty:netty-buffer` | 4.2.17.Final | [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | `io.netty:netty-codec-base` | 4.2.17.Final | [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | `io.netty:netty-codec-dns` | 4.2.17.Final | [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
@@ -36,12 +35,6 @@
 | `io.netty:netty-transport` | 4.2.17.Final | [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | `io.netty:netty-transport-native-unix-common` | 4.2.17.Final | [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | `io.projectreactor:reactor-core` | 3.8.7 | [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.prometheus:prometheus-metrics-config` | 1.4.3 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.prometheus:prometheus-metrics-core` | 1.4.3 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.prometheus:prometheus-metrics-exposition-formats` | 1.4.3 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.prometheus:prometheus-metrics-exposition-textformats` | 1.4.3 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.prometheus:prometheus-metrics-model` | 1.4.3 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
-| `io.prometheus:prometheus-metrics-tracer-common` | 1.4.3 | [The Apache Software License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt) |
 | `jakarta.activation:jakarta.activation-api` | 2.1.4 | [EDL 1.0](http://www.eclipse.org/org/documents/edl-v10.php) |
 | `jakarta.annotation:jakarta.annotation-api` | 3.0.0 | [EPL 2.0](https://www.eclipse.org/legal/epl-2.0) / [GPL2 w/ CPE](https://www.gnu.org/software/classpath/license.html) |
 | `jakarta.xml.bind:jakarta.xml.bind-api` | 4.0.5 | [Eclipse Distribution License - v 1.0](http://www.eclipse.org/org/documents/edl-v10.php) |
