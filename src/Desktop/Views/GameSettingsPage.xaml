@@ -69,12 +69,12 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center" Margin="0,12,20,12">
                       <Label Content="更新渠道" Target="{Binding ElementName=UpdateChannelSelector}" FontSize="18" FontWeight="Normal" />
-                      <TextBlock Text="正式版面向普通玩家；预览版跟踪默认分支成功 CI。" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                      <TextBlock Text="正式版面向普通玩家；预览版跟踪最新未发布内容。" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
                     </StackPanel>
                     <ComboBox x:Name="UpdateChannelSelector" Grid.Column="1" Height="40" VerticalAlignment="Center"
                               SelectedValue="{Binding SelectedUpdateChannel}" SelectedValuePath="Tag" IsEnabled="{Binding CanChangeUpdateChannel}"
                               AutomationProperties.Name="更新渠道" AutomationProperties.HelpText="保存后立即检查；检查、下载或安装期间暂时禁用" TabIndex="10">
-                      <ComboBoxItem Content="正式版（默认）" Tag="{x:Static services:UpdateChannel.Stable}" />
+                      <ComboBoxItem Content="正式版" Tag="{x:Static services:UpdateChannel.Stable}" />
                       <ComboBoxItem Content="预览版" Tag="{x:Static services:UpdateChannel.Preview}" />
                     </ComboBox>
                   </Grid>

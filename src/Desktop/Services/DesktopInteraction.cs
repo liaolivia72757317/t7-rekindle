@@ -12,6 +12,7 @@ namespace T7.Rekindle.Desktop.Services
     {
         string SelectDirectory(string initialDirectory);
         bool Confirm(string message);
+        bool Confirm(string title, string message, string action);
         void ShowText(string title, string text);
         void ShowMarkdown(string title, string markdown);
         void CopyText(string text);
@@ -49,6 +50,8 @@ namespace T7.Rekindle.Desktop.Services
             var closing = message.Contains("关闭会") || message.Contains("并关闭");
             return ConfirmAction(closing ? "结束会话并关闭？" : "结束游戏？", message, closing ? "结束并关闭" : "结束游戏");
         }
+
+        public bool Confirm(string title, string message, string action) => ConfirmAction(title, message, action);
 
         internal static bool ConfirmAction(string title, string message, string action) =>
             ShowModal(new ConfirmationDialog(title, message, action)) == true;

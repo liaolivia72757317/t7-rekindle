@@ -184,7 +184,8 @@ namespace T7.ManagedHarness
         private static void TestSettingsAccessibility(string directory, string output)
         {
             var pending = new TaskCompletionSource<LauncherUpdateInfo>();
-            using (var model = CreateModel(Path.Combine(directory, "settings-accessibility"), () => pending.Task))
+            var interaction = new FakeDesktopInteraction { ConfirmResult = false };
+            using (var model = CreateModel(Path.Combine(directory, "settings-accessibility"), () => pending.Task, interaction))
             {
                 RunTask(model.ValidationTask);
                 model.IsSettingsSelected = true;
@@ -205,14 +206,52 @@ namespace T7.ManagedHarness
                     "channel selector is excluded from keyboard navigation");
                 channel.SelectedIndex = 1;
                 Pump();
+                Assert(interaction.ConfirmCount == 1 && channel.SelectedIndex == 0 && channel.IsEnabled
+                    && model.IsSettingsSelected && settings.Visibility == Visibility.Visible
+                    && model.SelectedUpdateChannel == UpdateChannel.Stable && !model.About.IsCheckingUpdate
+                    && new SettingsService(Path.Combine(directory, "settings-accessibility")).LoadUpdateChannel(out _) == UpdateChannel.Stable,
+                    "cancelled preview confirmation did not restore the channel selector or changed settings");
+                var confirmation = new ConfirmationDialog(interaction.Title, interaction.Text, interaction.ConfirmationAction);
+                LauncherLayoutTests.Render((FrameworkElement)confirmation.Content, null, output, "confirm-preview-channel", 504, 261);
+                var cancel = (Button)confirmation.FindName("CancelButton");
+                Assert(cancel.IsCancel && cancel.IsDefault && !((Button)confirmation.FindName("ConfirmButton")).IsDefault,
+                    "preview confirmation did not default to cancellation");
+                confirmation.Close();
+                interaction.ConfirmResult = true;
+                channel.SelectedIndex = 1;
+                Pump();
                 Assert(model.SelectedUpdateChannel == UpdateChannel.Preview
+                    && interaction.ConfirmCount == 3 && channel.SelectedIndex == 1
                     && new SettingsService(Path.Combine(directory, "settings-accessibility")).LoadUpdateChannel(out _) == UpdateChannel.Preview,
                     "channel selection did not persist through its binding");
                 Assert(!channel.IsEnabled, "channel selector did not reflect the running update check");
+                var updatePage = (LauncherUpdatePage)window.FindName("UpdatePage");
+                Assert(model.IsUpdateSelected && updatePage.Visibility == Visibility.Visible && settings.Visibility == Visibility.Collapsed,
+                    "preview channel selection did not show the update page");
+                var navigationConfirmation = new ConfirmationDialog(interaction.Title, interaction.Text, interaction.ConfirmationAction);
+                LauncherLayoutTests.Render((FrameworkElement)navigationConfirmation.Content, null, output, "confirm-update-navigation", 504, 261);
+                var navigationCancel = (Button)navigationConfirmation.FindName("CancelButton");
+                Assert(interaction.Title == "前往更新页？" && navigationCancel.IsCancel && navigationCancel.IsDefault
+                    && !((Button)navigationConfirmation.FindName("ConfirmButton")).IsDefault,
+                    "update navigation dialog was missing or did not default to cancellation");
+                navigationConfirmation.Close();
                 pending.SetResult(new LauncherUpdateInfo { Channel = UpdateChannel.Preview });
                 RunTask(model.About.CheckUpdateCommand.ExecutionTask);
                 Assert(channel.IsEnabled, "channel selector remained disabled after checking");
+                model.IsSettingsSelected = true;
                 LauncherLayoutTests.Render((FrameworkElement)window.Content, window, output, "settings-update-preview", 1200, 900);
+                pending = new TaskCompletionSource<LauncherUpdateInfo>();
+                interaction.ConfirmResult = false;
+                channel.SelectedIndex = 0;
+                Pump();
+                Assert(model.SelectedUpdateChannel == UpdateChannel.Stable && channel.SelectedIndex == 0 && interaction.ConfirmCount == 4
+                    && interaction.Title == "前往更新页？" && model.About.IsCheckingUpdate && model.IsSettingsSelected
+                    && updatePage.Visibility == Visibility.Collapsed && settings.Visibility == Visibility.Visible
+                    && new SettingsService(Path.Combine(directory, "settings-accessibility")).LoadUpdateChannel(out _) == UpdateChannel.Stable,
+                    "cancelled update navigation changed the page, reverted the channel or skipped the update check");
+                pending.SetResult(new LauncherUpdateInfo { Channel = UpdateChannel.Stable });
+                RunTask(model.About.CheckUpdateCommand.ExecutionTask);
+                Assert(model.IsSettingsSelected, "finishing the update check ignored cancelled navigation");
                 model.SettingsTabIndex = 2;
                 LauncherLayoutTests.Render((FrameworkElement)window.Content, window, null, "game-settings-accessibility", 1200, 900);
                 Assert(HasAutomationId(peer, "SkipStartupAnimationSwitch"), "game switch is hidden from UI Automation");
@@ -395,9 +434,10 @@ namespace T7.ManagedHarness
             LauncherLayoutTests.Render((FrameworkElement)recent.Content, null, output, "recent-notices", 624, 461);
         }
 
-        private static MainWindowViewModel CreateModel(string directory, Func<Task<LauncherUpdateInfo>> checkUpdate = null) => new MainWindowViewModel(new FakeLauncherBridge(),
+        private static MainWindowViewModel CreateModel(string directory, Func<Task<LauncherUpdateInfo>> checkUpdate = null,
+            FakeDesktopInteraction interaction = null) => new MainWindowViewModel(new FakeLauncherBridge(),
             new SettingsService(directory), new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-            path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
+            path => Task.FromResult(ValidDirectory(path)), interaction ?? new FakeDesktopInteraction(),
             checkUpdate: checkUpdate ?? (() => Task.FromResult(new LauncherUpdateInfo())));
     }
 }

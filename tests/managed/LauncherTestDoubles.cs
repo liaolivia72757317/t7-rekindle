@@ -115,6 +115,8 @@ namespace T7.ManagedHarness
     {
         public bool ConfirmResult { get; set; } = true;
         public int ConfirmCount { get; private set; }
+        public Action Confirming { get; set; }
+        public string ConfirmationAction { get; private set; }
         public int EnvironmentInfoCount { get; private set; }
         public string Title { get; private set; }
         public string Text { get; private set; }
@@ -129,7 +131,19 @@ namespace T7.ManagedHarness
             if (DirectoryError != null) throw DirectoryError;
             return DirectorySelection;
         }
-        public bool Confirm(string message) { ConfirmCount++; Text = message; return ConfirmResult; }
+        public bool Confirm(string message)
+        {
+            ConfirmCount++;
+            Text = message;
+            Confirming?.Invoke();
+            return ConfirmResult;
+        }
+        public bool Confirm(string title, string message, string action)
+        {
+            Title = title;
+            ConfirmationAction = action;
+            return Confirm(message);
+        }
         public void ShowText(string title, string text) { Text = text; IsMarkdown = false; }
         public void ShowMarkdown(string title, string markdown)
         {
