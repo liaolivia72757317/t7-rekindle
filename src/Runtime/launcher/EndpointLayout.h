@@ -27,8 +27,8 @@ inline std::array<uint32_t, 7> endpointAllocationSizes(const Config& config, uns
     validateConfig(config);
     if (selectorParity > 1) throw std::runtime_error("invalid endpoint selector parity");
     auto sizes = ENDPOINT_BLOCK_SIZES;
+    const auto descriptor = config.advertisedAddress + ":" + std::to_string(config.ports[1]);
     for (size_t i = 0; i < 4; ++i) {
-        const auto descriptor = config.advertisedAddress + ":" + std::to_string(config.ports[(i & 1) ^ selectorParity]);
         if (descriptor.size() <= 15) sizes[i + 3] = 0;
         else if (descriptor.size() >= sizes[i + 3]) throw std::runtime_error("endpoint descriptor exceeds backing storage");
     }
@@ -52,7 +52,8 @@ inline EndpointLayout makeEndpointLayout(const Config& config, const EndpointAdd
         if (address.size() > 15) throw std::runtime_error("IPv4 address exceeds inline storage");
         memcpy(record.address.buffer, address.c_str(), address.size() + 1);
         record.address.length = static_cast<uint32_t>(address.size()); record.address.capacity = 15;
-        record.port = config.ports[(i & 1) ^ selectorParity];
+        // Every startup/retry selection opens the logic channel, regardless of selector parity.
+        record.port = config.ports[1];
         auto descriptor = address + ":" + std::to_string(record.port);
         record.descriptor.length = static_cast<uint32_t>(descriptor.size());
         if (descriptor.size() <= 15) {

@@ -8,6 +8,7 @@ from .codec.method3 import Method3UplinkMessage
 
 API_VERSION = 1
 STATE_VERSION = 2
+STARTUP_STEP_DELAY_MS = 1000
 
 
 def createState(context):
@@ -110,7 +111,7 @@ def handleTimer(flow, name):
         identity = protocol.MinimalLoginIdentity(
             wire.USER_ID, flow.playerName, user_image_id=7, level=wire.USER_LEVEL)
         flow.send(1, protocol.encode_minimal_login_success(identity), "fixed-local-login")
-        flow.later("sync", 20000)
+        flow.later("sync", STARTUP_STEP_DELAY_MS)
     elif name == "sync":
         flow.send(0x2C, flow.syncBody(), "sync-login")
         flow.phase("hydrating")
@@ -229,7 +230,8 @@ def handleEvent(event, state, context):
         if eventType == "authenticated":
             if not flow.session.get("authenticated"):
                 flow.session["authenticated"] = True
-                name, delay = {"login": ("version", 25000), "logic": ("login", 25000),
+                name, delay = {"login": ("version", STARTUP_STEP_DELAY_MS),
+                               "logic": ("login", STARTUP_STEP_DELAY_MS),
                                "instance": ("instance-init", 20)}[flow.session["role"]]
                 flow.later(name, delay)
         elif eventType == "timer":

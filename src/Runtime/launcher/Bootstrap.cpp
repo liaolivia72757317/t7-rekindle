@@ -131,8 +131,8 @@ void inject(HANDLE process, uintptr_t base, uint32_t expectedObject,
     }
     if (log) {
         log("Direct endpoint vectors published and read back; allocation ownership transferred to client");
-        log("Fixed same-host selection published: candidates=2; parity=" + std::to_string(selectorSalt & 1) +
-            "; attempt0=" + config.advertisedAddress + ":" + std::to_string(config.ports[0]) +
+        log("Fixed same-host logic selection published: candidates=2; parity=" + std::to_string(selectorSalt & 1) +
+            "; attempt0=" + config.advertisedAddress + ":" + std::to_string(config.ports[1]) +
             "; attempt1=" + config.advertisedAddress + ":" + std::to_string(config.ports[1]));
     }
 }

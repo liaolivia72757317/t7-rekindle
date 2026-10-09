@@ -186,9 +186,14 @@ void run(const t7::fs::path& path, const std::string& hash, const t7::Config& co
         writeValue(process, addresses.records, layout.records); writeValue(process, addresses.group, layout.group);
         writeValue(process, addresses.candidates, layout.candidates);
         for (size_t i = 0; i < 4; ++i) {
-            const auto descriptor = config.advertisedAddress + ":" + std::to_string(config.ports[(i & 1) ^ parity]);
-            require(layout.records[i].port == config.ports[(i & 1) ^ parity], "endpoint candidate order changed");
+            const auto descriptor = config.advertisedAddress + ":" + std::to_string(config.ports[1]);
+            const auto& record = layout.records[i];
+            require(record.port == config.ports[1], "startup and retry endpoints must use the logic port");
             require((addresses.descriptors[i] != 0) == (descriptor.size() > 15), "endpoint SSO ownership mismatch");
+            require(record.descriptor.length == descriptor.size(), "endpoint descriptor length mismatch");
+            require(record.descriptor.capacity == (descriptor.size() > 15 ? 31u : 15u), "endpoint descriptor capacity mismatch");
+            require(descriptor == (addresses.descriptors[i] ? layout.descriptors[i] : record.descriptor.buffer),
+                    "endpoint descriptor must match the logic port");
             if (addresses.descriptors[i]) {
                 writeValue(process, addresses.descriptors[i], layout.descriptors[i]);
                 require(readWord(process, addresses.records + static_cast<uint32_t>(i) * 52 + 28) == addresses.descriptors[i],
@@ -231,19 +236,21 @@ bool verifyEndpointStorage() {
         fixture(path); const auto hash = t7::fileHash(path);
         t7::Config shortConfig; shortConfig.ports[0] = 1; shortConfig.ports[1] = 2; shortConfig.ports[2] = 3;
         run(path, hash, shortConfig, 0, 0, false, true);
-        run(path, hash, shortConfig, 0);
-        t7::Config mixedConfig = shortConfig;
-        mixedConfig.advertisedAddress = "192.0.2.123"; mixedConfig.ports[0] = 123; mixedConfig.ports[1] = 12345;
-        t7::Config longConfig = mixedConfig; longConfig.advertisedAddress = "203.0.113.123";
+        t7::Config heapConfig = shortConfig;
+        heapConfig.advertisedAddress = "192.0.2.123"; heapConfig.ports[0] = 123; heapConfig.ports[1] = 12345;
+        t7::Config inlineConfig = heapConfig; inlineConfig.ports[0] = 12345; inlineConfig.ports[1] = 123;
+        t7::Config longConfig = heapConfig; longConfig.advertisedAddress = "203.0.113.123";
         for (unsigned parity : {0u, 1u}) {
-            run(path, hash, mixedConfig, parity);
+            run(path, hash, shortConfig, parity);
+            run(path, hash, inlineConfig, parity);
+            run(path, hash, heapConfig, parity);
             run(path, hash, longConfig, parity);
             run(path, hash, longConfig, parity, 0, true);
         }
         for (uint32_t failedAllocation = 1; failedAllocation <= 7; ++failedAllocation)
             run(path, hash, longConfig, 0, failedAllocation);
         cleanup();
-        std::cout << "Endpoint allocator pairing, SSO, partial failure, unpublished cleanup and x86 normal exit passed\n";
+        std::cout << "Logic endpoint routing, allocator pairing, SSO, partial failure, unpublished cleanup and x86 normal exit passed\n";
         return true;
     } catch (const std::exception& error) {
         std::cerr << "Endpoint storage test failure: " << error.what() << '\n';
