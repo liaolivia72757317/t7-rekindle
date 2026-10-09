@@ -9,6 +9,9 @@ GROUND_RUN_DELAY_MS = 2000
 MAX_GROUND_ELAPSED_MS = 100
 MOVE_CLOCK = "instance-relative-ms-v1"
 MAX_MOVE_TICK = 0x7FFFFFFF
+KEY_CATEGORY_MOVEMENT = 1
+KEY_CATEGORY_CROUCH = 2
+KEY_CATEGORY_JUMP = 3
 GROUND_WALK_STATES = {
     (-1, 0): 2, (-1, 1): 3, (0, 1): 4, (1, 1): 5,
     (1, 0): 6, (1, -1): 7, (0, -1): 8, (-1, -1): 9,
@@ -56,10 +59,16 @@ def localReport(flow, selector, body):
         wire.exact(body, 24, "runtime-local-key-state")
         category = struct.unpack_from(">i", body, 2)[0]
         keys = body[6:12]
-        if category != 1:
+        if category not in (KEY_CATEGORY_MOVEMENT, KEY_CATEGORY_CROUCH, KEY_CATEGORY_JUMP):
             return False
         if any(value not in (0, 1) for value in keys):
             raise ValueError("runtime local key state must be 0 or 1")
+        if category != KEY_CATEGORY_MOVEMENT:
+            # Special-key reports carry no authoritative position or WASD update.
+            if groundEnabled(flow):
+                field, index = ("crouched", 4) if category == KEY_CATEGORY_CROUCH else ("jumpPressed", 5)
+                groundState(flow)[field] = bool(keys[index])
+            return True
         position = list(struct.unpack_from(">fff", body, 12))
     if not all(math.isfinite(value) for value in position):
         raise ValueError("non-finite runtime local position")
