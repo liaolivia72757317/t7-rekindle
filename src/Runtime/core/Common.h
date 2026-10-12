@@ -25,6 +25,7 @@ struct Config {
     unsigned short ports[3] = {0, 0, 0};
     fs::path clientRoot;
     fs::path clientDirectory;
+    fs::path lobbyNewsPath;
     // The embedded business layer accepts local movement reports only after
     // the launcher has installed the memory-only client overlay.
     bool runtimeMovement = true;

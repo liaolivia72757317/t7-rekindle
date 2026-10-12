@@ -26,6 +26,8 @@ def test_package_manifest_excludes_client(tmp_path, business_directory):
     (source / "artifacts/bin/T7.Desktop/x64/Release/net48").mkdir(parents=True)
     (source / "src/Business/scripts").mkdir(parents=True)
     (source / "src/Business/scripts/__init__.py").write_text("API_VERSION=1\nSTATE_VERSION=1\n", encoding="utf-8")
+    (source / "src/Business/news").mkdir()
+    (source / "src/Business/news/index.html").write_text("<title>战场快讯</title>", encoding="utf-8")
     stale = source / "artifacts/bin/T7.Desktop/x64/Release/net48" / business_directory
     (stale / "scripts/__pycache__").mkdir(parents=True)
     (stale / "scripts/__init__.py").write_text("stale = True\n", encoding="utf-8")
@@ -60,6 +62,8 @@ def test_package_manifest_excludes_client(tmp_path, business_directory):
     assert "runtimes/managed.dll" in manifest["files"]
     assert "Business/scripts/__init__.py" in manifest["files"]
     assert (output / "Business/scripts/__init__.py").read_bytes() == (source / "src/Business/scripts/__init__.py").read_bytes()
+    assert (output / "Business/news/index.html").read_bytes() == (source / "src/Business/news/index.html").read_bytes()
+    assert "Business/news/index.html" in manifest["files"]
     assert not (output / "Business/scripts/removed.py").exists()
     assert not (output / "Business/scripts/__pycache__").exists()
     for name in ("src", "scripts", "tests", ".local", "client", "work"):

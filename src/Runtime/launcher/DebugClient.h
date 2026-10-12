@@ -18,6 +18,7 @@ struct DllEntryRule {
 struct ChildImageRule {
     fs::path executable;
     std::string sha256;
+    std::function<void(HANDLE, uint32_t)> prepare;
 };
 
 class DebugClient final {

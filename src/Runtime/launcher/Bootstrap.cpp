@@ -225,16 +225,20 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const Di
     const auto base = static_cast<uintptr_t>(image.imageBase);
     clientImageBase_ = image.imageBase;
     try {
+        lobbyNews_.start(config.lobbyNewsPath);
+        if (log) log(DiagnosticLogLevel::Info, "大厅本地公告服务已启动：" + lobbyNews_.address());
         debugClient_->start(executable, CLIENT_HASH, {rule}, [&](HANDLE process, HANDLE thread) {
             const auto module = findMappedImageBase(process, executable);
             if (module.base != base) throw std::runtime_error("client mapped image identity mismatch before preparation");
             installClientImage(process, thread, image, cancelled);
+            lobbyNews_.install(process, static_cast<uint32_t>(base));
             installOutputDevice(process, static_cast<uint32_t>(base), outputDevice_);
             startupGate_.install(process, static_cast<uint32_t>(base));
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
             graphicsSettings_.install(process, static_cast<uint32_t>(base), GetThreadId(thread));
             if (log) log(DiagnosticLogLevel::Debug, "Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
-        }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH}},
+        }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH,
+            [this](HANDLE process, uint32_t base) { lobbyNews_.installHelper(process, base); }}},
         [this](DWORD threadId, uintptr_t address) {
             return startupGate_.handleBreakpoint(threadId, address) || movementOverlay_.handleBreakpoint(threadId, address);
         }, warning);
@@ -277,6 +281,7 @@ void Bootstrap::stop() {
         try { debugClient_->stop(); }
         catch (const std::exception& error) { cleanupError = error.what(); }
     }
+    lobbyNews_.stop();
     try { startupGate_.clear(); }
     catch (const std::exception& error) {
         if (!cleanupError.empty()) cleanupError += "; ";

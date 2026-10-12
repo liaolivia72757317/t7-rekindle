@@ -4,6 +4,8 @@
     <AccelerateBuildsInVisualStudio>false</AccelerateBuildsInVisualStudio>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="$(RepositoryRoot)src\Business\news\index.html"
+          Link="Business\news\index.html" CopyToOutputDirectory="Always" />
     <None Include="$(RepositoryRoot)src\Business\**\*.py"
           Exclude="$(RepositoryRoot)src\Business\**\__pycache__\**\*"
           Link="Business\%(RecursiveDir)%(Filename)%(Extension)"

@@ -2,6 +2,7 @@
 #include "../core/DiagnosticLog.h"
 #include "../core/Common.h"
 #include "MovementOverlay.h"
+#include "LobbyNews.h"
 #include "DebugClient.h"
 #include "StartupGate.h"
 #include "GraphicsSettings.h"
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<DebugClient> debugClient_;
     DWORD pid_ = 0;
     MovementOverlay movementOverlay_;
+    LobbyNews lobbyNews_;
     StartupGate startupGate_;
     GraphicsSettings graphicsSettings_;
     ClientWindowMonitor windowMonitor_;
