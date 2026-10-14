@@ -2,7 +2,7 @@
 import math
 
 from . import actors, battle, blade_contacts, body_collision, bot, bot_life, bot_roaming, contact_journal, contracts as wire
-from . import dash_resources, player_life, weapons
+from . import damage as damage_rules, dash_resources, player_life, weapons
 from .codec import attr_flow, battle_flow, kill_flow
 
 MAX_HEALTH, DAMAGE = 100, 20
@@ -30,6 +30,7 @@ def initialize(flow):
         data.pop('weaponId', None)
         data['contactLifeAt'] = flow.now
         data.pop('contactSwings', None)
+        data.pop('damageMotion', None)
         data['killStreak'] = 0
         data.update(kills=0, deaths=0, battlePoints=0)
         data.pop("hurtUntil", None)
@@ -40,6 +41,8 @@ def initialize(flow):
 
 
 def validState(data):
+    if not damage_rules.validState(data):
+        return False
     if type(data.get('firstBloodAwarded', False)) is not bool:
         return False
     if type(data.get('killStreak', 0)) is not int or not 0 <= data.get('killStreak', 0) <= kill_flow.MAX_STREAK:
@@ -339,13 +342,17 @@ def applyHit(flow, attacker, target, snapshot, *, contact=None, intent=None, wea
     action = battle.actionState(flow, attacker)
     intent = action['intent'] if intent is None else intent
     weaponId = weapons.equipped(actors.data(flow, attacker)) if weaponId is None else weaponId
-    damage = DASH_DAMAGE if intent == battle.DASH_ATTACK else DAMAGE
+    damage, part, closing = damage_rules.calculate(flow, attacker, target, snapshot, hitPosition,
+        DASH_DAMAGE if intent == battle.DASH_ATTACK else DAMAGE)
+    hitPart = {'head': battle_flow.HIT_PART_HEAD, 'body': battle_flow.HIT_PART_BODY,
+               'legs': battle_flow.HIT_PART_LEGS}[part]
     previousHealth = data["health"]
     data["health"] = max(0, data["health"] - damage)
     publishHealth(flow, target)
     position = snapshot[actors.positionName(snapshot, target)]
     flow.send(4, battle_flow.encode_battle_hit_point_notify(
         hit_pos=hitPosition, hit_direction=hitDirection, hit_normal=hitNormal,
+        hit_part=hitPart,
         attacker_mid=attacker, target_mid=target, attacker_weapon_id=weaponId,
         target_weapon_id=0, server_time_ms=int(getattr(flow, 'contactAt', flow.now))), "combat-hit-point")
     if attacker == wire.ACTOR_ID:
@@ -353,10 +360,12 @@ def applyHit(flow, attacker, target, snapshot, *, contact=None, intent=None, wea
         sequence = action['seq'] if contact is None else contact.get('seq', action['seq'])
         flow.send(battle_flow.BATTLE_COMMAND, battle_flow.encode_battle_result(
             attacker_rid=attacker, target_rid=target, attacker_seq_no=sequence,
+            target_rb_index=hitPart,
             target_life_state=battle_flow.LIFE_STATE_KILL if data['health'] == 0 else battle_flow.LIFE_STATE_NONE,
             attack_weapon_id=weaponId, target_result_type=battle_flow.RESULT_DATA_DELTA_HP,
             target_result_data=data['health'] - previousHealth), 'combat-damage')
-    flow.log("DEBUG", f"combat-hit attacker={attacker} target={target} hp={data['health']}")
+    flow.log("DEBUG", f"combat-hit attacker={attacker} target={target} hp={data['health']}"
+             f" damage={damage} part={part} closing={closing:.2f}")
     if data['health'] == 0:
         if target == wire.ACTOR_ID:
             player_life.die(flow, attacker, position, weaponId=weaponId)
@@ -437,6 +446,7 @@ def checkHit(flow, attacker):
 def worldUpdated(flow):
     if not battle.enabled(flow):
         return
+    damage_rules.sample(flow)
     if contact_journal.available(flow):
         contact_journal.settle(flow)
         return

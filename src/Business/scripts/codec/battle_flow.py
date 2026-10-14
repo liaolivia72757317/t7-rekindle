@@ -14,6 +14,7 @@ ACT_STATE_IDLE = 2
 HIT_POINT_NOTIFY = 0x001B
 DEFENSE_NOTIFY = 0x0028
 DEFENCE_TYPE_WEAPON = 2
+HIT_PART_HEAD, HIT_PART_BODY, HIT_PART_LEGS = 1, 2, 3
 BATTLE_RESULT = 0x0009
 DEAD_NOTIFY = 0x000A
 DATA_UPDATE_NOTIFY = 0x000B
@@ -85,6 +86,7 @@ class BattleHitPointNotify:
     attacker_weapon_id: int
     target_weapon_id: int
     server_time_ms: int
+    hit_part: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +104,7 @@ class BattleResult:
     attack_weapon_id: int
     target_result_type: int
     target_result_data: int
+    target_rb_index: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,7 +153,10 @@ def encode_battle_hit_point_notify(
     hit_normal: tuple[float, float, float] = (0.0, 0.0, 1.0),
     material_id: int = 0,
     ignore_hurt: bool = False,
+    hit_part: int = 0,
 ) -> bytes:
+    if type(hit_part) is not int or not 0 <= hit_part <= 7:
+        raise ValueError('hit_part must be in [0, 7]')
     position = _require_triple(hit_pos, "hit_pos")
     direction = _require_triple(hit_direction, "hit_direction")
     normal = _require_triple(hit_normal, "hit_normal")
@@ -159,7 +165,7 @@ def encode_battle_hit_point_notify(
             ">Hfffb4f4fiQiQiIQBBi",
             HIT_POINT_NOTIFY,
             *position,
-            0,
+            hit_part,
             *direction,
             0.0,
             *normal,
@@ -213,6 +219,7 @@ def decode_battle_hit_point_notify(body: bytes) -> BattleHitPointNotify:
         attacker_weapon_id=attacker_weapon_id,
         target_weapon_id=target_weapon_id,
         server_time_ms=server_time_ms,
+        hit_part=body[14],
     )
 
 
@@ -243,7 +250,10 @@ def encode_battle_result(
     attack_weapon_id: int,
     target_result_type: int,
     target_result_data: int,
+    target_rb_index: int = 0,
 ) -> bytes:
+    if type(target_rb_index) is not int or not 0 <= target_rb_index <= 7:
+        raise ValueError('target_rb_index must be in [0, 7]')
     if target_life_state not in (LIFE_STATE_NONE, LIFE_STATE_KILL, LIFE_STATE_REVIVE):
         raise ValueError("life_state must be NONE(0), KILL(1), or REVIVE(2)")
     # TDR arrays use their refer counts on the wire, not their decoded capacity.
@@ -254,7 +264,7 @@ def encode_battle_result(
             attacker_rid,
             target_rid,
             attacker_seq_no,
-            0,
+            target_rb_index,
             target_life_state,
             0,
         ) + struct.pack(
@@ -297,4 +307,5 @@ def decode_battle_result(body: bytes) -> BattleResult:
         attack_weapon_id=attack_weapon_id,
         target_result_type=target_result_type,
         target_result_data=target_result_data,
+        target_rb_index=body[20],
     )

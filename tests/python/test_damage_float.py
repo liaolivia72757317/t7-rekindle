@@ -36,9 +36,9 @@ def test_only_local_hits_send_actual_negative_hp_delta_before_death(arena, attac
         body = packets[0]['body']
         result = battle_flow.decode_battle_result(body)
         assert result == battle_flow.BattleResult(attacker, target, sequence, lifeState, wire.WEAPON_ID,
-                                                battle_flow.RESULT_DATA_DELTA_HP, -damage)
+                                                battle_flow.RESULT_DATA_DELTA_HP, -damage, battle_flow.HIT_PART_BODY)
         assert len(body) == 38
-        assert struct.unpack_from('>HQQHbbh', body) == (9, attacker, target, sequence, 0, lifeState, 0)
+        assert struct.unpack_from('>HQQHbbh', body) == (9, attacker, target, sequence, battle_flow.HIT_PART_BODY, lifeState, 0)
         assert struct.unpack_from('>hhi', body, 24) == (1, 2, -damage)
         assert struct.unpack_from('>ibb', body, 32) == (wire.WEAPON_ID, 0, 0)
 
