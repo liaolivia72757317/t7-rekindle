@@ -13,6 +13,8 @@
 #include <vector>
 #include <stdexcept>
 #include <cstdint>
+#include <memory>
+#include "RoomGatewaySettings.h"
 
 namespace t7 {
 using Bytes = std::vector<unsigned char>;
@@ -45,6 +47,7 @@ struct Config {
     bool runtimeMovement = true;
     bool skipStartupAnimation = false;
     GUID outputDevice{};
+    std::shared_ptr<const RoomGatewaySettings> roomGateway;
     // Raw socket bytes are diagnostic-sensitive and stay disabled unless a
     // local fixture explicitly opts in. Journal metadata is always kept.
     bool captureWire = false;

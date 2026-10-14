@@ -3,12 +3,12 @@ from copy import deepcopy
 import struct
 
 from . import actors, contracts as wire, scene, roster, controls, battle, bot, bot_life, combat, player_life
-from . import battle_clock, settlement, weapons
+from . import battle_clock, settlement, online_scene, online_actions, online_motion, custom_lobby, weapons, online_combat
 from .codec import kill_flow, login_flow, protocol, room_flow
 from .codec.method3 import Method3UplinkMessage
 
 API_VERSION = 1
-STATE_VERSION = 16
+STATE_VERSION = 22
 STARTUP_STEP_DELAY_MS = 1000
 
 
@@ -25,6 +25,8 @@ def validateState(state):
     if (type(state) is not dict or type(state.get("sessions")) is not dict
             or type(state.get("phase")) is not str or state.get("roomId") != 1
             or state.get("actorId") != 1):
+        return False
+    if "onlineScene" in state and not online_scene.valid(state["onlineScene"]):
         return False
     try:
         wire.encodePlayerName(state.get("playerName", wire.USER_NAME.decode("gbk")))
@@ -43,6 +45,10 @@ def validateState(state):
                and all(battle.validAction(data) for data in (session, *actors.bots(session).values()))
                and player_life.validState(session)
                and battle_clock.validState(session)
+               and custom_lobby.valid(session)
+               and online_actions.valid(session)
+               and online_motion.valid(session)
+               and online_combat.valid(session)
                and ('killTarget' not in session or kill_flow.valid_kill_target(session['killTarget']))
                and ("bot" not in session or combat.validState(session["bot"]))
                and (not session.get("initialized") or controls.validMoveClock(session))
@@ -142,7 +148,12 @@ class Flow:
                 "event": {"type": "timer", "connection": self.connection, "name": name}})
 
     def syncBody(self):
-        return protocol.encode_sync_login_response(protocol.SyncLoginResponse(10000, 1, 0, 0))
+        return protocol.encode_sync_login_response(protocol.SyncLoginResponse(self.userId, 1, 0, 0))
+
+    @property
+    def userId(self):
+        return self.state.get("onlineScene", {}).get("localUserId",
+                   self.session.get("customLobby", {}).get("userId", wire.USER_ID))
 
 
 def handleTimer(flow, name):
@@ -163,19 +174,22 @@ def handleTimer(flow, name):
         flow.send(1, protocol.encode_version_check_response(0), "version-response")
     elif name == "login":
         identity = protocol.MinimalLoginIdentity(
-            wire.USER_ID, flow.playerName, user_image_id=7, level=wire.USER_LEVEL)
+            flow.session.get("customLobby", {}).get("userId", wire.USER_ID),
+            flow.playerName, user_image_id=7, level=flow.session.get("customLobby", {}).get("level", wire.USER_LEVEL))
         flow.send(1, protocol.encode_minimal_login_success(identity), "fixed-local-login")
         flow.later("sync", STARTUP_STEP_DELAY_MS)
     elif name == "sync":
         flow.send(0x2C, flow.syncBody(), "sync-login")
         flow.phase("hydrating")
+    elif name == "custom-lobby-ping":
+        custom_lobby.heartbeat(flow)
     elif name == "match-result":
         flow.send(0x20, struct.pack(">Hi", 3, 0), "match-result-notify")
     elif name == "match-enter":
         flow.send(0x1E, room_flow.encode_room_enter_instance_notify(
-            room_id=1, user_camp=1, notify_type=0), "match-enter-instance-notify")
+            room_id=1, user_camp=flow.state.get("onlineScene", {}).get("localCamp", 1), notify_type=0), "match-enter-instance-notify")
         flow.phase("instance-notified")
-    elif not any(handler(flow, name) for handler in (battle.timer, bot.timer, bot_life.timer, player_life.timer,
+    elif not any(handler(flow, name) for handler in (online_motion.timer, battle.timer, bot.timer, bot_life.timer, player_life.timer,
                                                     combat.timer, controls.timer, scene.timer)):
         raise ValueError(f"unknown business timer: {name}")
 
@@ -214,6 +228,9 @@ def handleMessage(flow, event):
     if type(body) is not bytes or len(body) < 2:
         raise ValueError("business message requires a two-byte selector")
     selector = int.from_bytes(body[:2], "big")
+    if command == 59 and flow.session["role"] == "logic" and "customLobby" in flow.session:
+        custom_lobby.request(flow, body)
+        return
     if command == 0x1D and selector == 1:
         flow.send(command, wire.heartbeat(body), "heart-beat-response")
         return
@@ -221,19 +238,32 @@ def handleMessage(flow, event):
         wire.exact(body, 3, "unify-time")
         last = flow.session.get("unifyAt")
         if last is None or flow.now - last >= 250:
-            rtt = 0 if last is None else min(60000, max(1, flow.now - last))
-            flow.send(8, struct.pack(">HQQ", 10, flow.now, rtt), "unify-time-rsp")
+            flow.send(8, struct.pack('>HQQ', 10, flow.now, custom_lobby.measured_rtt(flow)), 'unify-time-rsp')
             flow.session["unifyAt"] = flow.now
+        return
+    if online_scene.enabled(flow) and online_combat.message(flow, command, selector, body):
         return
     if scene.message(flow, command, selector, body):
         return
     if controls.message(flow, command, selector, body):
+        return
+    if online_scene.enabled(flow) and command in (4, 5, 9):
+        if 'roomGateway' in flow.context:
+            if not online_actions.message(flow, command, selector, body):
+                observed = flow.session.setdefault('unhandled', {})
+                key = f'online:{command}:{selector}'
+                if key not in observed and len(observed) < 64:
+                    observed[key] = True
+                    flow.log('WARN', f'online unsupported command={command} selector={selector}')
         return
     if weapons.message(flow, command, selector, body):
         return
     if battle.message(flow, command, selector, body):
         return
     if flow.session["role"] == "logic":
+        if command == 0x1E and "customLobby" in flow.session:
+            custom_lobby.enter(flow, body)
+            return
         message = Method3UplinkMessage(event["sequence"], command, event["serverTimeMs"], body)
         responses = login_flow.build_login_flow_responses(
             message, include_fixed_hero_card=True, include_fixed_battle_hero=True)
@@ -245,6 +275,9 @@ def handleMessage(flow, event):
         if responses or (command == 0x1E and handleRoom(flow, body, selector)):
             return
         if command == 0x20 and selector == 1:
+            if "customLobby" in flow.session:
+                flow.log("WARN", "matchmaking is unavailable in custom-room mode")
+                return
             flow.send(0x20, wire.matchStart(body), "match-start-result-zero")
             flow.later("match-result", 1000)
             flow.later("match-enter", 2000)
@@ -261,6 +294,12 @@ def handleEvent(event, state, context):
     state = deepcopy(state)
     flow = Flow(event, state, context)
     eventType, key = event["type"], str(event["connection"])
+    # Remove a closed target before authority can produce any scene messages for it.
+    if eventType == "closed":
+        state["sessions"].pop(key, None)
+        if "roomGateway" in context:
+            custom_lobby.closed(flow, event['role'])
+    online_scene.applyAuthority(flow)
     if eventType == "operator":
         if event.get("name") != "diagnostic":
             raise ValueError("only the diagnostic command is implemented; no speculative correction bundle")
@@ -280,15 +319,24 @@ def handleEvent(event, state, context):
                 flow.connection, flow.session = connection, session
                 flow.rearmActionTimers()
                 scene.expire(flow)
-                combat.worldUpdated(flow)
-                bot.worldUpdated(flow)
+                if not online_scene.enabled(flow):
+                    combat.worldUpdated(flow)
+                    bot.worldUpdated(flow)
+                elif 'roomGateway' in context:
+                    online_motion.world_updated(flow)
+                    online_combat.world_updated(flow)
     elif eventType == "connected":
         if event["role"] not in ("login", "logic", "instance") or key in state["sessions"]:
             raise ValueError("invalid or duplicate business connection")
+        if 'roomGateway' in context and event['role'] == 'instance' and (
+                not online_scene.enabled(flow) or state['onlineScene']['phase'] != 1):
+            raise ValueError('custom instance requires an allocated loading match')
+        if online_scene.enabled(flow) and event["role"] == "instance" and any(
+                s["role"] == "instance" for s in state["sessions"].values()):
+            raise ValueError("online scene permits one original instance connection")
         state["sessions"][key] = {"role": event["role"], "hydration": [], "pending": {}, "camp": 1,
                                   "authenticated": False}
     elif eventType == "closed":
-        state["sessions"].pop(key, None)
         if 'settlement' in state:
             state['phase'] = 'settlement'
         elif not state["sessions"]:
@@ -299,6 +347,9 @@ def handleEvent(event, state, context):
         if eventType == "authenticated":
             if not flow.session.get("authenticated"):
                 flow.session["authenticated"] = True
+                if flow.session["role"] == "logic" and "roomGateway" in context:
+                    custom_lobby.begin(flow)
+                    return flow.result
                 name, delay = {"login": ("version", STARTUP_STEP_DELAY_MS),
                                "logic": ("login", STARTUP_STEP_DELAY_MS),
                                "instance": ("instance-init", 20)}[flow.session["role"]]
@@ -309,6 +360,14 @@ def handleEvent(event, state, context):
             if flow.session.get("authenticated", True) is not True:
                 raise ValueError("message before authentication")
             handleMessage(flow, event)
+        elif eventType == "gateway":
+            if flow.session["role"] != "logic" or "customLobby" not in flow.session:
+                raise ValueError("room gateway event requires a logic session")
+            custom_lobby.receive(flow, event["body"])
         else:
             raise ValueError(f"unknown business event: {eventType}")
+    if "roomGateway" in context:
+        if flow.session is not None and flow.session['role'] == 'instance' and flow.session.get('leaving'):
+            custom_lobby.closed(flow, 'instance')
+        custom_lobby.loaded(flow)
     return flow.result

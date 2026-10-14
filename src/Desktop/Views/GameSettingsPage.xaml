@@ -140,6 +140,21 @@
             </StackPanel>
           </ScrollViewer>
         </TabItem>
+        <TabItem Header="联机服务器" AutomationProperties.Name="联机服务器">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Border Style="{StaticResource Card}" Padding="24,20" VerticalAlignment="Top">
+              <StackPanel>
+                <CheckBox TabIndex="0" AutomationProperties.Name="连接游戏服务器" Content="连接游戏服务器" IsChecked="{Binding GameServer.Enabled}" IsEnabled="{Binding CanStart}" />
+                <TextBlock Text="填写服务器地址，启动游戏后在游戏大厅创建、刷新或加入房间。关闭此项使用本地模式。" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,12,0,16" />
+                <Label Content="服务器 IP 或域名" Target="{Binding ElementName=GameServerHost}" />
+                <TextBox x:Name="GameServerHost" TabIndex="1" Text="{Binding GameServer.Host, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding AreSessionFieldsLocked}" AutomationProperties.Name="服务器 IP 或域名" />
+                <Label Content="端口" Target="{Binding ElementName=GameServerPort}" Margin="0,12,0,0" />
+                <TextBox x:Name="GameServerPort" TabIndex="2" Text="{Binding GameServer.Port, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding AreSessionFieldsLocked}" MaxLength="5" AutomationProperties.Name="游戏服务器端口" />
+                <TextBlock Text="使用当前玩家昵称自动接入，无需注册。角色与装备沿用现有公共配置。" Style="{StaticResource MutedText}" Margin="0,16,0,0" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </ScrollViewer>
+        </TabItem>
       </TabControl>
     </Grid>
   </Border>

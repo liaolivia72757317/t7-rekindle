@@ -22,6 +22,8 @@ struct ServerSnapshot {
     size_t connections = 0, queuedEvents = 0, queuedBytes = 0, timers = 0;
     uint64_t started = 0, completedControls = 0, reloadMs = 0;
     uint64_t ioScans = 0, sendBlocked = 0, sendBudget = 0;
+    uint32_t playerId = 0;
+    uint32_t serverLatencyMs = UINT32_MAX;
     std::vector<ConnectionSnapshot> clients;
 };
 class Server {
@@ -65,6 +67,7 @@ private:
     std::unique_ptr<RunDirectory> runDirectory_;
     SOCKET listeners_[3]{INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
     std::map<uint64_t, Session> sessions_;
+    std::map<uint64_t, std::shared_ptr<RoomGateway>> gateways_;
     std::deque<QueuedEvent> events_;
     size_t eventBytes_ = 0;
     uint64_t nextId_ = 1, nextEvent_ = 1, lastFirst_ = 0;
@@ -100,5 +103,6 @@ private:
     void fail(const std::exception& error);
     void queue(Event event, TimePoint due = TimePoint::max());
     void disconnect(uint64_t id, const std::string& reason, DiagnosticLogLevel level);
+    bool receiveGateway(uint64_t id, Bytes body);
 };
 }

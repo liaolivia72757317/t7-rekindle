@@ -7,6 +7,17 @@
 #include <sstream>
 
 namespace t7 {
+Bytes buildAudioRoot(const fs::path& directory) {
+    if (directory.empty()) return {};
+    if (!directory.is_absolute()) throw std::runtime_error("audio directory must be absolute");
+    auto value = directory.lexically_normal().make_preferred().wstring();
+    if (value.find(L'\0') != value.npos || value.size() > MAX_PATH - 32)
+        throw std::runtime_error("audio directory exceeds legacy engine path limit");
+    if (value.back() != L'\\') value.push_back(L'\\');
+    value.push_back(L'\0');
+    const auto begin = reinterpret_cast<const unsigned char*>(value.data());
+    return Bytes(begin, begin + value.size() * sizeof(wchar_t));
+}
 bool validAudioValues(const AudioValues& v) {
     return v.musicMuted <= 1 && v.effectsMuted <= 1
         && std::isfinite(v.musicVolume) && v.musicVolume >= 0 && v.musicVolume <= 1
@@ -30,14 +41,34 @@ void write(HANDLE process, uint32_t address, const void* data, size_t size) {
         || actual != size) throw std::runtime_error(errorText("audio mailbox write"));
 }
 }
-void AudioSettings::attach(HANDLE process, uint32_t address, uint32_t imageBase) {
+void AudioSettings::attach(HANDLE process, uint32_t address, uint32_t imageBase, bool combatBanks) {
     if (process_ || !process || !address) throw std::runtime_error("audio mailbox attachment state");
     process_ = process; remote_ = address; imageBase_ = imageBase;
+    combatEnabled_ = combatBanks;
 }
 void AudioSettings::clear() {
     if (process_ && WaitForSingleObject(process_, 0) != WAIT_OBJECT_0)
         throw std::runtime_error("audio mailbox cleanup requires terminated owned client");
     process_ = nullptr; remote_ = imageBase_ = pending_ = 0; requestedAt_ = 0; hasValues_ = false;
+    combatEnabled_ = combatPending_ = false; combatEpoch_ = 0;
+}
+bool AudioSettings::pollCombat(uint64_t instanceEpoch, std::array<uint32_t, 6>& results) {
+    if (!process_ || !combatEnabled_ || !instanceEpoch) return false;
+    if (combatPending_) {
+        const auto bytes = readClientMemory(process_, remote_ + COMBAT_AUDIO_OFFSET, 32);
+        uint32_t command = 0; std::memcpy(&command, bytes.data(), 4);
+        if (command) return false;
+        std::memcpy(results.data(), bytes.data() + 8, sizeof(results));
+        combatPending_ = false;
+        return true;
+    }
+    if (instanceEpoch == combatEpoch_) return false;
+    // Publish a fresh request only after the previous frame-thread operation completed.
+    const std::array<uint32_t, 8> request{{1, 0, 0, 0, 0, 0, 0, 0}};
+    write(process_, remote_ + COMBAT_AUDIO_OFFSET + 4, request.data() + 1, 28);
+    write(process_, remote_ + COMBAT_AUDIO_OFFSET, request.data(), 4);
+    combatEpoch_ = instanceEpoch; combatPending_ = true;
+    return false;
 }
 void AudioSettings::request(uint32_t command) {
     write(process_, remote_, &command, 4);

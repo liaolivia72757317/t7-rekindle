@@ -78,9 +78,11 @@ namespace T7.ManagedHarness
         }
         public Task<OperationSnapshot> StopAsync(CancellationToken token)
         {
+            ++StopCount;
             Snapshot = new SessionSnapshot { State = SessionState.Idle, CleanupComplete = true };
             return Task.FromResult(new OperationSnapshot { Status = OperationStatus.Succeeded });
         }
+        public int StopCount;
         public SessionSnapshot GetSnapshot() => Snapshot;
         public GraphicsSettingsSnapshot Graphics { get; set; } = new GraphicsSettingsSnapshot(0, GraphicsSyncState.Unavailable, null);
         public int GraphicsApplyCount { get; private set; }

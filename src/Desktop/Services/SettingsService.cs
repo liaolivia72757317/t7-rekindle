@@ -16,6 +16,8 @@ namespace T7.Rekindle.Desktop.Services
         internal string DirectoryPath => _directory;
         internal bool CanPersistLoadedSettings { get; private set; }
 
+        internal string StorageDirectory => _directory;
+
         public string LastWarning { get; private set; } = string.Empty;
 
         public SettingsService()
@@ -81,9 +83,9 @@ namespace T7.Rekindle.Desktop.Services
             WriteJson(_path, json);
         }
 
-        private void WriteJson(string path, string json)
+        internal static void WriteJson(string path, string json)
         {
-            Directory.CreateDirectory(_directory);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
             // CreateNew and same-directory replacement keep each write atomic.
             var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             var bytes = new System.Text.UTF8Encoding(false).GetBytes(json);

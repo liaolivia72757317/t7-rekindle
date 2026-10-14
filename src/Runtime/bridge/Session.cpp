@@ -418,8 +418,12 @@ void Session::monitorClient() {
 }
 
 void Session::monitorWorld() {
-    if (!server_ || !server_->needsWorld()) return;
+    if (!server_) return;
     try {
+        const auto snapshot = server_->snapshot();
+        bootstrap_.publishPlayerId(snapshot.playerId);
+        bootstrap_.publishServerLatency(snapshot.serverLatencyMs);
+        if (!server_->needsWorld()) return;
         WorldSnapshot world;
         if (bootstrap_.pollWorld(world)) server_->updateWorld(world);
     } catch (const std::exception& error) {

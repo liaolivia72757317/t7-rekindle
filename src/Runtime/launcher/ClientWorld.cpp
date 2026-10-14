@@ -39,11 +39,13 @@ TerrainContact terrainContact(const TerrainMailbox& raw) {
 }
 BladeTrace bladeTrace(const BladeMailbox& raw) {
     BladeTrace value;
-    if (raw.poseReady != 1 || raw.traceReady != 1 || raw.spanMs > 100
+    if (raw.poseReady != 1
         || !validPosition(raw.base) || !validPosition(raw.tip)) return value;
     const auto length = std::hypot(raw.tip[0] - raw.base[0], raw.tip[1] - raw.base[1], raw.tip[2] - raw.base[2]);
     if (length < .01f || length > 8.f) return value;
-    value.ready = true; value.base = raw.base; value.tip = raw.tip;
+    value.poseReady = true; value.base = raw.base; value.tip = raw.tip;
+    if (raw.traceReady != 1 || raw.spanMs > 100) return value;
+    value.ready = true;
     value.length = length; value.spanMs = raw.spanMs;
     for (size_t i = 0; i < raw.contacts.size(); ++i) {
         const auto& source = raw.contacts[i];
@@ -66,6 +68,7 @@ void ClientWorld::clear() {
     if (process_ && WaitForSingleObject(process_, 0) != WAIT_OBJECT_0)
         throw std::runtime_error("world bridge cleanup requires terminated owned client");
     process_ = nullptr; remote_ = 0; requestedAt_ = 0; pending_ = false; targets_ = {}; targetMasks_ = {};
+    parryContacts_.clear();
 }
 void ClientWorld::request() {
     const uint32_t command = 1;
@@ -152,6 +155,7 @@ bool ClientWorld::poll(WorldSnapshot& value) {
         for (size_t target = 0; target < entries.size(); ++target)
             if (entries[target].ready == 1) actor.targetTerrain[target] = terrainContact(source.targetTerrain[target]);
     }
+    parryContacts_.append(value);
     // Existing single-bot rounds still consume the pair fields after a hot reload.
     value.player = value.actors[0].position; value.bot = value.actors[1].position;
     value.playerHeading = value.actors[0].heading; value.botHeading = value.actors[1].heading;

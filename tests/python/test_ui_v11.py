@@ -132,12 +132,13 @@ def test_home_banner_uses_embedded_artwork_without_duplicate_title():
 def test_v11_settings_commit_editing_instead_of_saving_every_keystroke():
     root = ET.parse(DESKTOP / "Views/GameSettingsPage.xaml").getroot()
     fields = root.findall(f".//{{{WPF}}}TextBox")
-    assert len(fields) == 2
-    assert all("UpdateSourceTrigger=Explicit" in field.attrib["Text"] for field in fields)
-    assert all(field.attrib.get("LostKeyboardFocus") for field in fields)
-    assert all(field.attrib.get("PreviewKeyDown") for field in fields)
+    assert len(fields) == 4
+    committed = fields[:2]
+    assert all("UpdateSourceTrigger=Explicit" in field.attrib["Text"] for field in committed)
+    assert all(field.attrib.get("LostKeyboardFocus") for field in committed)
+    assert all(field.attrib.get("PreviewKeyDown") for field in committed)
     tabs = root.findall(f".//{{{WPF}}}TabItem")
-    assert [tab.attrib["Header"] for tab in tabs] == ["基本设置", "启动器设置", "游戏设置"]
+    assert [tab.attrib["Header"] for tab in tabs] == ["基本设置", "启动器设置", "游戏设置", "联机服务器"]
     assert all(tab.attrib["AutomationProperties.Name"] == tab.attrib["Header"] for tab in tabs)
     switches = tabs[2].findall(f".//{{{WPF}}}CheckBox")
     assert len(switches) == 1

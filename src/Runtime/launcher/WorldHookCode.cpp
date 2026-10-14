@@ -42,7 +42,7 @@ void verifyWorldFunctions(HANDLE process, uint32_t imageBase) {
     }
 }
 Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, const DashAttackProfile& dash,
-                     const MovementAnimationProfile& animation) {
+                     const MovementAnimationProfile& animation, bool customLobby) {
     if (!address || address > UINT32_MAX - WORLD_PAGE_SIZE || !imageBase
         || imageBase > UINT32_MAX - LOCAL_ACTOR_RVA - 4 || !threadId)
         throw std::runtime_error("world hook outside x86 range");
@@ -235,7 +235,7 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
     static_assert(MOVEMENT_ANIMATION_CODE_OFFSET + 0x1000 <= ROUND_END_CODE_OFFSET, "movement animation code capacity");
     std::copy(movementAnimation.begin(), movementAnimation.end(), page.begin() + MOVEMENT_ANIMATION_CODE_OFFSET);
     writeSprintDirections(page);
-    const auto roundEnd = buildRoundEndHooks(address, imageBase);
+    const auto roundEnd = buildRoundEndHooks(address, imageBase, customLobby);
     static_assert(ROUND_END_CODE_OFFSET + 0x1000 <= LIVE_ACTORS_OFFSET, "round end code capacity");
     static_assert(ROUND_END_DATA_OFFSET + sizeof(RoundEndMailbox) <= WORLD_CODE_OFFSET, "round end data capacity");
     std::memcpy(page.data() + ROUND_END_CODE_OFFSET, roundEnd.data(), roundEnd.size());

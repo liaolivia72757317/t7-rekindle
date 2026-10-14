@@ -246,8 +246,9 @@ namespace T7.ManagedHarness
                 var tabs = (TabControl)settings.FindName("SettingsTabs");
                 var peer = UIElementAutomationPeer.CreatePeerForElement(tabs);
                 Assert(HasAutomationId(peer, "NameInput"), "selected settings tab hides its fields from UI Automation");
-                Assert(tabs.Items.Count == 3 && ((TabItem)tabs.Items[1]).Header.ToString() == "启动器设置"
-                    && ((TabItem)tabs.Items[2]).Header.ToString() == "游戏设置", "settings tabs were not renamed and extended");
+                Assert(tabs.Items.Count == 4 && ((TabItem)tabs.Items[1]).Header.ToString() == "启动器设置"
+                    && ((TabItem)tabs.Items[2]).Header.ToString() == "游戏设置"
+                    && ((TabItem)tabs.Items[3]).Header.ToString() == "联机服务器", "settings tabs were not renamed and extended");
                 model.SettingsTabIndex = 1;
                 LauncherLayoutTests.Render((FrameworkElement)window.Content, window, output, "settings-update-channel", 1200, 900);
                 var channel = (ComboBox)settings.FindName("UpdateChannelSelector");
@@ -316,6 +317,16 @@ namespace T7.ManagedHarness
                 toggle.Toggle();
                 Pump();
                 Assert(skip.IsChecked == false && !model.SkipStartupAnimation, "game switch did not toggle off");
+                tabs.SelectedIndex = 3;
+                LauncherLayoutTests.Render((FrameworkElement)window.Content, window, output, "settings-game-server", 1200, 900);
+                var host = (TextBox)settings.FindName("GameServerHost");
+                var port = (TextBox)settings.FindName("GameServerPort");
+                host.Text = "server.example.invalid"; port.Text = "8091";
+                Pump();
+                Assert(tabs.SelectedIndex == 3 && HasAutomationId(peer, "GameServerHost")
+                    && HasAutomationId(peer, "GameServerPort") && !host.IsReadOnly && !port.IsReadOnly
+                    && model.GameServer.Host == "server.example.invalid" && model.GameServer.Port == "8091",
+                    "server configuration tab does not expose or bind the direct endpoint");
                 window.DataContext = null;
                 window.Close();
             }

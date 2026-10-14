@@ -122,6 +122,7 @@ Object contactJournal(const WorldSnapshot& world) {
         put(value.get(), "targetPhaseAt", PyLong_FromUnsignedLongLong(event.targetPhaseAt));
         put(value.get(), "occurredAt", PyFloat_FromDouble(event.occurredAt));
         put(value.get(), "along", PyFloat_FromDouble(event.hit.along));
+        put(value.get(), "weaponContact", PyBool_FromLong(event.weaponContact));
         put(value.get(), "sourcePosition", Py_BuildValue("[fff]", event.sourcePosition[0], event.sourcePosition[1], event.sourcePosition[2]));
         put(value.get(), "targetPosition", Py_BuildValue("[fff]", event.targetPosition[0], event.targetPosition[1], event.targetPosition[2]));
         put(value.get(), "sourceHeading", PyFloat_FromDouble(event.sourceHeading));
@@ -269,6 +270,10 @@ std::string PythonHost::context(const Config& config, uint64_t now, const std::v
     put(dict.get(), "instancePort", PyLong_FromLong(config.ports[2]));
     put(dict.get(), "playerName", PyUnicode_FromString(config.playerName.c_str()));
     put(dict.get(), "runtimeMovement", PyBool_FromLong(config.runtimeMovement ? 1 : 0));
+    if (config.roomGateway) {
+        auto gateway = checked(Py_BuildValue("{s:s}", "accountId", config.roomGateway->accountId.c_str()));
+        put(dict.get(), "roomGateway", gateway.release());
+    }
     put(dict.get(), "clientDirectory", PyUnicode_FromWideChar(config.clientDirectory.c_str(), -1));
     put(dict.get(), "dashAttack", dashValue(config.dashAttack).release());
     auto snapshot = checked(PyDict_New());
@@ -351,6 +356,12 @@ std::vector<std::string> PythonHost::diagnostics() {
 std::string PythonHost::phase(const std::string& state) {
     auto value = checked(PyObject_CallMethod(runtime_, "phase", "s", state.c_str())); return string(value.get());
 }
+uint32_t PythonHost::playerId(const std::string& state) {
+    auto value = checked(PyObject_CallMethod(runtime_, "playerId", "s", state.c_str()));
+    auto result = PyLong_AsUnsignedLong(value.get());
+    if (PyErr_Occurred()) throw std::runtime_error(error());
+    return static_cast<uint32_t>(result);
+}
 std::string PythonHost::prepare() {
     auto value = checked(PyObject_CallMethod(runtime_, "prepare", nullptr)); return string(value.get());
 }
@@ -373,7 +384,7 @@ Transition PythonHost::dispatch(const Event& event, const std::string& state, co
         serialized = encode(dict.get());
     }
     auto value = checked(PyObject_CallMethod(runtime_, "dispatch", "sss", serialized.c_str(), state.c_str(), context.c_str()));
-    if (!PyTuple_Check(value.get()) || PyTuple_Size(value.get()) != 4) throw std::runtime_error("invalid bridge transition");
+    if (!PyTuple_Check(value.get()) || (PyTuple_Size(value.get()) != 4 && PyTuple_Size(value.get()) != 5)) throw std::runtime_error("invalid bridge transition");
     Transition result; result.state = string(tupleField(value.get(), 0));
     auto sends = tupleField(value.get(), 1);
     if (!PyList_Check(sends)) throw std::runtime_error("invalid transition send list");
@@ -413,6 +424,19 @@ Transition PythonHost::dispatch(const Event& event, const std::string& state, co
         auto item = PyList_GetItem(logs, i);
         if (!item || !PyDict_Check(item)) throw std::runtime_error("invalid transition log item");
         result.logs.push_back({parseDiagnosticLevel(string(field(item, "level"))), string(field(item, "message"))});
+    }
+    if (PyTuple_Size(value.get()) == 5) {
+        auto effects = tupleField(value.get(), 4);
+        if (!PyList_Check(effects) || PyList_Size(effects) > 8) throw std::runtime_error("invalid room gateway effects");
+        for (Py_ssize_t i = 0; i < PyList_Size(effects); ++i) {
+            auto item = PyList_GetItem(effects, i);
+            GatewayEffect effect;
+            effect.connection = PyLong_AsUnsignedLongLong(field(item, "connection"));
+            effect.op = string(field(item, "op"));
+            effect.requestId = string(field(item, "requestId"));
+            effect.request = string(field(item, "request"));
+            result.gateway.push_back(std::move(effect));
+        }
     }
     if (PyErr_Occurred()) throw std::runtime_error(error());
     return result;

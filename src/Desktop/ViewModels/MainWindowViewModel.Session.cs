@@ -75,6 +75,7 @@ namespace T7.Rekindle.Desktop.ViewModels
                 SetProperty(ref _clientDirectory, result.Root, nameof(ClientDirectory));
                 SetProperty(ref _playerName, name, nameof(PlayerName));
                 if (!SaveValidatedFields()) throw new InvalidOperationException(SettingsFeedback);
+                await GameServer.PrepareAsync(name, token);
                 _bridge.SetOutputDevice(outputDevice);
                 var check = await _bridge.CheckAsync(result.Directory, token);
                 if (check.Status != OperationStatus.Succeeded) return check;

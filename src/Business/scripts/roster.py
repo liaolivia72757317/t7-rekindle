@@ -40,7 +40,7 @@ def playerVision(flow):
     position = ground.get("position") or flow.session.get("spawnPosition", wire.POSITION)
     body = wire.actorVision(flow.session.get("camp", 1), flow.session.get("heroId", wire.HERO_ID), flow.playerName,
                             runtimeMovement=controls.runtimeMovement(flow), position=tuple(position),
-                            currentHp=flow.session.get("health", 100))
+                            currentHp=flow.session.get("health", 100), userId=flow.userId)
     heading = ground.get("heading", flow.session.get("spawnHeading", 0))
     return body[:45] + struct.pack(">h", heading) + body[47:]
 
@@ -57,6 +57,14 @@ def validState(session):
                 or type(point[1]) is not int or not -180 <= point[1] <= 180 for point in points)
             for camp, points in respawns.items())):
         return False
+    if "onlinePeers" in session:
+        values = session["onlinePeers"]
+        return ("bots" not in session and "bot" not in session and type(values) is dict and len(values) <= 19
+            and all(key in {str(i) for i in range(2, 21)} and type(peer) is dict
+                and actors.validPosition(peer.get("position")) and actors.validPosition(peer.get("spawnPosition"))
+                and type(peer.get("heading")) is int and -180 <= peer["heading"] <= 180
+                and peer.get("camp") == (3 - session.get("camp", 1) if int(key) <= 11 else session.get("camp", 1))
+                for key, peer in values.items()))
     if "bots" not in session:
         return True
     values = session["bots"]

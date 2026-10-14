@@ -5,11 +5,12 @@ using T7.Rekindle.Core;
 
 namespace T7.Rekindle.Desktop.ViewModels
 {
+    internal enum SettingsTab { General, Launcher, Game, Server }
+
     public sealed partial class MainWindowViewModel
     {
         private int _settingsTabIndex;
         public NoticeCenter Notices { get; } = new NoticeCenter();
-        public RoomListViewModel Multiplayer { get; } = new RoomListViewModel();
         // Preserve the original page IDs for existing callers; order is defined by the sidebar.
         public bool IsMultiplayerSelected { get => SelectedPage == 3; set { if (value) SelectedPage = 3; } }
         public bool IsUpdateSelected { get => SelectedPage == 4; set { if (value) SelectedPage = 4; } }

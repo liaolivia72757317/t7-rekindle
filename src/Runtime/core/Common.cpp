@@ -48,6 +48,19 @@ Bytes readFile(const fs::path& path, size_t maximum) {
 }
 std::string fileHash(const fs::path& path) { return sha256(readFile(path)); }
 void validateConfig(const Config& config) {
+    if (config.roomGateway) {
+        const auto& gateway = *config.roomGateway;
+        if (gateway.host.empty() || gateway.host.size() > 253
+                || gateway.host.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-:") != std::string::npos
+                || (!gateway.secure && gateway.host != "127.0.0.1" && gateway.host != "::1")
+                || (gateway.secure && (gateway.ticket.size() != 64
+                    || gateway.ticket.find_first_not_of("0123456789abcdef") != std::string::npos)))
+            throw std::runtime_error("invalid room gateway endpoint or ticket");
+        if (!gateway.port || gateway.accountId.empty() || gateway.accountId.size() > 36
+                || gateway.accountId.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_") != std::string::npos
+                || config.bindAddress != "127.0.0.1" || config.advertisedAddress != "127.0.0.1")
+            throw std::runtime_error("invalid development room gateway configuration");
+    }
     for (const auto* path : {&config.clientRoot, &config.clientDirectory}) {
         const auto& value = path->native();
         if (value.find_first_of(L"\r\n") != std::wstring::npos || value.find(L'\0') != std::wstring::npos)

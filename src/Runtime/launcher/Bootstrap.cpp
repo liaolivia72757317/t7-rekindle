@@ -207,6 +207,7 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const Di
         return;
     }
     if (process_ || debugClient_) stop();
+    audioLog_ = log;
     if (cancelled && cancelled()) throw std::runtime_error("client launch cancelled");
     check(directory, config, log);
     if (log) logAudioEnvironment([&](std::string message) { log(DiagnosticLogLevel::Debug, std::move(message)); });
@@ -232,8 +233,11 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const Di
             installOutputDevice(process, static_cast<uint32_t>(base), outputDevice_);
             startupGate_.install(process, static_cast<uint32_t>(base));
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
+            const auto audioDirectory = directory.parent_path() / L"Data" / L"Audio" / L"Wwise" / L"Windows";
+            const auto audioRoot = fs::is_directory(audioDirectory) ? fs::absolute(audioDirectory) : fs::path{};
             graphicsSettings_.install(process, static_cast<uint32_t>(base), GetThreadId(thread),
-                                      config.dashAttack, config.movementAnimation);
+                                      config.dashAttack, config.movementAnimation, config.roomGateway != nullptr, audioRoot);
+            if (log && !audioRoot.empty()) log(DiagnosticLogLevel::Debug, "Audio directory initialized from the selected game directory");
             if (log) log(DiagnosticLogLevel::Debug, "Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
         }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH}},
         [this](DWORD threadId, uintptr_t address) {
@@ -295,6 +299,7 @@ void Bootstrap::stop() {
     }
     if (!cleanupError.empty()) throw std::runtime_error(cleanupError);
     debugClient_.reset(); process_ = nullptr; pid_ = 0;
+    audioLog_ = {};
     windowMonitor_ = {};
 }
 bool Bootstrap::pollGraphics(GraphicsValues& values, uint32_t& result, bool& applied) {
@@ -313,13 +318,31 @@ void Bootstrap::applyGraphics(const GraphicsValues& values) {
     }
     graphicsSettings_.apply(values);
 }
+void Bootstrap::publishPlayerId(uint32_t playerId) {
+    if (!testAdapter_.launch) graphicsSettings_.publishPlayerId(playerId);
+}
+void Bootstrap::publishServerLatency(uint32_t milliseconds) {
+    if (!testAdapter_.launch) graphicsSettings_.publishServerLatency(milliseconds);
+}
 bool Bootstrap::pollAudio(AudioValues& values, uint32_t& result, bool& applied) {
     if (testAdapter_.launch) return testAdapter_.pollAudio && testAdapter_.pollAudio(values, result, applied);
     return graphicsSettings_.audio().poll(values, result, applied);
 }
 bool Bootstrap::pollWorld(WorldSnapshot& value) {
     if (testAdapter_.launch) return testAdapter_.pollWorld && testAdapter_.pollWorld(value);
-    return graphicsSettings_.world().poll(value);
+    if (!graphicsSettings_.world().poll(value)) return false;
+    std::array<uint32_t, 6> results{};
+    if (value.ready && graphicsSettings_.audio().pollCombat(value.instanceStartedAt, results) && audioLog_) {
+        bool loaded = true;
+        std::ostringstream text;
+        text << "Combat audio banks";
+        for (size_t i = 0; i < results.size(); ++i) {
+            loaded = loaded && (results[i] == 1 || results[i] == 69);
+            text << "; " << COMBAT_AUDIO_BANKS[i] << '=' << results[i];
+        }
+        audioLog_(loaded ? DiagnosticLogLevel::Info : DiagnosticLogLevel::Warn, text.str());
+    }
+    return true;
 }
 void Bootstrap::applyAudio(const AudioValues& values) {
     if (testAdapter_.launch) {

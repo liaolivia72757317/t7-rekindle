@@ -3,6 +3,7 @@
 #include "../core/WorldSnapshot.h"
 #include "../core/DiagnosticLog.h"
 #include <Python.h>
+#include "RoomGateway.h"
 
 namespace t7 {
 struct Event {
@@ -16,9 +17,11 @@ struct Outgoing { uint64_t connection; uint16_t command; Bytes body; std::string
 struct TimerChange { std::string id; int64_t delay; std::string event; uint64_t connection; };
 struct Transition {
     std::string state;
+    uint32_t playerId = 0;
     std::vector<Outgoing> send;
     std::vector<TimerChange> timers;
     std::vector<DiagnosticMessage> logs;
+    std::vector<GatewayEffect> gateway;
 };
 struct ResourceCheck {
     DashAttackProfile dashAttack;
@@ -42,6 +45,7 @@ public:
     std::string version();
     std::vector<std::string> diagnostics();
     std::string phase(const std::string& state);
+    uint32_t playerId(const std::string& state);
 private:
     PyObject* module_ = nullptr;
     PyObject* runtime_ = nullptr;

@@ -15,6 +15,7 @@
 | 查找源码、测试、构建产物或内置文档 | [目录与源码范围](source-layout.md) |
 | 修改原生接口、生命周期、日志或设置格式 | [运行契约](runtime-contracts.md) |
 | 了解人机对战和局域网联机的推进顺序 | [实施与验收计划](planning/implementation-plan.md) |
+| 运行 Rust 房间原型或了解中心对战方案 | [游戏服务工程](../game-server/README.md)、[架构与阶段](planning/rust-game-server.md) |
 | 选择可以参与的工作，查看剩余验收事项 | [任务清单](planning/task-list.md) |
 
 ## 文档分工

@@ -1,0 +1,119 @@
+name: Rust Game Server CI
+
+on:
+  push:
+    paths: ['game-server/**', 'src/Core/**', 'src/Desktop/**', 'src/Runtime/**', 'src/Business/**', 'tests/managed/**', 'tests/cpp/**', 'tests/python/**', 'scripts/build.py', 'Native.Common.props', 'Managed.Common.*', 'Directory.Build.props', 'global.json', '.github/workflows/game-server.yml']
+  pull_request:
+    paths: ['game-server/**', 'src/Core/**', 'src/Desktop/**', 'src/Runtime/**', 'src/Business/**', 'tests/managed/**', 'tests/cpp/**', 'tests/python/**', 'scripts/build.py', 'Native.Common.props', 'Managed.Common.*', 'Directory.Build.props', 'global.json', '.github/workflows/game-server.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-server-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gateway:
+    name: Windows native lobby / Rust integration
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.4'
+          architecture: x64
+      - name: Install test dependencies
+        run: python -m pip install pytest==9.1.1
+      - name: Prepare Rust 1.99
+        run: rustup toolchain install 1.99.0 --profile minimal --no-self-update
+      - name: Build and test native gateway
+        run: python scripts/build.py --project native-tests
+      - name: Build development room service
+        run: cargo +1.99.0 build --manifest-path game-server/Cargo.toml --locked --release
+      - name: Test two original-protocol connections
+        run: |
+          $service = Start-Process -FilePath "game-server/target/release/t7-game-server.exe" `
+            -ArgumentList @("--dev-lobby", "--listen", "127.0.0.1:18093") -PassThru -NoNewWindow
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 40; $attempt++) {
+              if ($service.HasExited) { throw "Rust service exited before readiness." }
+              try {
+                $health = Invoke-RestMethod "http://127.0.0.1:18093/health" -TimeoutSec 1
+                if ($health.ready -eq $true) { $ready = $true; break }
+              } catch { }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not $ready) { throw "Rust service did not become ready." }
+            $env:T7_GATEWAY_TEST_PORT = "18093"
+            python -m pytest tests/python/test_native_room_gateway.py -q `
+              --junitxml=artifacts/test-results/game-server/native-gateway.xml
+            if ($LASTEXITCODE -ne 0) { throw "Native lobby integration failed." }
+          } finally {
+            Remove-Item Env:T7_GATEWAY_TEST_PORT -ErrorAction SilentlyContinue
+            if (-not $service.HasExited) { Stop-Process -Id $service.Id; $service.WaitForExit() }
+            $service.Dispose()
+          }
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-lobby-tests
+          path: artifacts/test-results/game-server/native-gateway.xml
+          if-no-files-found: ignore
+
+  verify:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: game-server
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Prepare Rust 1.99
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy --no-self-update
+      - name: Check formatting
+        run: cargo +1.99.0 fmt --check
+      - name: Lint
+        run: cargo +1.99.0 clippy --locked --all-targets -- -D warnings
+      - name: Test room core and WebSocket service
+        run: cargo +1.99.0 test --locked
+      - name: Build release service
+        run: cargo +1.99.0 build --locked --release
+
+  launcher:
+    name: Windows server settings and guest tickets
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.4'
+          architecture: x64
+      - name: Build managed launcher and harness
+        run: python scripts/build.py --project managed
+      - name: Test server preferences and guest tickets
+        run: |
+          & .\artifacts\bin\T7.ManagedHarness\x64\Release\net48\T7.ManagedHarness.exe --game-server-tests
+          if ($LASTEXITCODE -ne 0) { throw "Game server settings tests failed." }

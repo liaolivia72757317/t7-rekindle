@@ -41,6 +41,7 @@ struct ServerEventOrderTests {
         const Item input{"message", ""};
         for (const auto& barrier : {input, Item{"world", ""}, Item{"control", ""}, Item{"operator", ""},
                 Item{"connected", ""}, Item{"authenticated", ""}, Item{"closed", ""},
+                Item{"gateway", ""},
                 Item{"timer", "1:version"}, Item{"timer", "1:bot-move"},
                 Item{"timer", "1:actors-decision-extra"}}) {
             if (!checkOrder({barrier, hurt}, {1, 2})
@@ -90,6 +91,42 @@ struct ServerEventOrderTests {
                     return false;
                 }
             }
+        }
+        {
+            SOCKET listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            if (listener == INVALID_SOCKET) return false;
+            struct SocketOwner { SOCKET value; ~SocketOwner() { closesocket(value); } } cleanup{listener};
+            sockaddr_in address{}; address.sin_family = AF_INET;
+            address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            if (bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) || listen(listener, 1)) return false;
+            int size = sizeof(address);
+            if (getsockname(listener, reinterpret_cast<sockaddr*>(&address), &size)) return false;
+            Server server; initialize(server);
+            server.journal_ = std::make_unique<Journal>(fixtureRoot / "gateway-commit-journal");
+            server.sessions_[1].role = "logic";
+            auto gateway = std::make_shared<RoomGateway>(RoomGatewaySettings{ntohs(address.sin_port), "test", "127.0.0.1", false, {}}, [](Bytes) { return true; }, [] {});
+            server.gateways_.emplace(1, gateway);
+            Transition result; result.state = "committed-gateway-state";
+            result.gateway.push_back({1, "send", "1", "{\"protocolVersion\":1,\"requestId\":\"1\",\"command\":{\"type\":\"ping\"}}"});
+            result.send.push_back({99, 1, {0, 1}, "dead-gateway-target"});
+            Server::QueuedEvent event; event.type = "message"; event.connection = 1;
+            Server::Timers timers; std::string state; bool committed = false;
+            try {
+                server.commit(result, event, "test", "", detail::Clock::now(), 0, state, timers, committed);
+                return false;
+            } catch (const std::runtime_error&) { }
+            fd_set sockets; FD_ZERO(&sockets); FD_SET(listener, &sockets);
+            timeval brief{0, 50000};
+            if (committed || !state.empty() || select(0, &sockets, nullptr, nullptr, &brief) != 0) return false;
+            result.send.clear();
+            server.commit(result, event, "test", "", detail::Clock::now(), 0, state, timers, committed);
+            FD_ZERO(&sockets); FD_SET(listener, &sockets); timeval deadline{3, 0};
+            if (!committed || state != "committed-gateway-state"
+                    || select(0, &sockets, nullptr, nullptr, &deadline) != 1) return false;
+            // Cancel during an unfinished HTTP upgrade; pending callbacks must drain.
+            auto started = GetTickCount64();
+            gateway->requestStop(); server.stop(); gateway.reset();
+            if (GetTickCount64() - started > 3000) return false;
         }
         return true;
     }

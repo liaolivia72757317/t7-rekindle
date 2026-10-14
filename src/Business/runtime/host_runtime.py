@@ -151,7 +151,8 @@ def _integer(value, minimum, maximum, field):
 
 
 def validateTransition(result, context):
-    if type(result) is not dict or set(result) != {"state", "send", "timers", "logs"}:
+    if (type(result) is not dict or not {"state", "send", "timers", "logs"} <= set(result)
+            or set(result) - {"state", "send", "timers", "logs", "gateway"}):
         raise ValueError("transition requires state/send/timers/logs")
     for field in ("send", "timers", "logs"):
         if type(result[field]) is not list or len(result[field]) > 256:
@@ -172,6 +173,32 @@ def validateTransition(result, context):
         total += len(item["body"])
     if total > 2 * 1024 * 1024:
         raise ValueError("transition sends exceed 2 MiB")
+    gateway = result.get("gateway", [])
+    if type(gateway) is not list or len(gateway) > 8:
+        raise ValueError("invalid room gateway effects")
+    for item in gateway:
+        if type(item) is not dict or set(item) != {"connection", "op", "requestId", "request"}:
+            raise ValueError("invalid room gateway effect")
+        if "roomGateway" not in context or item["connection"] not in live:
+            raise ValueError("room gateway effect requires a live configured connection")
+        _integer(item["connection"], 1, (1 << 63) - 1, "gateway connection")
+        if item["op"] not in ("send", "ack"):
+            raise ValueError("invalid gateway operation")
+        sequence = item["requestId"]
+        if (type(sequence) is not str or not sequence.isascii() or not sequence.isdecimal()
+                or not 1 <= int(sequence) <= (1 << 64) - 1 or str(int(sequence)) != sequence):
+            raise ValueError("invalid gateway request id")
+        request = item["request"]
+        if type(request) is not str or len(request.encode("utf-8")) > 4096:
+            raise ValueError("invalid gateway request")
+        if item["op"] == "send":
+            value = json.loads(request)
+            if (type(value) is not dict or set(value) != {"protocolVersion", "requestId", "command"}
+                    or type(value["protocolVersion"]) is not int or value["protocolVersion"] != 1 or value["requestId"] != sequence
+                    or type(value["command"]) is not dict):
+                raise ValueError("invalid gateway request envelope")
+        elif request:
+            raise ValueError("gateway ack cannot contain a request")
     for timer in result["timers"]:
         if type(timer) is not dict or set(timer) != {"id", "delayMs", "event"}:
             raise ValueError("invalid timer fields")
@@ -224,6 +251,14 @@ class Runtime:
     def version(self):
         return self.active.version
 
+    def playerId(self, state):
+        value = decode(state)
+        identities = [s['customLobby']['userId'] for s in value.get('sessions', {}).values()
+                      if s.get('customLobby', {}).get('identified') is True]
+        if len(identities) > 1:
+            raise ValueError('multiple original lobby identities')
+        return identities[0] if identities else 0
+
     def prepare(self):
         candidate = Revision(self.root, self.cache)
         if self.candidate:
@@ -247,9 +282,10 @@ class Runtime:
         validateTransition(result, contextValue)
         if self.active.module.validateState(result["state"]) is not True:
             raise ValueError("business state rejected")
-        return (encode(result["state"]), result["send"],
+        transition = (encode(result["state"]), result["send"],
                 [(item["id"], item["delayMs"], encode(item["event"]), item["event"]["connection"]) for item in result["timers"]],
                 [dict(level="INFO", message=log) if type(log) is str else log for log in result["logs"]])
+        return transition + (result["gateway"],) if result.get("gateway") else transition
 
     def switch(self, state, rollback=False):
         target = self.previous if rollback else self.candidate

@@ -43,6 +43,8 @@ public:
     bool pollAudio(AudioValues& values, uint32_t& result, bool& applied);
     void applyAudio(const AudioValues& values);
     bool pollWorld(WorldSnapshot& value);
+    void publishPlayerId(uint32_t playerId);
+    void publishServerLatency(uint32_t milliseconds);
 private:
     HANDLE process_ = nullptr;
     std::unique_ptr<DebugClient> debugClient_;
@@ -56,5 +58,6 @@ private:
     bool outputDeviceVerified_ = false;
     TestAdapter testAdapter_;
     bool testRunning_ = false;
+    DiagnosticLogCallback audioLog_;
 };
 }

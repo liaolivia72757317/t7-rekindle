@@ -27,7 +27,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <ModuleDefinitionFile>bridge\T7NativeBridge.def</ModuleDefinitionFile>
-      <AdditionalDependencies>python314.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>python314.lib;ole32.lib;version.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -47,6 +47,7 @@
     <ClCompile Include="launcher\AudioPlaybackHookCode.cpp" />
     <ClCompile Include="launcher\AudioHookCode.cpp" />
     <ClCompile Include="launcher\ClientWorld.cpp" />
+    <ClCompile Include="launcher\BladeParryContacts.cpp" />
     <ClCompile Include="launcher\WorldHookCode.cpp" />
     <ClCompile Include="launcher\SprintHookCode.cpp" />
     <ClCompile Include="launcher\MovementAnimationHookCode.cpp" />
@@ -78,11 +79,13 @@
     <ClCompile Include="server\RunDirectory.cpp" />
     <ClCompile Include="server\PythonHost.cpp" />
     <ClCompile Include="server\Server.cpp" />
+    <ClCompile Include="server\RoomGateway.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bridge\T7NativeBridge.h" />
     <ClInclude Include="bridge\Session.h" />
     <ClInclude Include="core\Common.h" />
+    <ClInclude Include="core\RoomGatewaySettings.h" />
     <ClInclude Include="core\DiagnosticLog.h" />
     <ClInclude Include="core\PlayerName.h" />
     <ClInclude Include="core\Protocol.h" />
@@ -114,6 +117,7 @@
     <ClInclude Include="server\PythonHost.h" />
     <ClInclude Include="server\SendQueue.h" />
     <ClInclude Include="server\Server.h" />
+    <ClInclude Include="server\RoomGateway.h" />
     <ClInclude Include="server\ServerTiming.h" />
   </ItemGroup>
   <ItemGroup><None Include="bridge\T7NativeBridge.def" /><None Include="launcher\ClientImportTable.inc" /></ItemGroup>

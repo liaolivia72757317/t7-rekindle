@@ -12,7 +12,7 @@
   <PropertyGroup><TargetName>T7.RuntimeTests</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile><PreprocessorDefinitions>T7_NATIVE_BRIDGE_TESTING;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
-    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>python314.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>python314.lib;ole32.lib;version.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ServerLifecycleSmoke.cpp" />
@@ -43,6 +43,7 @@
     <ClCompile Include="../../src/Runtime/launcher/AudioPlaybackHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/AudioHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/ClientWorld.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/BladeParryContacts.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/WorldHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/SprintHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/MovementAnimationHookCode.cpp" />
@@ -74,6 +75,7 @@
     <ClCompile Include="../../src/Runtime/server/RunDirectory.cpp" />
     <ClCompile Include="../../src/Runtime/server/PythonHost.cpp" />
     <ClCompile Include="../../src/Runtime/server/Server.cpp" />
+    <ClCompile Include="../../src/Runtime/server/RoomGateway.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

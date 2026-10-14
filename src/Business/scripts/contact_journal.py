@@ -21,7 +21,8 @@ def valid(event, throughAt):
                 'phaseAt', 'targetPhaseAt')
     if not all(type(event.get(key)) is int and event[key] >= 0 for key in integers):
         return False
-    return (1 <= event['actorId'] <= actors.MAX_ACTORS and 0 <= event['targetId'] <= actors.MAX_ACTORS
+    return (type(event.get('weaponContact', False)) is bool
+            and 1 <= event['actorId'] <= actors.MAX_ACTORS and 0 <= event['targetId'] <= actors.MAX_ACTORS
             and event['actorId'] != event['targetId'] and 1 <= event['seq'] <= 0xFFFF
             and event.get('ready') is True and event.get('hit') is True
             and type(event.get('material')) is int and -1 <= event['material'] <= 7
@@ -110,6 +111,8 @@ def settle(flow):
                                                  weaponId=swing.get('weaponId')):
                 swing['stopped'] = True
             else:
+                if event.get('weaponContact', False):
+                    continue
                 swing['hits'] = [*swing['hits'], target]
                 combat.applyHit(flow, attacker, target, snapshot, contact=event, intent=intent,
                                 weaponId=swing.get('weaponId'))

@@ -8,7 +8,7 @@ constexpr uint32_t INSTANCE_RVA = 0x2E37804, ROOM_RVA = 0x2E3A4C4, SCENE_RVA = 0
 constexpr uint32_t FILE_TELL_RVA = 0x71570, FILE_LENGTH_RVA = 0x71580, FILE_READ_RVA = 0x717C0;
 constexpr uint32_t LOBBY_METHOD_OFFSET = 477100, LOBBY_RESOURCE_SIZE = 902623;
 
-WorldHookCode lobbyReturnHook(uint32_t address, uint32_t imageBase) {
+WorldHookCode lobbyReturnHook(uint32_t address, uint32_t imageBase, bool customLobby) {
     const auto code = address + LOBBY_RETURN_OFFSET;
     const auto error = address + ROUND_END_DATA_OFFSET + static_cast<uint32_t>(offsetof(RoundEndMailbox, lobbyUiError));
     const uint32_t original = code + 0x380, path = code + 0x3A0;
@@ -42,6 +42,8 @@ WorldHookCode lobbyReturnHook(uint32_t address, uint32_t imageBase) {
     c.emit({0xFF,0x75,0x0C,0xFF,0x75,8,0x8B,0xCF}); c.call(imageBase + FILE_READ_RVA);
     c.emit({0x89,0x45,0xEC,0x83,0x7D,0xF0,0}); std::vector<size_t> done{c.branch(0x84)};
     c.emit({0x85,0xC0}); done.push_back(c.branch(0x8E));
+    if (customLobby) c.call(address + SOLO_ROOM_UI_OFFSET);
+    c.emit({0x8B,0x45,0xEC});
     c.emit({0x81,0xFB}); c.word(LOBBY_METHOD_OFFSET + 14); done.push_back(c.branch(0x83));
     c.emit({0x03,0xC3,0x3D}); c.word(LOBBY_METHOD_OFFSET); done.push_back(c.branch(0x86));
     // Intersect the returned bytes with the method prefix, including split/short reads.
@@ -65,6 +67,36 @@ WorldHookCode lobbyReturnHook(uint32_t address, uint32_t imageBase) {
     return c;
 }
 
+WorldHookCode soloRoomUiHook(uint32_t address) {
+    constexpr uint32_t offset = 276986;
+    const auto code = address + SOLO_ROOM_UI_OFFSET;
+    const auto original = code + 0x200;
+    const auto error = address + ROUND_END_DATA_OFFSET + static_cast<uint32_t>(offsetof(RoundEndMailbox, lobbyUiError));
+    const Bytes before{0x5D,0x18,0x66,0x18,0x46,0x08,0,0x24,1,0x46,0x1C,1,0x73,0xD5,0x5D,0x18};
+    // Keep formation selection and the room check; Rust validates roster and team rules.
+    const Bytes after{0x10,0x5B,0,0,2,2,2,2,2,2,2,2,2,2,2,2};
+    WorldHookCode c;
+    c.emit({0x9C,0x60,0x81,0xFB}); c.word(offset + 16);
+    std::vector<size_t> done{c.branch(0x83)};
+    c.emit({0x8B,0x45,0xEC,0x03,0xC3,0x3D}); c.word(offset); done.push_back(c.branch(0x86));
+    c.emit({0x8B,0xD3,0x81,0xFA}); c.word(offset); const auto startsInside = c.branch(0x83);
+    c.emit({0xBA}); c.word(offset); c.bind(startsInside);
+    c.emit({0x3D}); c.word(offset + 16); const auto endsInside = c.branch(0x86);
+    c.emit({0xB8}); c.word(offset + 16); c.bind(endsInside);
+    c.emit({0x2B,0xC2,0x8B,0xC8,0x2B,0xDA,0xF7,0xDB,0x03,0x5D,8,0x8B,0xFB});
+    c.emit({0x81,0xEA}); c.word(offset);
+    c.emit({0x8D,0xB2}); c.word(original); c.emit({0x8B,0xD9,0xFC,0xF3,0xA6});
+    const auto mismatch = c.branch(0x85);
+    c.emit({0x2B,0xFB,0x2B,0xF3,0x83,0xC6,16,0x8B,0xCB,0xF3,0xA4}); done.push_back(c.jump());
+    c.bind(mismatch); c.store(error, 1);
+    for (auto branch : done) c.bind(branch);
+    c.emit({0x61,0x9D,0xC3});
+    if (c.bytes.size() > 0x200) throw std::runtime_error("solo room UI hook overflow");
+    c.bytes.resize(0x200); c.bytes.insert(c.bytes.end(), before.begin(), before.end());
+    c.bytes.insert(c.bytes.end(), after.begin(), after.end());
+    return c;
+}
+
 void epoch(WorldHookCode& c, uint32_t data) {
     // ESI is the live instance. A missing actor or a recreated service is not a new battle.
     c.emit({0x8B,0x46,0x68,0x8B,0x56,0x6C,0x3B,0x05}); c.word(data);
@@ -81,14 +113,20 @@ void jumpTo(WorldHookCode& c, uint32_t origin, uint32_t target) {
 }
 }
 
-std::vector<std::pair<uint32_t, Bytes>> roundEndOriginals(uint32_t imageBase) {
+std::vector<std::pair<uint32_t, Bytes>> roundEndOriginals(uint32_t imageBase, bool customLobby) {
     WorldHookCode leave;
     leave.emit({0x8B,0x0D}); leave.word(imageBase + ROOM_RVA);
-    return {{FINISH_RESULT_RVA, {0x8B,0x4D,0xD0,0x8B,0x46,0x10}}, {NATIVE_LEAVE_RVA, leave.bytes},
+    std::vector<std::pair<uint32_t, Bytes>> result{{FINISH_RESULT_RVA, {0x8B,0x4D,0xD0,0x8B,0x46,0x10}}, {NATIVE_LEAVE_RVA, leave.bytes},
             {GFX_READ_RVA, {0x55,0x8B,0xEC,0x8B,0x49,8}}};
+    if (customLobby) {
+        for (const auto& site : LOBBY_IDENTITY_SITES)
+            result.emplace_back(site.first, Bytes{0x8B,0x17,0x8B,0xCF,0x8B,0xF0,0xFF,0x52,0x28});
+        result.emplace_back(NETWORK_HUD_RVA, NETWORK_HUD_ORIGINAL);
+    }
+    return result;
 }
 
-std::vector<std::pair<uint32_t, Bytes>> roundEndJumps(uint32_t address, uint32_t imageBase) {
+std::vector<std::pair<uint32_t, Bytes>> roundEndJumps(uint32_t address, uint32_t imageBase, bool customLobby) {
     std::vector<std::pair<uint32_t, Bytes>> result;
     for (auto item : {std::pair{FINISH_RESULT_RVA, FINISH_OBSERVER_OFFSET},
                      std::pair{NATIVE_LEAVE_RVA, LEAVE_OBSERVER_OFFSET},
@@ -96,6 +134,16 @@ std::vector<std::pair<uint32_t, Bytes>> roundEndJumps(uint32_t address, uint32_t
         WorldHookCode c;
         jumpTo(c, imageBase + item.first, address + item.second); c.emit({0x90});
         result.emplace_back(item.first, c.bytes);
+    }
+    if (customLobby) {
+        WorldHookCode hud;
+        jumpTo(hud, imageBase + NETWORK_HUD_RVA, address + NETWORK_HUD_OFFSET);
+        result.emplace_back(NETWORK_HUD_RVA, hud.bytes);
+        for (const auto& site : LOBBY_IDENTITY_SITES) {
+            WorldHookCode c;
+            jumpTo(c, imageBase + site.first, address + site.second);
+            c.emit({0x90,0x90,0x90,0x90}); result.emplace_back(site.first, c.bytes);
+        }
     }
     return result;
 }
@@ -117,7 +165,7 @@ void verifyRoundEndFunctions(HANDLE process, uint32_t imageBase) {
             throw std::runtime_error("round end native function signature mismatch");
 }
 
-Bytes buildRoundEndHooks(uint32_t address, uint32_t imageBase) {
+Bytes buildRoundEndHooks(uint32_t address, uint32_t imageBase, bool customLobby) {
     const auto data = address + ROUND_END_DATA_OFFSET;
     Bytes result(0x1000, 0);
     auto copy = [&](const WorldHookCode& c, uint32_t offset) {
@@ -145,6 +193,34 @@ Bytes buildRoundEndHooks(uint32_t address, uint32_t imageBase) {
     for (auto branch : done) c.bind(branch);
     c.emit({0x0F,0xAE,0x0C,0x24,0x8B,0xE5,0x61,0x9D,0xC3});
     copy(c, ROUND_END_CODE_OFFSET);
+    if (c.bytes.size() > 0x300) throw std::runtime_error("round end hook overlaps lobby identity");
+    if (customLobby) {
+        c.bytes.clear();
+        // The gateway has one connection; hide the duplicate legacy logic field.
+        c.emit({0x8B,0x1D}); c.word(address + NETWORK_LATENCY_DATA_OFFSET);
+        c.emit({0x89,0x1D}); c.word(address + NETWORK_LATENCY_DATA_OFFSET + offsetof(NetworkLatencyMailbox, displayedMs));
+        c.emit({0x9C,0xFF,0x05}); c.word(address + NETWORK_LATENCY_DATA_OFFSET + offsetof(NetworkLatencyMailbox, reads));
+        c.emit({0x9D});
+        c.emit({0x8B,0xF3});
+        c.emit({0xBB}); c.word(UINT32_MAX);
+        c.bytes.insert(c.bytes.end(), NETWORK_HUD_ORIGINAL.begin(), NETWORK_HUD_ORIGINAL.end());
+        jumpTo(c, address + NETWORK_HUD_OFFSET, imageBase + NETWORK_HUD_RVA + 5);
+        if (c.bytes.size() > 0x80) throw std::runtime_error("network HUD hook overlaps finish observer");
+        copy(c, NETWORK_HUD_OFFSET);
+        for (const auto& site : LOBBY_IDENTITY_SITES) {
+            c.bytes.clear(); c.emit({0x8B,0x17,0x8B,0xCF,0x8B,0xF0,0xA1}); c.word(address + LOBBY_IDENTITY_DATA_OFFSET);
+            c.emit({0x85,0xC0}); const auto identified = c.branch(0x85);
+            c.emit({0xFF,0x52,0x28}); c.bind(identified);
+            c.emit({0xA3}); c.word(address + LOBBY_IDENTITY_DATA_OFFSET + offsetof(LobbyIdentityMailbox, uiPlayerId));
+            c.emit({0x9C,0xFF,0x05});
+            c.word(address + LOBBY_IDENTITY_DATA_OFFSET + (site.first == LOBBY_IDENTITY_RVA
+                    ? offsetof(LobbyIdentityMailbox, createReads) : offsetof(LobbyIdentityMailbox, loginReads)));
+            c.emit({0x9D});
+            jumpTo(c, address + site.second, imageBase + site.first + 9);
+            if (c.bytes.size() > 0x40) throw std::runtime_error("lobby identity hook overflow");
+            copy(c, site.second);
+        }
+    }
 
     // Observe actual FINISH consumption, not a result field left over from the previous battle.
     c.bytes.clear(); c.emit({0x9C,0x60,0x8B,0xDE,0x8B,0x75,0xD0});
@@ -161,7 +237,9 @@ Bytes buildRoundEndHooks(uint32_t address, uint32_t imageBase) {
     c.bind(noInstance); c.emit({0x61,0x9D,0x8B,0x0D}); c.word(imageBase + ROOM_RVA);
     jumpTo(c, address + LEAVE_OBSERVER_OFFSET, imageBase + NATIVE_LEAVE_RVA + 6);
     copy(c, LEAVE_OBSERVER_OFFSET);
-    copy(lobbyReturnHook(address, imageBase), LOBBY_RETURN_OFFSET);
+    if (c.bytes.size() > 0x100) throw std::runtime_error("leave observer overlaps solo room UI hook");
+    if (customLobby) copy(soloRoomUiHook(address), SOLO_ROOM_UI_OFFSET);
+    copy(lobbyReturnHook(address, imageBase, customLobby), LOBBY_RETURN_OFFSET);
     return result;
 }
 }

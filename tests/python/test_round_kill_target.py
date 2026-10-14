@@ -245,7 +245,7 @@ def test_old_live_round_keeps_time_only_rule_until_new_instance(multi):
     multi.session['kills'] = actors.data(multi, 2)['kills'] = 70
     original = deepcopy(multi.state)
     restored = app.migrateState(13, multi.state)
-    assert app.STATE_VERSION == 16 and restored == original
+    assert app.STATE_VERSION == 22 and restored == original
     flow = app.Flow({'connection': 1}, restored, multi.context)
     lethalHit(flow, 1, 2)
     assert not flow.session.get('roundEnded') and KILL_TARGET_KEY not in scriptItems(flow)

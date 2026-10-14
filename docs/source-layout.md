@@ -9,6 +9,8 @@ PROJECT_ROOT/
   SECURITY.md                  # 安全问题报告与运行边界
   LICENSE
   THIRD-PARTY.txt               # 分发依赖与许可索引
+  server/                      # Java 账号与管理服务
+  game-server/                 # Rust 中心房间服务与独立测试
   src/
     Desktop/                   # WPF 入口、Views、ViewModels、Services
       Resources/               # 主题、图片及应用内置文档

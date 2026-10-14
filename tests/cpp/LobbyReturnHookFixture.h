@@ -119,5 +119,77 @@ void verify(HANDLE process, t7::ClientWorld& reader, uint32_t mailbox, Step step
     auto unknown = ORIGINAL; unknown.back() ^= 1;
     require(read(METHOD_OFFSET, unknown) == unknown, "unknown lobby bytecode was partially modified"); rejected();
     require(read(METHOD_OFFSET, ORIGINAL) == HOME, "lobby resource did not resume for valid input");
+    constexpr uint32_t soloOffset = 276986;
+    const t7::Bytes soloBefore{0x5D,0x18,0x66,0x18,0x46,0x08,0,0x24,1,0x46,0x1C,1,0x73,0xD5,0x5D,0x18};
+    const t7::Bytes soloAfter{0x10,0x5B,0,0,2,2,2,2,2,2,2,2,2,2,2,2};
+    require(read(soloOffset, soloBefore) == soloBefore, "offline lobby changed custom room team gate");
+    t7::writeClientMemory(process, mailbox + t7::ROUND_END_CODE_OFFSET, t7::buildRoundEndHooks(mailbox, BASE, true));
+    require(read(METHOD_OFFSET, ORIGINAL) == HOME, "custom room lost lobby return adaptation");
+    require(read(soloOffset, soloBefore) == soloAfter, "custom room start did not reach server validation");
+    for (size_t split = 1; split < soloBefore.size(); ++split) {
+        t7::Bytes first(soloBefore.begin(), soloBefore.begin() + split), last(soloBefore.begin() + split, soloBefore.end());
+        require(read(soloOffset, first) == t7::Bytes(soloAfter.begin(), soloAfter.begin() + split), "solo UI prefix short read");
+        require(read(soloOffset + static_cast<uint32_t>(split), last) == t7::Bytes(soloAfter.begin() + split, soloAfter.end()),
+                "solo UI suffix short read");
+    }
+    setPath(process, "../data/ui/panel_score.gfx");
+    require(read(soloOffset, soloBefore) == soloBefore, "solo gate changed unrelated UI");
+    setPath(process, "../data/ui/scripts_game.gfx");
+    auto badSolo = soloBefore; badSolo.back() ^= 1;
+    require(read(soloOffset, badSolo) == badSolo, "unknown solo gate was partially rewritten"); rejected();
+
+    // The login UI receives the committed server identity; before identification it uses native data.
+    constexpr uint32_t loginObject = GFX + 0x500, loginTable = loginObject + 0x40, getId = loginObject + 0x80;
+    writeWord(process, loginObject, loginTable); writeWord(process, loginTable + 0x28, getId);
+    t7::WorldHookCode code; code.emit({0xB8}); code.word(1234); code.emit({0xC3});
+    t7::writeClientMemory(process, getId, code.bytes);
+    for (const auto& site : t7::LOBBY_IDENTITY_SITES) {
+        t7::writeClientMemory(process, BASE + site.first, {0x8B,0x17,0x8B,0xCF,0x8B,0xF0,0xFF,0x52,0x28,0xC3});
+        for (const auto& patch : t7::roundEndJumps(mailbox, BASE, true))
+            if (patch.first == site.first) t7::writeClientMemory(process, BASE + patch.first, patch.second);
+        code.bytes.clear(); code.emit({0x9C,0x60,0xBF}); code.word(loginObject);
+        code.emit({0xB8}); code.word(0x12345678);
+        code.emit({0xB9}); code.word(BASE + site.first); code.emit({0xFF,0xD1});
+        code.emit({0xA3}); code.word(OBSERVED);
+        code.emit({0x89,0x35}); code.word(OBSERVED + 4);
+        code.emit({0x61,0x9D,0xC3}); t7::writeClientMemory(process, READ_CALL, code.bytes);
+        writeWord(process, mailbox + t7::LOBBY_IDENTITY_DATA_OFFSET, 0);
+        step(3); require(readWord(process, OBSERVED) == 1234, "unidentified UI lost its native identity");
+        require(readWord(process, OBSERVED + 4) == 0x12345678, "native UI identity lost its data record pointer");
+        writeWord(process, mailbox + t7::LOBBY_IDENTITY_DATA_OFFSET, 700);
+        step(3); require(readWord(process, OBSERVED) == 700, "UI room owner differs from committed server user ID");
+        require(readWord(process, OBSERVED + 4) == 0x12345678, "server UI identity lost its data record pointer");
+        require(readWord(process, mailbox + t7::LOBBY_IDENTITY_DATA_OFFSET + 4) == 700,
+                "observed UI identity differs from adapter output");
+    }
+    // Execute the HUD serialization entry, including its two original stack arguments.
+    code.bytes.clear();
+    code.emit({0x58,0xA3}); code.word(OBSERVED);
+    code.emit({0x58,0xA3}); code.word(OBSERVED + 4);
+    code.emit({0x89,0x1D}); code.word(OBSERVED + 8);
+    code.emit({0x89,0x35}); code.word(OBSERVED + 12);
+    code.emit({0x9C,0x58,0xA3}); code.word(OBSERVED + 16);
+    code.emit({0xC3});
+    t7::writeClientMemory(process, BASE + t7::NETWORK_HUD_RVA + 5, code.bytes);
+    for (const auto& patch : t7::roundEndJumps(mailbox, BASE, true))
+        if (patch.first == t7::NETWORK_HUD_RVA)
+            t7::writeClientMemory(process, BASE + patch.first, patch.second);
+    code.bytes.clear(); code.emit({0x9C,0x60,0xBD}); code.word(GFX + 0x700);
+    code.emit({0xBB}); code.word(333); code.emit({0xBE}); code.word(444);
+    code.emit({0xF9}); code.call(BASE + t7::NETWORK_HUD_RVA);
+    code.emit({0x61,0x9D,0xC3});
+    t7::writeClientMemory(process, READ_CALL, code.bytes);
+    for (uint32_t latency : {17u, 53u, UINT32_MAX}) {
+        writeWord(process, mailbox + t7::NETWORK_LATENCY_DATA_OFFSET, latency);
+        step(3);
+        require(readWord(process, OBSERVED) == GFX + 0x700 - 0x28, "network HUD lost its native argument pointer");
+        require(readWord(process, OBSERVED + 4) == UINT32_MAX && readWord(process, OBSERVED + 8) == UINT32_MAX,
+                "network HUD did not hide the duplicate legacy logic field");
+        require(readWord(process, OBSERVED + 12) == latency, "network HUD did not consume the measured server RTT");
+        require((readWord(process, OBSERVED + 16) & 1) != 0, "network HUD changed caller flags");
+        require(readWord(process, mailbox + t7::NETWORK_LATENCY_DATA_OFFSET + 4) == latency,
+                "network HUD observation differs from its displayed RTT");
+    }
+    t7::writeClientMemory(process, mailbox + t7::ROUND_END_CODE_OFFSET, t7::buildRoundEndHooks(mailbox, BASE));
 }
 }

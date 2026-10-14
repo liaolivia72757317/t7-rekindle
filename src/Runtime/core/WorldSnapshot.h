@@ -18,6 +18,7 @@ struct BladeContact {
 };
 struct BladeTrace {
     bool ready = false;
+    bool poseReady = false;
     uint32_t spanMs = 0;
     float length = 0;
     std::array<float, 3> base{}, tip{};
@@ -42,6 +43,7 @@ struct BladeContactEvent {
     double occurredAt = 0;
     std::array<float, 3> sourcePosition{}, targetPosition{};
     float sourceHeading = 0, targetHeading = 0;
+    bool weaponContact = false;
 };
 // Internal Runtime -> Business data, not part of the launcher C ABI.
 struct WorldSnapshot {

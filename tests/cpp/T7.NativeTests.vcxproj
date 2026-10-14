@@ -13,6 +13,7 @@
   <ItemDefinitionGroup><Link><SubSystem>Console</SubSystem><AdditionalDependencies>ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AbiLayoutTests.cpp" />
+    <ClCompile Include="BladeParryContactsTests.cpp" />
     <ClCompile Include="GraphicsSettingsTests.cpp" />
     <ClCompile Include="AudioDiagnosticsTests.cpp" />
     <ClCompile Include="AudioPlaybackTraceTests.cpp" />
@@ -26,6 +27,7 @@
     <ClCompile Include="../../src/Runtime/launcher/AudioPlaybackHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/AudioHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/ClientWorld.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/BladeParryContacts.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/WorldHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/SprintHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/MovementAnimationHookCode.cpp" />

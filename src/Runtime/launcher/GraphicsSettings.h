@@ -33,8 +33,11 @@ Bytes buildGraphicsHook(uint32_t address, uint32_t imageBase, uint32_t threadId,
 
 class GraphicsSettings final {
 public:
-    void install(HANDLE process, uint32_t imageBase, DWORD threadId, const DashAttackProfile& dash,
-                 const MovementAnimationProfile& animation = {});
+    void install(HANDLE process, uint32_t imageBase, DWORD threadId, const DashAttackProfile& dash = {},
+                 const MovementAnimationProfile& animation = {}, bool customLobby = false,
+                 const fs::path& audioDirectory = {});
+    void publishPlayerId(uint32_t playerId);
+    void publishServerLatency(uint32_t milliseconds);
     void clear(); // Called after the owned process has exited.
     // false means no completed read yet; result: 0 not ready, 1 ready, 2 conflict.
     bool poll(GraphicsValues& values, uint32_t& result, bool& applied);
@@ -50,5 +53,8 @@ private:
     ULONGLONG requestedAt_ = 0;
     GraphicsRawValues lastRaw_{};
     bool hasValues_ = false;
+    bool customLobby_ = false;
+    uint32_t playerId_ = 0;
+    uint32_t serverLatencyMs_ = UINT32_MAX;
 };
 }

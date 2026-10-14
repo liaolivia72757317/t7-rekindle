@@ -1,6 +1,7 @@
 #pragma once
 #include "../core/Common.h"
 #include "../core/WorldSnapshot.h"
+#include "BladeParryContacts.h"
 
 namespace t7 {
 struct TerrainMailbox {
@@ -79,8 +80,8 @@ static_assert(ACTORS_DATA_OFFSET + MAX_WORLD_ACTORS * sizeof(ActorMailbox) + 4 <
 void verifyWorldFunctions(HANDLE process, uint32_t imageBase);
 void verifyTerrainFunctions(HANDLE process, uint32_t imageBase);
 Bytes buildTerrainHook(uint32_t address, uint32_t imageBase);
-Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, const DashAttackProfile& dash,
-                     const MovementAnimationProfile& animation = {});
+Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, const DashAttackProfile& dash = {},
+                     const MovementAnimationProfile& animation = {}, bool customLobby = false);
 Bytes buildBladePoseHook(uint32_t address, uint32_t imageBase);
 Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase);
 Bytes buildContactFrameHook(uint32_t address);
@@ -98,5 +99,6 @@ private:
     bool pending_ = false;
     std::array<uint32_t, MAX_WORLD_ACTORS> targets_{};
     std::array<uint32_t, MAX_WORLD_ACTORS> targetMasks_{};
+    BladeParryContacts parryContacts_;
 };
 }

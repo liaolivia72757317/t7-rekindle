@@ -14,6 +14,7 @@
 #include "RoundEndHookFixture.h"
 #include "../../src/Runtime/launcher/ChatInputHookCode.h"
 #include "../../src/Runtime/launcher/WeaponTrailHookCode.h"
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -24,6 +25,7 @@ constexpr uint32_t FRAME = BASE + 0x3200, SETTING = BASE + 0x3300, CLIENT = BASE
 constexpr uint32_t VARIANTS = BASE + 0x4000, INDEX = BASE + 0x3500, STATS = BASE + 0x3600;
 constexpr uint32_t RENDERER = BASE + 0x6000, WINDOW_STYLE = STATS + 48, RESTORE_COUNT = STATS + 52;
 constexpr uint32_t ADAPTER = BASE + 0x8000, ADAPTER_ORDINAL = 257;
+constexpr uint32_t BANK_COUNT = STATS + 80, BANK_RESULT = STATS + 84, BANK_NAMES = BASE + 0xA000;
 const GUID ADAPTER_ID{0x12345678,0x1234,0x5678,{0x9A,0xBC,0x12,0x34,0x56,0x78,0x9A,0xBC}};
 void require(bool v, const char* text) { if (!v) throw std::runtime_error(text); }
 void word(t7::Bytes& bytes, uint32_t v) { for (unsigned s = 0; s < 32; s += 8) bytes.push_back(static_cast<unsigned char>(v >> s)); }
@@ -191,6 +193,17 @@ void prepare(HANDLE process) {
         setter.insert(setter.end(), {0x0F,0x57,0xC0,0x5D,0xC2,8,0});
         t7::writeClientMemory(process, BASE + pair.first, setter);
     }
+    t7::Bytes root{0x68}; word(root, BASE + 0x17799F0);
+    root.insert(root.end(), {0xFF,0x15}); word(root, BASE + 0x16F6080);
+    t7::writeClientMemory(process, BASE + t7::AUDIO_ROOT_INIT_RVA, root);
+    writeWord(process, BASE + t7::AUDIO_LOAD_BANK_IAT_RVA, BASE + 0x1500);
+    // Record bank names and emulate both successful and already-loaded results.
+    t7::Bytes bank{0x8B,0x54,0x24,4,0x8B,0x0D}; word(bank, BANK_COUNT);
+    bank.insert(bank.end(), {0x89,0x14,0x8D}); word(bank, BANK_NAMES);
+    bank.insert(bank.end(), {0xFF,0x05}); word(bank, BANK_COUNT);
+    bank.insert(bank.end(), {0xA1}); word(bank, BANK_RESULT);
+    bank.insert(bank.end(), {0x0F,0x57,0xC0,0xC3});
+    t7::writeClientMemory(process, BASE + 0x1500, bank); writeWord(process, BANK_RESULT, 1);
 }
 uint32_t readCompleted(t7::GraphicsSettings& graphics, t7::GraphicsValues& values, bool expectApplied) {
     uint32_t result = 0; bool applied = false;
@@ -281,7 +294,8 @@ bool verifyGraphicsHookExecution() {
                 require(t7::readClientMemory(process, BASE + t7::DEFENSE_EXIT_RVA, t7::DEFENSE_EXIT_ORIGINAL.size())
                     == t7::DEFENSE_EXIT_ORIGINAL, "failed defense exit installation changed the native event handler");
             }
-            graphics.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile());
+            graphics.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile(),
+                             false, L"C:\\Games\\T7\\Data\\Audio\\Wwise\\Windows");
         }, [](t7::DiagnosticLogLevel, const std::string& line) {
             if (line.find("exception") != std::string::npos || line.find("fault") != std::string::npos
                 || line.find("violation") != std::string::npos) std::cerr << line << '\n';
@@ -319,6 +333,27 @@ bool verifyGraphicsHookExecution() {
         require(readAudio(audio, sound, false) == 0, "audio accepted an uninitialized sound engine");
         writeWord(client.process(), BASE + 0x3700, 0x1B797B4);
         require(readAudio(audio, sound, false) == 1 && sound.musicVolume == .75f && sound.effectsVolume == .5f, "audio readback");
+        std::array<uint32_t, 6> banks{};
+        require(!audio.pollCombat(0, banks) && readWord(client.process(), BANK_COUNT) == 0, "lobby loaded combat banks");
+        auto completeBanks = [&](uint64_t epoch) {
+            const auto deadline = GetTickCount64() + 3000;
+            while (!audio.pollCombat(epoch, banks)) {
+                require(GetTickCount64() < deadline, "combat bank frame-thread response timeout"); Sleep(5);
+            }
+        };
+        completeBanks(100);
+        require(readWord(client.process(), BANK_COUNT) == 6
+                && std::all_of(banks.begin(), banks.end(), [](uint32_t value) { return value == 1; }), "combat banks were not loaded");
+        for (uint32_t i = 0; i < banks.size(); ++i) {
+            const auto name = readWord(client.process(), BANK_NAMES + i * 4);
+            const auto bytes = t7::readClientMemory(client.process(), name, std::strlen(t7::COMBAT_AUDIO_BANKS[i]) + 1);
+            require(std::memcmp(bytes.data(), t7::COMBAT_AUDIO_BANKS[i], bytes.size()) == 0, "combat event/media bank order");
+        }
+        require(!audio.pollCombat(100, banks), "same instance requested duplicate bank loads");
+        writeWord(client.process(), BANK_RESULT, 69); completeBanks(200);
+        require(readWord(client.process(), BANK_COUNT) == 12 && banks[0] == 69, "new instance did not accept resident banks");
+        writeWord(client.process(), BANK_RESULT, 66); completeBanks(300);
+        require(banks[0] == 66 && !audio.pollCombat(300, banks), "bank failure was hidden or retried every frame");
         sound.musicMuted = 1; sound.musicVolume = .25f; sound.effectsVolume = 0;
         audio.apply(sound);
         t7::AudioValues actual;

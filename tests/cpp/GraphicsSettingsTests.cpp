@@ -76,6 +76,15 @@ bool verifyGraphicsSettings() {
         audio.musicVolume = -0.01f; require(!t7::validAudioValues(audio), "audio lower bound");
         audio.musicVolume = 1; audio.musicMuted = 2; require(!t7::validAudioValues(audio), "audio mute flag");
         const auto audioMap = t7::buildAudioMap(BASE, 0x400000);
+        const auto audioRoot = t7::buildAudioRoot(L"C:\\Games\\T7\\Data\\Audio\\Wwise\\Windows");
+        const std::wstring expectedRoot = L"C:\\Games\\T7\\Data\\Audio\\Wwise\\Windows\\";
+        require(audioRoot.size() == (expectedRoot.size() + 1) * sizeof(wchar_t)
+            && std::memcmp(audioRoot.data(), expectedRoot.c_str(), audioRoot.size()) == 0,
+            "audio root must use the selected absolute Unicode directory");
+        require(audioRoot.size() < t7::AUDIO_CODE_OFFSET - t7::AUDIO_ROOT_OFFSET, "audio root mailbox capacity");
+        rejected = false;
+        try { t7::buildAudioRoot(L"Data\\Audio"); } catch (const std::runtime_error&) { rejected = true; }
+        require(rejected, "relative audio directory accepted");
         require(word(audioMap, 4) == 4, "audio-only map count");
         for (size_t i = 0; i < 4; ++i) {
             const auto offset = 0x80 + i * 0x60;

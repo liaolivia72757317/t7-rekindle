@@ -38,6 +38,36 @@ namespace T7.ManagedHarness
                 catch (Exception error) { Console.Error.WriteLine(error); return 1; }
                 finally { if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true); }
             }
+            if (args.Length >= 1 && (args[0] == "--game-server-tests" || args[0] == "--launcher-tests" || args[0] == "--ui-interaction-tests"))
+            {
+                var app = new T7.Rekindle.Desktop.App(false);
+                app.InitializeComponent();
+                app.ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+                var previousContext = SynchronizationContext.Current;
+                SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext());
+                try
+                {
+                    if (args[0] == "--ui-interaction-tests")
+                    {
+                        var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "T7-ui-interactions-" + Guid.NewGuid().ToString("N"));
+                        try { System.IO.Directory.CreateDirectory(directory); UiInteractionTests.Run(directory, args.Length > 1 ? args[1] : null); }
+                        finally { if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true); }
+                        Console.WriteLine("WPF interaction checks passed");
+                        return 0;
+                    }
+                    if (args[0] == "--launcher-tests")
+                    {
+                        LauncherTests.Run();
+                        Console.WriteLine("launcher lifecycle, configuration and settings checks passed");
+                        return 0;
+                    }
+                    GameServerTests.Run();
+                    Console.WriteLine("game server preferences and guest ticket checks passed");
+                    return 0;
+                }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+                finally { app.Shutdown(); SynchronizationContext.SetSynchronizationContext(previousContext); }
+            }
             if (args.Length >= 1 && args[0] == "--announcement-tests")
             {
                 var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "T7-announcement-tests-" + Guid.NewGuid().ToString("N"));
@@ -146,9 +176,7 @@ namespace T7.ManagedHarness
             {
                 try
                 {
-                    Console.WriteLine("Checking rollback services and state...");
                     ReleaseHistoryTests.Run();
-                    Console.WriteLine("Checking rollback layout...");
                     var app = new T7.Rekindle.Desktop.App(false);
                     app.InitializeComponent();
                     app.ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
@@ -202,6 +230,7 @@ namespace T7.ManagedHarness
             UpdateDownloadTests.Run();
             UpdateDownloadViewModelTests.Run();
             LauncherTests.Run();
+            GameServerTests.Run();
             ThemeTests.Run(args.Length == 2 && args[0] == "--render-ui" ? args[1] : null);
             Console.WriteLine("managed contract checks passed");
             return 0;

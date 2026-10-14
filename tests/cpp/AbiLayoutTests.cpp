@@ -23,6 +23,7 @@ bool verifyEndpointStorage();
 bool verifyStartupGate();
 bool verifyMovementResources();
 bool verifyStartupAnimation();
+bool verifyBladeParryContacts();
 int runDebugClientFixture();
 int runInputMethodDebugFixture();
 
@@ -56,5 +57,5 @@ int main(int argc, char** argv) {
     return verifyOutputDevice() && verifyGraphicsSettings() && verifyAudioDiagnostics() && verifyAudioPlaybackTrace() && verifyModuleLookup() && verifyAp32() && verifyClientCode() && verifyClientImports()
         && verifyClientAdaptation() && verifyCameraInput() && verifyDefenseAssist() && verifyRemoteImage() && verifyInputMethodRegistry() && verifyInputMethodDebugClient()
         && verifyDebugClient() && verifyClientWindowMonitor() && verifyMovementResources()
-        && verifyStartupAnimation() && verifyEndpointStorage() && verifyStartupGate() ? 0 : 1;
+        && verifyStartupAnimation() && verifyEndpointStorage() && verifyStartupGate() && verifyBladeParryContacts() ? 0 : 1;
 }

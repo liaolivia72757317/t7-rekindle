@@ -21,13 +21,33 @@ public:
     void store(uint32_t address, uint32_t value) { emit({0xC7, 0x05}); word(address); word(value); }
 };
 }
-Bytes buildAudioHook(uint32_t address, uint32_t imageBase, uint32_t threadId) {
+Bytes buildAudioHook(uint32_t address, uint32_t imageBase, uint32_t threadId, bool combatBanks) {
     if (!address || address > UINT32_MAX - AUDIO_PAGE_SIZE || !imageBase
         || imageBase > UINT32_MAX - 0x2E35ACC || !threadId)
         throw std::runtime_error("audio hook outside x86 range");
     Code c;
     c.emit({0x9C, 0x60, 0x64, 0xA1}); c.word(0x24);
     c.emit({0x3D}); c.word(threadId); const auto wrongThread = c.branch(0x85);
+    size_t readCombat = 0;
+    if (combatBanks) {
+        c.emit({0x83, 0x3D}); c.word(address + COMBAT_AUDIO_OFFSET); c.emit({1});
+        const auto noCombat = c.branch(0x85);
+        c.emit({0x8B, 0xEC, 0x81, 0xEC}); c.word(0x210);
+        c.emit({0x83, 0xE4, 0xF0, 0x0F, 0xAE, 0x04, 0x24, 0xFC});
+        readCombat = c.localCall();
+        c.emit({0x85, 0xC0}); const auto combatUnavailable = c.branch(0x84);
+        // Load event banks together with their media through the original sound engine.
+        for (uint32_t i = 0; i < COMBAT_AUDIO_BANKS.size(); ++i) {
+            c.emit({0x68}); c.word(address + COMBAT_AUDIO_OFFSET + 32);
+            c.emit({0x6A, 0xFF, 0x68}); c.word(address + COMBAT_AUDIO_NAMES_OFFSET + i * 32);
+            c.emit({0xFF, 0x15}); c.word(imageBase + AUDIO_LOAD_BANK_IAT_RVA);
+            c.emit({0x83, 0xC4, 12, 0xA3}); c.word(address + COMBAT_AUDIO_OFFSET + 8 + i * 4);
+        }
+        c.bind(combatUnavailable, c.bytes.size());
+        c.emit({0x0F, 0xAE, 0x0C, 0x24, 0x8B, 0xE5});
+        c.store(address + COMBAT_AUDIO_OFFSET, 0);
+        c.bind(noCombat, c.bytes.size());
+    }
     c.emit({0xA1}); c.word(address);
     c.emit({0x83, 0xF8, 0x01}); const auto idle = c.branch(0x82);
     c.emit({0x83, 0xF8, 0x02}); const auto reentrant = c.branch(0x87);
@@ -58,6 +78,7 @@ Bytes buildAudioHook(uint32_t address, uint32_t imageBase, uint32_t threadId) {
     c.emit({0x61, 0x9D, 0xC3});
 
     c.bind(readFirst, c.bytes.size()); c.bind(readAfter, c.bytes.size());
+    if (combatBanks) c.bind(readCombat, c.bytes.size());
     std::vector<size_t> invalid;
     for (const auto pair : {std::pair<uint32_t, uint32_t>{0x243B714, 0x17355AC},
             {0x2E24998, 0x17797B4}, {0x24396D0, 0x177A9F4}, {0x2E35AC8, 0x17A7710}}) {
@@ -79,6 +100,10 @@ Bytes buildAudioHook(uint32_t address, uint32_t imageBase, uint32_t threadId) {
     c.emit({0x33, 0xC0, 0xC3});
     if (c.bytes.size() > AUDIO_PAGE_SIZE - AUDIO_CODE_OFFSET) throw std::runtime_error("audio hook overflow");
     Bytes page(AUDIO_PAGE_SIZE, 0);
+    if (combatBanks)
+        for (size_t i = 0; i < COMBAT_AUDIO_BANKS.size(); ++i)
+            std::memcpy(page.data() + COMBAT_AUDIO_NAMES_OFFSET + i * 32,
+                        COMBAT_AUDIO_BANKS[i], std::strlen(COMBAT_AUDIO_BANKS[i]) + 1);
     std::memcpy(page.data() + AUDIO_CODE_OFFSET, c.bytes.data(), c.bytes.size());
     return page;
 }

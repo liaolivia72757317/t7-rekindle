@@ -68,23 +68,23 @@ def roundResult(now, result):
     return struct.pack(">HQQii", 0x68, now, 1, result, 1)
 
 
-def instanceInfo(now, startedAt=None):
+def instanceInfo(now, startedAt=None, *, resourceId=RESOURCE_ID):
     return room_flow.encode_minimal_instance_update(
         server_time_ms=now, instance_id=1,
         instance_start_time_ms=now if startedAt is None else startedAt,
-        resource_id=RESOURCE_ID, start_pattern=START_PATTERN)
+        resource_id=resourceId, start_pattern=START_PATTERN)
 
 
-def actorInfo(now, camp, playerName=USER_NAME):
+def actorInfo(now, camp, playerName=USER_NAME, *, userId=USER_ID):
     return room_flow.encode_instance_update_actor_basic_info(
-        server_time_ms=now, instance_id=1, actor_mid=ACTOR_ID, user_id=USER_ID,
+        server_time_ms=now, instance_id=1, actor_mid=ACTOR_ID, user_id=userId,
         user_name=playerName, user_image_id=7, level=USER_LEVEL, actor_state=4,
         hero_resource_id=HERO_ID, camp=camp, start_pattern=START_PATTERN)
 
 
-def actorState(now, current):
+def actorState(now, current, *, userId=USER_ID):
     return room_flow.encode_actor_update_state(
-        user_id=USER_ID, actor_mid=ACTOR_ID, actor_state=current, update_time_ms=now)
+        user_id=userId, actor_mid=ACTOR_ID, actor_state=current, update_time_ms=now)
 
 
 def actorVision(camp, heroId=HERO_ID, actorName=USER_NAME, *, runtimeMovement=False,
