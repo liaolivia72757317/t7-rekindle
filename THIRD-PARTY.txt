@@ -31,3 +31,6 @@ requirements.txt，原始许可保存在各包的 .dist-info/licenses/ 中；构
 
 Visual Studio、Windows SDK、.NET SDK/Targeting Pack 和 pytest 等开发工具不作为运行时
 依赖随产品目录打包。开发环境要求见 docs/development.md。
+
+独立 Rust 游戏服务的依赖许可索引见 game-server/THIRD-PARTY.md，版本由
+game-server/Cargo.lock 锁定；该服务独立构建，不随启动器产品包分发。

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>T7 房间协议调试</title>
+  <link rel="stylesheet" href="/dev/lobby.css">
+  <script src="/dev/lobby.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">T7 REKINDLE · 开发工具</p>
+      <h1>房间协议调试</h1>
+      <p>用两个浏览器标签页验证建房、准备和开局。此页使用测试身份，尚不启动原版游戏。</p>
+    </header>
+    <p id="status" role="status" aria-live="polite">未连接</p>
+    <section aria-labelledby="connection-title">
+      <h2 id="connection-title">连接</h2>
+      <div class="actions">
+        <label>测试身份<input id="account" value="player-a" maxlength="32" autocomplete="off" spellcheck="false"></label>
+        <button id="connect" type="button">连接</button>
+        <button id="disconnect" type="button" disabled>断开</button>
+      </div>
+      <p class="hint">另一个标签页使用 player-b；同一身份不能同时连接两次。关闭标签页会退出房间。</p>
+    </section>
+    <div class="columns">
+      <section aria-labelledby="list-title">
+        <div class="section-heading"><h2 id="list-title">房间列表</h2><button id="refresh" type="button" disabled>刷新</button></div>
+        <div class="actions">
+          <label>房间名称<input id="name" value="双人测试" maxlength="32"></label>
+          <button id="create" type="button" disabled>创建房间</button>
+        </div>
+        <p class="hint">当前固定地图 1028，容量两人。</p>
+        <div id="rooms">连接后刷新房间列表。</div>
+      </section>
+      <section aria-labelledby="room-title">
+        <h2 id="room-title">当前房间</h2>
+        <p id="room-summary">尚未加入房间</p>
+        <p id="match-summary" class="hint"></p>
+        <div id="members"></div>
+        <div class="actions">
+          <label>我的阵营<select id="camp" disabled><option value="1">阵营 1</option><option value="2">阵营 2</option></select></label>
+          <button id="ready" type="button" disabled>准备</button>
+          <button id="start" type="button" disabled>房主开局</button>
+          <button id="leave" type="button" disabled>退出房间</button>
+        </div>
+        <button id="loaded" type="button" disabled>模拟加载完成（不启动游戏）</button>
+        <p id="phase-help" class="hint">两人选择不同阵营并准备后，由房主开局。</p>
+      </section>
+    </div>
+    <section aria-labelledby="view-title">
+      <h2 id="view-title">本端角色映射</h2>
+      <p class="hint">RID 是本端对象编号，两端各自的 RID 1 都代表自己。actorId 是房间内角色编号，不永久绑定账号；阵营保持房间中的值。</p>
+      <div id="view">等待开局</div>
+    </section>
+    <details>
+      <summary>最近协议事件</summary>
+      <pre id="events"></pre>
+    </details>
+  </main>
+</body>
+</html>

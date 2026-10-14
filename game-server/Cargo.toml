@@ -1,0 +1,28 @@
+[package]
+name = "t7-game-server"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+description = "Central room service for T7 Rekindle"
+publish = false
+default-run = "t7-game-server"
+
+[dependencies]
+axum-server = { version = "0.8", features = ["tls-rustls"] }
+# axum-server disables Rustls defaults; Windows 10 connections require TLS 1.2.
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
+axum = { version = "0.8", features = ["ws"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "time", "io-util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+futures-util = { version = "0.3", features = ["sink"] }
+tokio-tungstenite = "0.29"
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,27 @@
+[Unit]
+Description=T7 Rekindle guest game service
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+SupplementaryGroups=t7-tls
+EnvironmentFile=/etc/t7-game-server/service.env
+WorkingDirectory=/opt/t7-game-server/current
+ExecStart=/opt/t7-game-server/current/bin/t7-game-server --listen ${GAME_LISTEN} --room-capacity ${ROOM_CAPACITY} --guest-lobby --tls-cert /etc/t7-game-server/tls/fullchain.pem --tls-key /etc/t7-game-server/tls/privkey.pem --lobby-maps /etc/t7-game-server/lobby-maps.json
+Environment=RUST_LOG=info
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=15
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

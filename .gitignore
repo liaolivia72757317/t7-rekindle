@@ -2,6 +2,7 @@
 /artifacts/
 /dist/
 /packages/
+/game-server/target/
 *.user
 *.suo
 *.userprefs

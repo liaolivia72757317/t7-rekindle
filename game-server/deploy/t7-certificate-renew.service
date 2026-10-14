@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew T7 game service IP certificate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/t7-certbot/bin/certbot renew --quiet
