@@ -26,6 +26,7 @@ bool verifyGraphicsSession(const t7::fs::path& packageRoot);
 bool verifyResourcePreflight(const t7::fs::path& packageRoot);
 bool verifyAudioSession(const t7::fs::path& packageRoot);
 
+bool verifyLobbyNews();
 
 namespace {
 bool verifyJobAssignmentOrder() {
@@ -410,6 +411,7 @@ int wmain(int argc, wchar_t** argv) {
         if (!verifyServerEventOrder(t7::fs::path(argv[1]))) result = 42;
         if (!verifyServerAudioDiagnostics()) result = 44;
         if (!verifyFakeBootstrapAdapter()) result = 21;
+        if (!result && !verifyLobbyNews()) result = 33;
         if (!verifyJobAssignmentOrder()) result = 15;
         // The embedded interpreter has one process-wide owner.  A second
         // owner is rejected while the first is alive, then a fresh owner can

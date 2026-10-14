@@ -37,6 +37,8 @@
     <ClCompile Include="core\DiagnosticLog.cpp" />
     <ClCompile Include="core\Protocol.cpp" />
     <ClCompile Include="launcher\Bootstrap.cpp" />
+    <ClCompile Include="launcher\LobbyNews.cpp" />
+    <ClCompile Include="launcher\LobbyNewsHookCode.cpp" />
     <ClCompile Include="launcher\OutputDevice.cpp" />
     <ClCompile Include="launcher\GraphicsSettings.cpp" />
     <ClCompile Include="launcher\GraphicsValues.cpp" />

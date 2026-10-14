@@ -280,6 +280,8 @@ void DebugClient::start(const fs::path& executable, const std::string& imageHash
                         if (!IsProcessInJob(state.process, job, &owned) || !owned)
                             throw std::runtime_error("client child process did not inherit the owned job");
                         state.role = known ? ProcessRole::VerifiedGameChild : ProcessRole::CompatibleChild;
+                        if (known && found->prepare)
+                            found->prepare(state.process, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(event.u.CreateProcessInfo.lpBaseOfImage)));
                         if (log) log(DiagnosticLogLevel::Debug, std::string(known ? "Verified" : "Compatible") + " client child process; PID="
                             + std::to_string(event.dwProcessId) + "; image=" + name + "; role=" + roleName(state.role)
                             + (known ? "; reason=game component rule" : "; reason=registered IME module observed"));

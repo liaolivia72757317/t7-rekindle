@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T7 · 战场快讯</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#111619;color:#d9d4c9;font-family:"Microsoft YaHei",sans-serif}html,body{height:100%;overflow:hidden}body{font-size:13px}a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}.hero{position:relative;min-height:100vh;overflow:hidden;padding:28px 32px;background:radial-gradient(ellipse at 83% 30%,#55624b 0,transparent 45%),linear-gradient(120deg,#101719,#26322e)}.hero:before,.hero:after{content:"";position:absolute;right:14%;top:-35%;width:5px;height:170%;background:linear-gradient(#d7c794,#747c69);transform:rotate(31deg);box-shadow:18px 0 0 #ffffff08,40px 0 0 #ffffff04}.hero:after{right:30%;width:1px;background:#b5ae7b44}.eyebrow{font-size:10px;letter-spacing:4px;color:#bbae7f}.hero h1{position:relative;margin:18px 0 9px;font-family:SimSun,serif;font-size:42px;letter-spacing:5px;color:#f2e7cc;text-shadow:0 3px 18px #000}.hero p{position:relative;max-width:300px;color:#c7cbb9;line-height:1.9;margin:0}.hero .seal{position:absolute;bottom:22px;left:32px;font-size:11px;color:#a9b09d;border-left:2px solid #beac72;padding-left:10px}.tag{display:inline-block;border:1px solid #82764b;color:#d8c994;padding:3px 9px;font-size:11px;letter-spacing:2px}.news{padding:12px 20px;min-height:100vh;background:linear-gradient(135deg,#1b211f,#101517)}.heading{display:table;width:100%;padding-bottom:8px;border-bottom:1px solid #414333}.heading strong{font-size:14px;font-weight:400;letter-spacing:3px;color:#d9c38d}.heading span{float:right;font-size:10px;color:#827e6f;margin-top:3px}.list{margin:4px 0 0;padding:0;list-style:none}.list li{border-bottom:1px solid #ffffff0b}.list a{display:table;width:100%;padding:8px 0}.list a:hover{color:#e3c27e}.label{display:table-cell;width:42px;font-size:11px;color:#b69b65}.title{display:table-cell}.date{display:table-cell;text-align:right;font-size:10px;color:#787e76;width:42px}.article{height:100vh;overflow:auto;display:none;padding:16px 22px;min-height:100vh;background:linear-gradient(135deg,#1b211f,#101517)}.back{border:0;padding:0;background:transparent;color:#bea879;font-size:11px}.article h2{font-size:18px;font-weight:400;color:#e0ca93;line-height:1.5}.article p{line-height:1.9;color:#bcbfb5}.foot{margin-top:9px;font-size:10px;color:#72796f}.banner-mode .news,.banner-mode .article{display:none}.news-mode .hero{display:none}.reading .news{display:none}.reading .article{display:block}@media(max-height:220px){.news{padding-top:9px}.list a{padding:6px 0}.foot{margin-top:5px}}@media(max-width:380px){.hero{padding:22px}.hero h1{font-size:34px}.hero .seal{left:22px}.news{padding-left:14px;padding-right:14px}.title{font-size:12px}}
+</style>
+</head>
+<body>
+<section class="hero">
+<div class="eyebrow">T7 REKINDLE · BATTLEFIELD BULLETIN</div>
+<h1>烽火再燃</h1>
+<p>旧日战场，今日重逢。<br>整装、选将，与熟悉的刀锋再战一场。</p>
+<p style="margin-top:18px"><span class="tag">重燃战报</span></p>
+<div class="seal">策马踏征途 · 刀锋迎故人</div>
+</section>
+<section class="news">
+<div class="heading"><strong>战场快讯</strong><span>NEWS / 本地公告</span></div>
+<ul class="list">
+<li><a href="#welcome"><span class="label">公告</span><span class="title">烽火再燃，欢迎回到战场</span><span class="date">10/12</span></a></li>
+<li><a href="#training"><span class="label">指南</span><span class="title">校场札记：先练招架，再论胜负</span><span class="date">10/11</span></a></li>
+<li><a href="#story"><span class="label">战报</span><span class="title">孤骑破阵！演武场上的逆风一局</span><span class="date">10/10</span></a></li>
+<li><a href="#tips"><span class="label">贴士</span><span class="title">入阵之前，记得检查你的设置</span><span class="date">10/09</span></a></li>
+</ul>
+<div class="foot">重燃编辑部 · 示例资讯，离线也能阅读</div>
+</section>
+<article class="article"><button class="back" id="back">‹ 返回快讯</button><h2 id="title"></h2><p id="body"></p><div class="foot">T7 重燃编辑部 · 示例内容</div></article>
+<script>
+(function(){
+var stories={
+welcome:["烽火再燃，欢迎回到战场","熟悉的号角再次响起。这里是 T7 Rekindle 的本地战场快讯，准备出征时，也别忘了留一点时间给老朋友。愿每一次重逢，都从一场酣畅的交锋开始。"],
+training:["校场札记：先练招架，再论胜负","别急着连出三刀。观察对手的起手方向，尝试用一次稳定的招架找回节奏，再利用距离变化寻找反击机会。今日演武题目：少贪一刀，多看一步。"],
+story:["孤骑破阵！演武场上的逆风一局","演武场传来一则趣闻：一位无名骑士在旗阵边缘盘旋许久，终于抓住对方转身的空隙，完成了一次漂亮的突破。围观将士笑称，最锋利的武器，有时是耐心。（本篇为虚构战报。）"],
+tips:["入阵之前，记得检查你的设置","出征前，在启动器确认游戏目录与玩家名称；进入游戏后，把画面和音量调整到适合自己的状态。清晰的视野和舒适的声音，也是一份可靠的战场准备。"]};
+function show(){var key=location.hash.slice(1),story=stories[key];document.body.className=key==='banner'?'banner-mode':'news-mode';if(story){document.body.className+=' reading';document.getElementById('title').textContent=story[0];document.getElementById('body').textContent=story[1];}}
+document.getElementById('back').onclick=function(){location.hash='news';};window.onhashchange=show;show();
+})();
+</script>
+</body>
+</html>

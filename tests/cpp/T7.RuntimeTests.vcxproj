@@ -16,6 +16,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ServerLifecycleSmoke.cpp" />
+    <ClCompile Include="LobbyNewsTests.cpp" />
     <ClCompile Include="ServerEventOrderTests.cpp" />
     <ClCompile Include="ServerAudioDiagnosticsTests.cpp" />
     <ClCompile Include="JournalContractTests.cpp" />
@@ -33,6 +34,8 @@
     <ClCompile Include="../../src/Runtime/core/DiagnosticLog.cpp" />
     <ClCompile Include="../../src/Runtime/core/Protocol.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/Bootstrap.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/LobbyNews.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/LobbyNewsHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/OutputDevice.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/GraphicsSettings.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/GraphicsValues.cpp" />
