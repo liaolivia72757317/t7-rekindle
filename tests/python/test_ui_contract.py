@@ -505,9 +505,18 @@ def test_native_bridge_exports_are_explicit_and_versioned():
         "t7r_native_set_log_level",
         "t7r_native_publish_titles",
         "t7r_native_get_title_request",
+        "t7r_battle_host_create",
+        "t7r_battle_host_start",
+        "t7r_battle_host_stop",
+        "t7r_battle_host_snapshot",
+        "t7r_battle_host_error",
+        "t7r_battle_host_release",
     ]
     service = (ROOT / "src/Desktop/Services/NativeBridgeService.cs").read_text(encoding="utf-8")
     bindings = re.findall(r'Resolve<\w+>\(module, "([^"]+)"\)', service)
-    assert sorted(bindings) == sorted(exports)
+    assert sorted(bindings) == sorted(name for name in exports if name.startswith('t7r_native_'))
+    host = (ROOT / 'src/Battle/NativeBattleHost.cs').read_text(encoding='utf-8')
+    host_bindings = re.findall(r'Function<\w+>\("([^"]+)"\)', host)
+    assert sorted(host_bindings) == sorted(name for name in exports if name.startswith('t7r_battle_host_'))
     contract = (ROOT / "src/Core/NativeBridgeContract.cs").read_text(encoding="utf-8")
     assert 'public const string LibraryName = "T7R.NativeBridge.dll";' in contract
