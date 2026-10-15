@@ -74,6 +74,15 @@ class QqAuthServiceTest {
         verify(db, times(1)).createQqAccount(any(), eq(profile), anyString());
     }
 
+    @Test void retriesSessionConflictWhenRequestedNameBelongsToExistingQqAccount() {
+        when(db.gameNameOwner("Player")).thenReturn("id");
+        when(db.accountByName("12345")).thenReturn(account);
+        doThrow(new DuplicateKeyException("duplicate")).doNothing().when(db).createSession(any());
+        assertThat(service.login(MACHINE, COOKIE, "IP", "Player").accountId()).isEqualTo("id");
+        verify(db).accountByName("12345");
+        verify(db, times(2)).createSession(any());
+    }
+
     @Test void completesExistingQqAccountRegistrationWithoutCreatingAnotherAccount() {
         when(db.lockByName("12345")).thenReturn(new Account("id", "12345", null, "ACTIVE", 0,
                 now, "12345", "旧昵称", profile.avatarUrl(), null));
