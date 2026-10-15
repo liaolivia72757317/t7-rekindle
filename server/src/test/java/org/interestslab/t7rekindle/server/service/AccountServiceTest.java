@@ -29,12 +29,15 @@ class AccountServiceTest {
         when(secrets.encode(anyString())).thenReturn("hash");
     }
     @Test void creationAndDuplicateName() {
-        assertThat(service.create(admin, "sample").password()).isEqualTo("GENERATED_PASSWORD");
-        doThrow(new DuplicateKeyException("duplicate")).when(db).createAccount(any(), any(), any());
-        assertThatThrownBy(() -> service.create(admin, "sample")).isInstanceOfSatisfying(Problem.class,
+        assertThat(service.create(admin, "sample", "Player").password()).isEqualTo("GENERATED_PASSWORD");
+        doThrow(new DuplicateKeyException("duplicate")).when(db).createAccount(any(), any(), any(), any());
+        assertThatThrownBy(() -> service.create(admin, "sample", "Player")).isInstanceOfSatisfying(Problem.class,
                 error -> assertThat(error.code()).isEqualTo("LOGIN_NAME_EXISTS"));
     }
     @Test void listsAndMissingAccounts() {
+        var stats = new AccountStats(120, 100, 8);
+        when(db.accountStats()).thenReturn(stats);
+        assertThat(service.stats()).isEqualTo(stats);
         assertThat(service.account("id").loginName()).isEqualTo("sample");
         assertThatThrownBy(() -> service.account("missing")).isInstanceOf(Problem.class);
         service.list("sam", 1);
@@ -67,7 +70,7 @@ class AccountServiceTest {
         verify(db).clearSessionPresence("id", "session");
     }
     @Test void reservedNumericNamesAndQqPasswordResetAreRejected() {
-        assertThatThrownBy(() -> service.create(admin, "12345")).isInstanceOfSatisfying(Problem.class,
+        assertThatThrownBy(() -> service.create(admin, "12345", "Player")).isInstanceOfSatisfying(Problem.class,
                 e -> assertThat(e.code()).isEqualTo("LOGIN_NAME_RESERVED"));
         when(db.lockAccount("id")).thenReturn(new Account("id", "12345", null, "ACTIVE", 0, Instant.EPOCH, "12345", "nick", "url"));
         assertThatThrownBy(() -> service.resetPassword(admin, "id")).isInstanceOfSatisfying(Problem.class,

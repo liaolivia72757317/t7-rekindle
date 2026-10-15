@@ -29,28 +29,31 @@ public class AccountService {
         this.events = events;
     }
     public List<AccountView> list(String prefix, int page) { return db.accounts(Inputs.prefix(prefix), Inputs.offset(page)); }
+    public AccountStats stats() { return db.accountStats(); }
     public AccountView account(String id) {
         Account account = db.account(id);
         if (account == null) throw Problem.missing();
         return new AccountView(account.accountId(), account.loginName(), account.status(), account.createdAt(),
-                account.qqNumber(), account.nickname());
+                account.qqNumber(), account.nickname(), null, false, null, null, account.gameName());
     }
     public List<SessionView> sessions(String id, int page) { return db.sessions(id, Inputs.offset(page)); }
     public List<Audit> audits(int page) { return audit.audits(Inputs.offset(page)); }
 
-    public GeneratedPassword create(AdminIdentity admin, String name) {
+    public GeneratedPassword create(AdminIdentity admin, String name, String gameName) {
         Inputs.loginName(name);
         if (name.matches("[0-9]+")) throw new Problem(400, "LOGIN_NAME_RESERVED", "纯数字登录名保留给 QQ 账号");
+        String normalized = GameNameRules.normalize(gameName);
         String password = secrets.randomToken();
         try {
             return tx.execute(status -> {
                 admins.requireManagement(admin);
                 String id = UUID.randomUUID().toString();
-                db.createAccount(id, name, secrets.encode(password));
+                db.createAccount(id, name, secrets.encode(password), normalized);
                 audit.audit("admin", "ACCOUNT_CREATED", id);
                 return new GeneratedPassword(name, password);
             });
         } catch (DuplicateKeyException error) {
+            if (db.gameNameOwner(normalized) != null) throw GameNameRules.exists();
             throw new Problem(409, "LOGIN_NAME_EXISTS", "登录名已存在");
         }
     }

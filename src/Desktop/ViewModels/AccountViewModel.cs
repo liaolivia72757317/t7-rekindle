@@ -28,10 +28,12 @@ namespace T7R.Desktop.ViewModels
 
         public AccountViewModel(IAccountApi api, IAccountSessionStore store, Func<string> machineId,
             Func<CancellationToken, Task<string>> scan, Action<Action> dispatch,
-            Func<TimeSpan, CancellationToken, Task> delay = null)
+            Func<TimeSpan, CancellationToken, Task> delay = null,
+            Func<Func<string, CancellationToken, Task<AccountSession>>, CancellationToken, Task<AccountSession>> setupName = null)
         {
             _api = api; _store = store; _machineId = machineId; _scan = scan; _dispatch = dispatch;
             _delay = delay ?? Task.Delay;
+            _setupName = setupName ?? GameNameSetupDialog.ShowAsync;
             LoginCommand = new AsyncRelayCommand(LoginAsync, () => !_busy && !_signedIn && !_disposed);
             LogoutCommand = new AsyncRelayCommand(LogoutAsync, () => HasSession && !_disposed);
             ReconnectCommand = new AsyncRelayCommand(ReconnectAsync, () => HasSession && !_busy && _connection == null && !_disposed);
@@ -92,6 +94,13 @@ namespace T7R.Desktop.ViewModels
                 Validate(current, saved.MachineId);
                 if (current.SessionId != saved.SessionId || current.AccountId != saved.AccountId)
                     throw new InvalidOperationException("账号恢复响应不匹配。");
+                if (string.IsNullOrEmpty(current.GameName))
+                {
+                    var pending = current;
+                    current = await CompleteNameAsync((name, token) => InitializeGameNameAsync(pending, name, token), generation, cancellation);
+                    if (!IsCurrent(generation)) return;
+                    if (current == null) { await LogoutAsync(); return; }
+                }
                 Accept(current);
                 await ConnectAsync(generation, cancellation).ConfigureAwait(true);
             }
@@ -130,8 +139,15 @@ namespace T7R.Desktop.ViewModels
                 if (string.IsNullOrEmpty(cookie)) { SetStatus("未登录"); return; }
                 _waitingForServer = true;
                 SetStatus("正在验证登录");
-                var session = await _api.LoginAsync(machine, cookie, cancellation).ConfigureAwait(true);
-                if (!IsCurrent(generation)) return;
+                AccountSession session;
+                try { session = await _api.LoginAsync(machine, cookie, cancellation).ConfigureAwait(true); }
+                catch (AccountApiException error) when (error.Code == "REGISTRATION_REQUIRED")
+                {
+                    if (!IsCurrent(generation)) return;
+                    session = await CompleteNameAsync((name, token) => _api.CompleteRegistrationAsync(machine, cookie, name, token), generation, cancellation);
+                }
+                if (!IsCurrent(generation)) { await RetireSessionAsync(session); return; }
+                if (session == null) { await LogoutAsync(); return; }
                 Validate(session, machine);
                 Accept(session);
                 await ConnectAsync(generation, cancellation).ConfigureAwait(true);
@@ -143,6 +159,7 @@ namespace T7R.Desktop.ViewModels
                 {
                     var problem = error as AccountApiException;
                     SetStatus(problem?.Code == "QQ_ACCOUNT_CONFLICT" ? "QQ 号与已有账号重名，请联系管理员"
+                        : error is System.IO.InvalidDataException ? "账号服务尚未支持有效游戏名称，请联系管理员升级"
                         : problem?.Status == 429 ? "登录过于频繁，请稍后重试"
                         : _signedIn ? "已登录 · 上线失败，请重试" : "登录失败，请稍后重试");
                     Record(DiagnosticLogLevel.Error, "QQ 扫码登录失败", error);
@@ -153,11 +170,13 @@ namespace T7R.Desktop.ViewModels
 
         private void Accept(AccountSession session)
         {
+            RequireGameName(session.GameName);
             _session = session;
             _signedIn = true;
             try { _store.Save(session); }
             catch (Exception error) { Record(DiagnosticLogLevel.Error, "保存账号登录状态失败", error); }
             Changed();
+            StartNameSync();
         }
 
         public async Task LogoutAsync()
@@ -173,6 +192,7 @@ namespace T7R.Desktop.ViewModels
         {
             var previous = _session;
             var connection = _connection;
+            StopNameSync();
             Begin();
             _busy = false;
             Changed();
@@ -184,7 +204,7 @@ namespace T7R.Desktop.ViewModels
         private int Begin()
         {
             _generation++;
-            _loginOpen = _waitingForServer = false;
+            _loginOpen = _waitingForServer = _registrationOpen = false;
             _lifetime.Cancel();
             _lifetime.Dispose();
             _lifetime = new CancellationTokenSource();
@@ -202,6 +222,7 @@ namespace T7R.Desktop.ViewModels
         }
         private void ClearSession(string message)
         {
+            StopNameSync();
             Begin();
             _session = null;
             _signedIn = _busy = false;
@@ -240,6 +261,8 @@ namespace T7R.Desktop.ViewModels
         {
             if (_disposed) return;
             _disposed = true;
+            StopNameSync();
+            _registrationOpen = false;
             _generation++;
             _lifetime.Cancel();
             _lifetime.Dispose();

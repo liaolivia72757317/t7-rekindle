@@ -62,7 +62,13 @@ class PackagedJarIT {
                 assertThat(loginPage.statusCode()).isEqualTo(200);
                 String cookie = loginPage.headers().firstValue("set-cookie").orElseThrow();
                 assertThat(cookie).contains("HttpOnly", "SameSite=Lax", "Path=/admin");
-                assertThat(get("/admin/assets/admin.css").body()).contains("--ink: #234759");
+                assertThat(loginPage.body()).contains("/admin/assets/ui-tokens.css", "/admin/assets/admin.css");
+                var tokens = get("/admin/assets/ui-tokens.css");
+                assertThat(tokens.statusCode()).isEqualTo(200);
+                assertThat(tokens.body()).contains("--ui-text:");
+                var adminStyles = get("/admin/assets/admin.css");
+                assertThat(adminStyles.statusCode()).isEqualTo(200);
+                assertThat(adminStyles.body()).contains("var(--ui-text-secondary)");
                 assertThat(post("/admin/login", Map.of("loginName", "admin", "password", initial, "_csrf", csrf(loginPage.body())))
                         .headers().firstValue("location").map(location -> URI.create(location).getPath())).contains("/admin/password");
                 assertThat(get("/admin/accounts").statusCode()).isEqualTo(302);
@@ -83,7 +89,7 @@ class PackagedJarIT {
                 assertThat(api("GET", "/api/v1/announcements/latest", null, "").body()).contains("发布标题").doesNotContain("未发布修改");
                 String accounts = get("/admin/accounts").body();
                 assertThat(accounts).contains("创建普通账户");
-                var created = post("/admin/accounts", Map.of("loginName", "jar-user", "_csrf", csrf(accounts)));
+                var created = post("/admin/accounts", Map.of("loginName", "jar-user", "gameName", "JAR测试玩家", "_csrf", csrf(accounts)));
                 String resultPage = get(created.headers().firstValue("location").orElseThrow()).body();
                 var secret = Pattern.compile("data-secret[^>]*>([^<]+)</code>").matcher(resultPage);
                 assertThat(secret.find()).isTrue();

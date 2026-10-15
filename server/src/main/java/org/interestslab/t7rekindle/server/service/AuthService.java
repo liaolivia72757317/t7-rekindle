@@ -88,6 +88,6 @@ public class AuthService {
             throw Problem.unauthorized();
         }
         return new Identity(account.accountId(), session.sessionId(), account.loginName(), session.expiresAt(),
-                session.machineId(), account.qqNumber(), account.nickname(), account.avatarUrl());
+                session.machineId(), account.qqNumber(), account.nickname(), account.avatarUrl(), account.gameName());
     }
 }

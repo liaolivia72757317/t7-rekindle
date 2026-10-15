@@ -15,6 +15,10 @@
 #include <string>
 #include <thread>
 
+#if defined(T7R_NATIVE_BRIDGE_TESTING)
+namespace t7r { struct TitleRuntimeTests; }
+#endif
+
 namespace t7r::bridge {
 
 struct Snapshot {
@@ -84,6 +88,9 @@ public:
                      uint32_t& required, uint32_t& flags);
 
 private:
+#if defined(T7R_NATIVE_BRIDGE_TESTING)
+    friend struct t7r::TitleRuntimeTests;
+#endif
     struct Command {
         uint64_t id;
         uint32_t kind;

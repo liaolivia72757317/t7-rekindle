@@ -108,3 +108,24 @@ def test_invalid_catalogue_and_unowned_selection_are_rejected():
     assert 'titles' not in state
     assert not titles.valid({'titles': dict(epoch=True, owned=[], equipped=0)})
     assert not titles.valid({'titles': dict(epoch=1, owned=[1008, 1008], equipped=1008)})
+
+
+def test_custom_title_uses_original_wire_and_preserves_server_confirmed_ownership():
+    state, context = fixture()
+    event = snapshot(equipped=1000000)
+    event['body'] = json.dumps(dict(titles=[dict(titleId=1000000, name='重燃共建者',
+        enabled=True, owned=True)], equippedTitleId=1000000)).encode()
+    synced = app.handleEvent(event, state, context)
+    assert synced['state']['titles']['owned'] == [1000000]
+    stats = next(item['body'] for item in synced['send'] if item['body'][:2] == b'\0\4')
+    assert struct.unpack_from('>i', stats, 10 + 64)[0] == 1000000
+    assert struct.unpack_from('>ii', stats, 10 + 296 + 4460) == (1, 1000000)
+    request = dict(type='message', connection=1, eventId=30, command=31, body=struct.pack('>HI', 5, 1000000))
+    pending = app.handleEvent(request, synced['state'], context)
+    assert pending['titleRequest']['titleId'] == 1000000 and pending['send'] == []
+    revoked = dict(event, serverTimeMs=30, command=1,
+        body=json.dumps(dict(titles=[dict(titleId=1000000, enabled=False, owned=True)], equippedTitleId=None)).encode())
+    result = app.handleEvent(revoked, pending['state'], context)
+    assert result['state']['titles']['owned'] == [] and result['state']['titles']['equipped'] == 0
+    assert result['send'][0]['body'] == title_flow.setResult(False)
+    assert 'titleRequest' not in app.handleEvent(request, result['state'], context)

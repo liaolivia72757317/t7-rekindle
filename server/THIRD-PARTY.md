@@ -8,6 +8,20 @@
 - 外部 MySQL Server 8.4.11 为 GPL-2.0；Redis Server 8.6.6 在其多许可选项中选择 AGPL-3.0，见 [Redis 官方许可](https://redis.io/legal/licenses/)。两种服务不打入应用 Jar。
 - 测试依赖：JUnit 6.0.3（EPL-2.0）、Testcontainers 2.0.5（MIT）、ArchUnit 1.4.2（Apache-2.0，包含 BSD 组件）、JaCoCo 0.8.14（EPL-2.0）；不进入生产 Jar。
 
+## 管理界面资源
+
+资源随应用 Jar 从 `/admin/assets/` 同源提供，不在运行时访问 CDN。vendor 文件不做修改；项目覆盖集中在 `ui-tokens.css`、`ui-tabler-adapter.css`、`admin.css` 与 `announcement-editor.css`。
+
+| 资源 | 固定版本与来源 | 本地许可 |
+| --- | --- | --- |
+| Tabler CSS / JavaScript | [@tabler/core 1.6.1](https://github.com/tabler/tabler/releases/tag/@tabler%2Fcore@1.6.1)，来自 npm 发布包；仅保留核心构建与 source maps | [MIT](src/main/resources/static/admin/assets/vendor/tabler/1.6.1/LICENSE) |
+| 内含 Bootstrap / Popper | Bootstrap 5.3.8（Tabler 源码内置）/ Popper 2.11.8，不重复加载其他 bundle | [Bootstrap MIT](src/main/resources/static/admin/assets/vendor/tabler/1.6.1/LICENSE.bootstrap) · [Popper MIT](src/main/resources/static/admin/assets/vendor/tabler/1.6.1/LICENSE.popper) |
+| Tabler Icons 线性 SVG | [3.49.0](https://github.com/tabler/tabler-icons/releases/tag/v3.49.0)，从 npm `@tabler/icons` 的 `icons/outline/` 按需合并为 `icons.svg`，保留原始路径与 24×24 画布 | [MIT](src/main/resources/static/admin/assets/vendor/tabler-icons/3.49.0/LICENSE) |
+| EasyMDE CSS / JavaScript | [2.21.0](https://github.com/Ionaru/easy-markdown-editor/releases/tag/2.21.0)，来自 npm `easymde` 同版本包的 `dist/`，不改写 bundle | [MIT](src/main/resources/static/admin/assets/vendor/easymde/2.21.0/LICENSE) |
+| EasyMDE 内含组件 | 按上游 2.21.0 的 `package-lock.json`：CodeMirror 5.65.15、Marked 4.1.0、codemirror-spell-checker 1.1.2、Typo.js 1.2.2；不重复加载，拼写检查关闭，预览采用项目内与启动器一致的渲染逻辑 | [CodeMirror MIT](src/main/resources/static/admin/assets/vendor/easymde/2.21.0/LICENSE.codemirror) · [Marked MIT 等声明](src/main/resources/static/admin/assets/vendor/easymde/2.21.0/LICENSE.marked) · [拼写检查 MIT](src/main/resources/static/admin/assets/vendor/easymde/2.21.0/LICENSE.codemirror-spell-checker) · [Typo.js BSD-3-Clause](src/main/resources/static/admin/assets/vendor/easymde/2.21.0/LICENSE.typo-js) |
+
+`brand.ico` 复用仓库内启动器的既有品牌图标，不属于 Tabler 资源。升级组件库后须回归[公共组件验收页](../docs/planning/admin-ui-checklist.md)。
+
 ## 运行依赖
 
 | Maven artifact | Version | 发布许可元数据 |

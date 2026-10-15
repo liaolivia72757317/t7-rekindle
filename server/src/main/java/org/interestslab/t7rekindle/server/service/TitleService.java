@@ -10,6 +10,7 @@ import org.interestslab.t7rekindle.server.domain.Models.*;
 import org.interestslab.t7rekindle.server.domain.TitleModels.*;
 import org.interestslab.t7rekindle.server.domain.Problem;
 import org.interestslab.t7rekindle.server.persistence.*;
+import static org.interestslab.t7rekindle.server.domain.TitleModels.*;
 
 @Service
 public class TitleService {
@@ -32,6 +33,10 @@ public class TitleService {
     void lockCatalogue() { db.lockCatalogue(); }
 
     public List<Definition> definitions() { return db.definitions(); }
+    public List<Recipient> recipients(int id, String prefix, int page) {
+        definition(id);
+        return db.recipients(id, Inputs.prefix(prefix), Inputs.offset(page));
+    }
     public Snapshot account(String id) { return tx.execute(status -> snapshot(id)); }
 
     public Snapshot current(Identity identity, String connection) {
@@ -76,20 +81,47 @@ public class TitleService {
             audit.audit("admin", "TITLE_REVOKED", account + ":" + id);
         });
     }
+    public int create(AdminIdentity admin, Draft draft) {
+        Draft value = validated(draft);
+        return tx.execute(status -> {
+            admins.requireManagement(admin);
+            List<Integer> ids = db.lockCatalogue();
+            if (ids.size() >= MAX_TITLES)
+                throw new Problem(400, "TITLE_CATALOGUE_FULL", "称号目录最多维护 64 条记录（含已停用称号）");
+            long next = Math.max(CUSTOM_ID_START, (long) ids.stream().mapToInt(Integer::intValue).max().orElse(0) + 1);
+            if (next > Integer.MAX_VALUE) throw new Problem(400, "TITLE_ID_EXHAUSTED", "称号编号已用尽");
+            int id = (int) next;
+            db.create(id, value);
+            audit.audit("admin", "TITLE_CREATED", Integer.toString(id));
+            return id;
+        });
+    }
     public void configure(AdminIdentity admin, int id, Draft draft) {
-        String text = draft.description();
-        if (text == null || !GBK.newEncoder().canEncode(text) || text.getBytes(GBK).length > 64
-                || text.chars().anyMatch(c -> Character.isISOControl(c) || c == '<' || c == '>')
-                || draft.sortOrder() < 0 || draft.sortOrder() > 9999)
-            throw new Problem(400, "INVALID_TITLE", "介绍最多 64 个 GBK 字节（约 32 个汉字），使用纯文本；排序范围为 0–9999");
         tx.executeWithoutResult(status -> {
             admins.requireManagement(admin);
             lockCatalogue();
-            definition(id);
-            db.configure(id, new Draft(text.strip(), draft.sortOrder(), draft.enabled()));
+            Definition current = definition(id);
+            String name = draft.name();
+            if (!current.custom()) {
+                if (name != null && !name.equals(current.name()))
+                    throw new Problem(400, "ORIGINAL_TITLE_NAME", "原游戏称号名称保持不变");
+                name = current.name();
+            }
+            db.configure(id, validated(new Draft(name, draft.description(), draft.sortOrder(), draft.enabled())));
             if (!draft.enabled()) db.clearTitle(id);
             audit.audit("admin", "TITLE_CONFIGURED", Integer.toString(id));
         });
+    }
+    private static Draft validated(Draft draft) {
+        if (!plainText(draft.name(), 31) || draft.name().isBlank())
+            throw new Problem(400, "INVALID_TITLE", "名称必填，最多 31 个 GBK 字节（约 15 个汉字），使用纯文本");
+        if (!plainText(draft.description(), 64) || draft.sortOrder() < 0 || draft.sortOrder() > 9999)
+            throw new Problem(400, "INVALID_TITLE", "介绍最多 64 个 GBK 字节（约 32 个汉字），使用纯文本；排序范围为 0–9999");
+        return new Draft(draft.name().strip(), draft.description().strip(), draft.sortOrder(), draft.enabled());
+    }
+    private static boolean plainText(String text, int bytes) {
+        return text != null && GBK.newEncoder().canEncode(text) && text.getBytes(GBK).length <= bytes
+                && text.chars().noneMatch(c -> Character.isISOControl(c) || c == '<' || c == '>');
     }
     private void award(String account, Definition title, String source, Instant now) {
         db.grant(account, title.titleId(), source, now);
@@ -108,7 +140,7 @@ public class TitleService {
         if (!owner.sessionId().equals(current.sessionId()) || !Objects.equals(owner.connectionId(), connection))
             throw new Problem(409, "ONLINE_TAKEN_OVER", "在线资格已由其他连接接管");
     }
-    private Definition definition(int id) {
+    public Definition definition(int id) {
         Definition result = db.definition(id);
         if (result == null) throw Problem.missing();
         return result;

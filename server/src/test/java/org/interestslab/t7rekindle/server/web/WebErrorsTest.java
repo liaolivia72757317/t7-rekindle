@@ -20,7 +20,10 @@ class WebErrorsTest {
     private final AdminService admins = mock(AdminService.class);
     private final MockMvc mvc = MockMvcBuilders.standaloneSetup(
             new ApiController(auth, mock(PresenceService.class), mock(org.interestslab.t7rekindle.server.service.QqGroupService.class)),
-            new AdminController(admins, mock(AccountService.class), mock(SecretResults.class), mock(org.interestslab.t7rekindle.server.service.QqGroupAdminService.class)))
+            new AdminController(admins, mock(AccountService.class), mock(SecretResults.class),
+                    mock(org.interestslab.t7rekindle.server.service.QqGroupAdminService.class),
+                    mock(org.interestslab.t7rekindle.server.service.AnnouncementService.class),
+                    mock(org.interestslab.t7rekindle.server.service.GameNameService.class)))
             .setControllerAdvice(new WebErrors(JsonMapper.builder().build())).build();
 
     @Test void transactionAndDataAccessFailuresReturnUnavailableBody() throws Exception {

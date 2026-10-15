@@ -23,10 +23,16 @@ void Session::monitorTitles() {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 if (titleUpdates_.empty()) break;
+                while (titleUpdates_.size() > 1 && titleUpdates_.front().epoch < titleUpdates_.back().epoch)
+                    titleUpdates_.pop_front();
                 update = titleUpdates_.front();
             }
+            if (!update.descriptions.empty()) {
+                bootstrap_.updateTitleDescriptions(update.descriptions);
+                bootstrap_.pollTitleDescriptions();
+                if (!bootstrap_.titleCatalogueApplied()) break;
+            }
             server_->publishTitles(update.epoch, update.json, update.requestId, update.success);
-            if (!update.descriptions.empty()) bootstrap_.updateTitleDescriptions(update.descriptions);
             std::lock_guard<std::mutex> lock(mutex_); titleUpdates_.pop_front();
         }
         bootstrap_.pollTitleDescriptions();

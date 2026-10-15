@@ -13,6 +13,9 @@ public interface AuthMapper {
     @Select("SELECT * FROM account WHERE login_name = #{name} FOR UPDATE")
     Account lockByName(String name);
 
+    @Select("SELECT * FROM account WHERE login_name = #{name}")
+    Account accountByName(String name);
+
     @Select("SELECT * FROM account WHERE account_id = #{id} FOR UPDATE")
     Account lockAccount(String id);
 
@@ -25,14 +28,20 @@ public interface AuthMapper {
     @Select("SELECT * FROM auth_session WHERE session_id = #{id} FOR UPDATE")
     Session lockSession(String id);
 
-    @Insert("INSERT INTO account(account_id,login_name,password_hash) VALUES(#{id},#{name},#{hash})")
-    void createAccount(String id, String name, String hash);
+    @Insert("INSERT INTO account(account_id,login_name,password_hash,game_name) VALUES(#{id},#{name},#{hash},#{gameName})")
+    void createAccount(String id, String name, String hash, String gameName);
 
     @Insert("""
-        INSERT INTO account(account_id,login_name,qq_number,nickname,avatar_url)
-        VALUES(#{id},#{profile.qqNumber},#{profile.qqNumber},#{profile.nickname},#{profile.avatarUrl})
+        INSERT INTO account(account_id,login_name,qq_number,nickname,avatar_url,game_name)
+        VALUES(#{id},#{profile.qqNumber},#{profile.qqNumber},#{profile.nickname},#{profile.avatarUrl},#{gameName})
         """)
-    void createQqAccount(String id, QqProfile profile);
+    void createQqAccount(String id, QqProfile profile, String gameName);
+
+    @Update("UPDATE account SET game_name=#{gameName} WHERE account_id=#{id}")
+    void setGameName(String id, String gameName);
+
+    @Select("SELECT account_id FROM account WHERE game_name=#{gameName}")
+    String gameNameOwner(String gameName);
 
     @Update("UPDATE account SET nickname=#{profile.nickname},avatar_url=#{profile.avatarUrl} WHERE account_id=#{id}")
     void updateQqProfile(String id, QqProfile profile);
@@ -82,8 +91,8 @@ public interface AuthMapper {
     void heartbeat(String accountId, Instant now);
 
     @Select("""
-        SELECT a.account_id,a.login_name,a.status,a.created_at,a.qq_number,a.nickname,a.last_heartbeat_at,
-          (p.session_id IS NOT NULL AND p.lease_expires_at > UTC_TIMESTAMP(3) AND a.status='ACTIVE'
+        SELECT a.account_id,a.login_name,a.status,a.created_at,a.qq_number,a.nickname,a.last_heartbeat_at,a.game_name,
+          (p.session_id IS NOT NULL AND p.lease_expires_at > UTC_TIMESTAMP(3) AND a.status='ACTIVE' AND a.game_name IS NOT NULL
             AND s.expires_at > UTC_TIMESTAMP(3) AND s.revoked_at IS NULL AND s.auth_epoch=a.auth_epoch) AS online,
           c.checked_at AS group_checked_at,c.result AS group_check_result
         FROM account a
@@ -97,12 +106,24 @@ public interface AuthMapper {
     List<AccountView> accounts(String prefix, int offset);
 
     @Select("""
+        SELECT COUNT(*) AS total,
+          COALESCE(SUM(a.status='ACTIVE'), 0) AS enabled,
+          COALESCE(SUM(CASE WHEN p.session_id IS NOT NULL AND p.lease_expires_at > UTC_TIMESTAMP(3)
+            AND a.status='ACTIVE' AND a.game_name IS NOT NULL AND s.expires_at > UTC_TIMESTAMP(3) AND s.revoked_at IS NULL
+            AND s.auth_epoch=a.auth_epoch THEN 1 ELSE 0 END), 0) AS online
+        FROM account a
+        LEFT JOIN account_presence p ON p.account_id=a.account_id
+        LEFT JOIN auth_session s ON s.session_id=p.session_id
+        """)
+    AccountStats accountStats();
+
+    @Select("""
         SELECT s.session_id,s.created_at,s.expires_at,
           CASE WHEN s.revoked_at IS NOT NULL OR s.auth_epoch != a.auth_epoch OR a.status != 'ACTIVE' THEN 'REVOKED'
                WHEN s.expires_at <= UTC_TIMESTAMP(3) THEN 'EXPIRED' ELSE 'VALID' END AS credential_state,
           (p.session_id IS NOT NULL AND p.lease_expires_at > UTC_TIMESTAMP(3)
             AND s.expires_at > UTC_TIMESTAMP(3) AND s.revoked_at IS NULL
-            AND s.auth_epoch = a.auth_epoch AND a.status = 'ACTIVE') AS online,
+            AND s.auth_epoch = a.auth_epoch AND a.status = 'ACTIVE' AND a.game_name IS NOT NULL) AS online,
           p.lease_expires_at
         FROM auth_session s JOIN account a ON a.account_id=s.account_id
         LEFT JOIN account_presence p ON p.account_id=s.account_id AND p.session_id=s.session_id

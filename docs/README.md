@@ -11,6 +11,7 @@
 | 从源码构建、测试或制作运行包 | [开发与交付](development.md) |
 | 为社区项目命名，区分原游戏和兼容标识 | [项目命名规范](development.md#项目命名规范) |
 | 了解 UI 1.1 的接入、状态绑定和界面验收 | [UI 1.1 实施与验收](planning/ui-handoff-v1.1.md) |
+| 修改服务端管理页面，检查公共组件与交互状态 | [管理 UI 规范](planning/admin-ui.md) · [验收表](planning/admin-ui-checklist.md) |
 | 理解模块职责、进程关系和启动流程 | [架构说明](architecture.md) |
 | 了解原版客户端无 TP 启动的验证结果与实施前置 | [TP 纯内存启动方案](planning/tp-memory-launch.md) |
 | 查找源码、测试、构建产物或内置文档 | [目录与源码范围](source-layout.md) |

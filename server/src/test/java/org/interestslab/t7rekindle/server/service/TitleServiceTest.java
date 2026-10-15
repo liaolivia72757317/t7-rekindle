@@ -87,15 +87,23 @@ class TitleServiceTest {
         service.revoke(admin, "account", 1008);
         verify(db).revoke("account", 1008, now);
         verify(db).clearEquipped("account", 1008);
-        service.configure(admin, 1008, new Draft("测试纪念", 2, false));
+        service.configure(admin, 1008, new Draft(null, "测试纪念", 2, false));
         verify(db).clearTitle(1008);
         verify(audit).audit("admin", "TITLE_CONFIGURED", "1008");
     }
 
+    @Test void originalTitleAcceptsItsExistingNameButRejectsRenaming() {
+        service.configure(admin, 1008, new Draft("内测精英", "测试纪念", 2, true));
+        verify(db).configure(eq(1008), argThat(draft -> draft.name().equals("内测精英")));
+        assertThatThrownBy(() -> service.configure(admin, 1008, new Draft("新名称", "测试纪念", 2, true)))
+                .isInstanceOfSatisfying(Problem.class,
+                        error -> assertThat(error.code()).isEqualTo("ORIGINAL_TITLE_NAME"));
+    }
+
     @Test void descriptionsFitOriginalClientAndRejectMarkupOrUnsupportedCharacters() {
         for (String text : List.of("长".repeat(33), "<b>说明</b>", "😀", "bad\u0000text"))
-            assertThatThrownBy(() -> service.configure(admin, 1008, new Draft(text, 0, true))).isInstanceOf(Problem.class);
-        service.configure(admin, 1008, new Draft("", 0, true));
+            assertThatThrownBy(() -> service.configure(admin, 1008, new Draft(null, text, 0, true))).isInstanceOf(Problem.class);
+        service.configure(admin, 1008, new Draft(null, "", 0, true));
         verify(db).configure(eq(1008), any());
     }
 
@@ -148,10 +156,10 @@ class TitleServiceTest {
     }
 
     @Test void configurationBoundsAndReenableNeverReequip() {
-        for (Draft draft : List.of(new Draft(null, 0, true), new Draft("text", -1, true),
-                new Draft("text", 10000, true), new Draft("a>b", 0, true)))
+        for (Draft draft : List.of(new Draft(null, null, 0, true), new Draft(null, "text", -1, true),
+                new Draft(null, "text", 10000, true), new Draft(null, "a>b", 0, true)))
             assertThatThrownBy(() -> service.configure(admin, 1008, draft)).isInstanceOf(Problem.class);
-        service.configure(admin, 1008, new Draft("长".repeat(32), 9999, true));
+        service.configure(admin, 1008, new Draft(null, "长".repeat(32), 9999, true));
         verify(db, never()).clearTitle(anyInt());
         verify(db, never()).equip(anyString(), any());
     }

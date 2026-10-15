@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('账户称号')}"></head>
+<body class="ui-scope"><header th:replace="~{fragments :: managementNav('accounts')}"></header>
+<main class="ui-container ui-main" id="main-content" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs('玩家管理', '账户与会话', @{/admin/accounts}, '账户称号')}"></nav>
+  <a class="btn ui-btn-secondary admin-back" th:href="@{/admin/accounts/{id}(id=${account.accountId})}">← 账户详情</a>
+  <header class="ui-page-header"><div><h1 th:text="${account.loginName}" class="ui-page-title"></h1><p class="ui-text-secondary">无已佩戴称号时自动佩戴；撤销后不自动补发。</p></div></header>
+  <section class="card admin-panel" th:each="item : ${snapshot.titles}">
+    <h2 th:text="${item.name}"></h2>
+    <span class="ui-status" th:text="${snapshot.equippedTitleId == item.titleId ? '已佩戴' : (item.owned ? '已持有' : (item.revokedAt != null ? '已撤销' : '未获得'))}"></span>
+    <p class="ui-text-secondary" th:text="${item.rule}"></p>
+    <p th:if="${item.grantedAt != null}"><span th:text="${item.source == 'ADMIN' ? '管理员授予' : '登录奖励'}"></span> · <th:block th:replace="~{fragments :: localTime(${item.grantedAt}, '—')}"></th:block></p>
+    <p th:if="${item.revokedAt != null}">撤销时间：<th:block th:replace="~{fragments :: localTime(${item.revokedAt}, '—')}"></th:block></p>
+    <form th:unless="${item.owned}" th:action="@{/admin/accounts/{account}/titles/{id}/grant(account=${account.accountId},id=${item.titleId})}" method="post" data-confirm-danger="false" data-confirm="确认授予此称号？"><button type="submit" class="btn btn-primary">授予称号</button></form>
+    <form th:if="${item.owned}" th:action="@{/admin/accounts/{account}/titles/{id}/revoke(account=${account.accountId},id=${item.titleId})}" method="post" data-confirm="确认撤销此称号？已佩戴时将同步卸下，重新登录不会自动补发。"><button class="btn btn-outline-danger" type="submit">撤销称号</button></form>
+  </section>
+</main>
+<th:block th:replace="~{fragments :: footer}"></th:block></body></html>

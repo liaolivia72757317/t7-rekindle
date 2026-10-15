@@ -106,7 +106,7 @@ namespace T7R.Desktop.ViewModels
                 && NativeBridgeContract.IsUtf8PathAcceptable(ClientDirectory));
             StartCommand = new AsyncRelayCommand(StartAsync, () => CanStart);
             MainActionCommand = new AsyncRelayCommand(ExecuteMainActionAsync,
-                () => !IsBusy && !_isValidating);
+                () => !IsBusy && !_isValidating && !Account.IsRegistrationOpen);
             CancelCommand = new RelayCommand(Cancel, () => CanCancel);
             StopCommand = new AsyncRelayCommand(StopAsync, () => CanStop);
             ShowHomeCommand = new RelayCommand(() => SelectedPage = 0);
@@ -133,6 +133,8 @@ namespace T7R.Desktop.ViewModels
             var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
             _poller = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background,
                 (_, __) => Poll(), dispatcher);
+            Account.PropertyChanged += OnAccountChanged;
+            OnAccountChanged(Account, new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
             _poller.Start();
             ValidationTask = ValidateDirectoryAsync(false);
         }
@@ -160,7 +162,7 @@ namespace T7R.Desktop.ViewModels
             get => _playerName;
             set
             {
-                if (AreSessionFieldsLocked) return;
+                if (ArePlayerNameFieldsLocked) return;
                 SetProperty(ref _playerName, value ?? string.Empty);
                 _hasEditedPlayerName = true;
                 OnPropertyChanged(nameof(PlayerNameError));
@@ -210,7 +212,7 @@ namespace T7R.Desktop.ViewModels
         public bool AreSessionFieldsLocked => _operationActive ? _activeKind != OperationKind.Check
             : IsBusy && _snapshot.State != SessionState.Checking;
         public bool CanClose => !IsBusy;
-        public bool CanStart => !IsBusy && !_isValidating && !_directoryHasDraft && _directoryResult.IsValid && !HasPlayerNameError && !_hasSaveError;
+        public bool CanStart => !Account.IsRegistrationOpen && !IsBusy && !_isValidating && !_directoryHasDraft && _directoryResult.IsValid && !HasPlayerNameError && !_hasSaveError;
         public bool CanCancel => _operationCancellation != null && !_operationCancellation.IsCancellationRequested
             && (_snapshot.State == SessionState.StartingRuntime || _snapshot.State == SessionState.Checking
                 || ((_activeKind == OperationKind.Check || _activeKind == OperationKind.Start)
@@ -274,6 +276,7 @@ namespace T7R.Desktop.ViewModels
 
         private Task ExecuteMainActionAsync()
         {
+            if (Account.IsRegistrationOpen) return Task.CompletedTask;
             if (!_directoryResult.IsValid || HasPlayerNameError || _directoryHasDraft)
             {
                 ShowSettingsCommand.Execute(null);
@@ -352,6 +355,7 @@ namespace T7R.Desktop.ViewModels
             _poller.Stop();
             About.PropertyChanged -= OnUpdateActivityChanged;
             About.Dispose();
+            Account.PropertyChanged -= OnAccountChanged;
             Account.Dispose();
             GameSessionEnded -= TriggerUpdateCheck;
             _validationCancellation?.Cancel();

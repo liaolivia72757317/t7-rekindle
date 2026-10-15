@@ -14,7 +14,7 @@ namespace T7R.Desktop.ViewModels
         public bool IsMultiplayerSelected { get => SelectedPage == 3; set { if (value) SelectedPage = 3; } }
         public bool IsUpdateSelected { get => SelectedPage == 4; set { if (value) SelectedPage = 4; } }
         public int SettingsTabIndex { get => _settingsTabIndex; set => SetProperty(ref _settingsTabIndex, value); }
-        public string SavedPlayerName => string.IsNullOrEmpty(_savedName) ? "未设置" : _savedName;
+        public string SavedPlayerName => Account.IsSignedIn ? Account.GameName : string.IsNullOrEmpty(_savedName) ? "未设置" : _savedName;
         public string SavedClientDirectory => string.IsNullOrEmpty(_savedDirectory) ? "未设置" : _savedDirectory;
         public string MainActionIcon => MainActionText == "启动中…" ? "hourglass"
             : IsBusy ? "loader" : !_directoryResult.IsValid || HasPlayerNameError ? "settings" : "play";

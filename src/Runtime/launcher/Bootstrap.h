@@ -45,6 +45,7 @@ public:
     void applyAudio(const AudioValues& values);
     void updateTitleDescriptions(const Bytes& bytes) { graphicsSettings_.titles().update(bytes); }
     void pollTitleDescriptions() { graphicsSettings_.titles().poll(); }
+    bool titleCatalogueApplied() { return graphicsSettings_.titles().applied(); }
     bool pollWorld(WorldSnapshot& value);
 private:
     HANDLE process_ = nullptr;

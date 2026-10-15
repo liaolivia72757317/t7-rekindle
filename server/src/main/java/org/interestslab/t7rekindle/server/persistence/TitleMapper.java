@@ -13,6 +13,17 @@ public interface TitleMapper {
     List<Definition> definitions();
     @Select("SELECT * FROM player_title WHERE title_id=#{id}")
     Definition definition(int id);
+    @Insert("INSERT INTO player_title(title_id,name,description,sort_order,enabled) VALUES(#{id},#{draft.name},#{draft.description},#{draft.sortOrder},#{draft.enabled})")
+    void create(int id, Draft draft);
+    @Select("""
+            SELECT a.account_id,a.login_name,a.nickname,t.state,t.granted_at,t.revoked_at,
+              COALESCE(s.title_id=#{id},FALSE) AS equipped
+            FROM account a
+            LEFT JOIN account_title t ON t.account_id=a.account_id AND t.title_id=#{id}
+            LEFT JOIN account_title_selection s ON s.account_id=a.account_id
+            WHERE a.login_name LIKE CONCAT(#{prefix},'%') ORDER BY a.login_name LIMIT 50 OFFSET #{offset}
+            """)
+    List<Recipient> recipients(int id, String prefix, int offset);
     @Select("SELECT title_id,state,source,granted_at,revoked_at FROM account_title WHERE account_id=#{account} AND title_id=#{id}")
     Grant grantRecord(String account, int id);
     @Select("SELECT title_id,state,source,granted_at,revoked_at FROM account_title WHERE account_id=#{account}")
@@ -40,6 +51,6 @@ public interface TitleMapper {
     void clearEquipped(String account, int id);
     @Update("UPDATE account_title_selection SET title_id=NULL WHERE title_id=#{id}")
     void clearTitle(int id);
-    @Update("UPDATE player_title SET description=#{draft.description},sort_order=#{draft.sortOrder},enabled=#{draft.enabled} WHERE title_id=#{id}")
+    @Update("UPDATE player_title SET name=#{draft.name},description=#{draft.description},sort_order=#{draft.sortOrder},enabled=#{draft.enabled} WHERE title_id=#{id}")
     void configure(int id, Draft draft);
 }

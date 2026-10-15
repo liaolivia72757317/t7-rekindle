@@ -61,7 +61,7 @@
               <TextBlock Text="玩家名称" FontSize="18" FontWeight="SemiBold" />
               <TextBlock x:Name="SavedPlayerName" Text="{Binding SavedPlayerName}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding SavedPlayerName}" Focusable="True" GotKeyboardFocus="OnValueFocused" LostKeyboardFocus="OnValueBlurred" AutomationProperties.Name="已保存玩家名称" />
             </StackPanel>
-            <Button Grid.Column="2" Content="修改" Command="{Binding ShowSettingsCommand}" Height="44" VerticalAlignment="Center" AutomationProperties.Name="修改玩家名称" TabIndex="9" />
+            <Button Grid.Column="2" Content="修改" IsEnabled="{Binding CanEditPlayerName}" Command="{Binding ShowSettingsCommand}" Height="44" VerticalAlignment="Center" AutomationProperties.Name="修改玩家名称" TabIndex="9" />
           </Grid>
           <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
             <Grid>

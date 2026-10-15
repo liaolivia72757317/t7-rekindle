@@ -130,7 +130,9 @@ def test_configuration_is_edited_only_in_settings_and_error_is_inline():
     fields = _find(settings, "TextBox")
     assert [item.attrib["AutomationProperties.Name"] for item in fields] == ["玩家名称", "游戏根目录"]
     assert all("UpdateSourceTrigger=Explicit" in item.attrib["Text"] for item in fields)
-    assert all(item.attrib["IsReadOnly"] == "{Binding AreSessionFieldsLocked}" for item in fields)
+    assert [item.attrib["IsReadOnly"] for item in fields] == [
+        "{Binding ArePlayerNameFieldsLocked}", "{Binding AreSessionFieldsLocked}"
+    ]
     assert {"{Binding NameFieldError}", "{Binding DirectoryFieldError}"} <= {item.attrib.get("Text") for item in _find(settings, "TextBlock")}
     assert not any("保存" in item.attrib.get("Content", "") for item in _find(settings, "Button"))
 

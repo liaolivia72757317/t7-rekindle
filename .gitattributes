@@ -1,2 +1,3 @@
 src/Business/vendor/** -text -whitespace
 src/Business/vendor/*.dist-info/METADATA conflict-marker-size=32
+server/src/main/resources/static/admin/assets/vendor/** -text -whitespace

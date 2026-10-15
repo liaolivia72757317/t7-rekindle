@@ -30,6 +30,7 @@ public class PresenceService {
         return tx.execute(status -> {
             titles.lockCatalogue();
             Identity current = auth.requireLocked(identity);
+            GameNameRules.requireRegistered(current.gameName());
             Presence previous = db.lockPresence(current.accountId());
             Instant now = db.now();
             var result = save(current, UUID.randomUUID().toString(), now);
@@ -43,6 +44,7 @@ public class PresenceService {
         groups.require(identity.qqNumber(), true);
         return tx.execute(status -> {
             Identity current = auth.requireLocked(identity);
+            GameNameRules.requireRegistered(current.gameName());
             Instant now = db.now();
             requireOwner(current, connectionId, now);
             db.heartbeat(current.accountId(), now);

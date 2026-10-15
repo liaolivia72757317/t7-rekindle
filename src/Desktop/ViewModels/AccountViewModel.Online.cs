@@ -16,7 +16,12 @@ namespace T7R.Desktop.ViewModels
             if (!_signedIn) { await RestoreAsync().ConfigureAwait(true); return; }
             int generation = Begin();
             _busy = true;
-            try { await ConnectAsync(generation, _lifetime.Token).ConfigureAwait(true); }
+            try
+            {
+                StartNameSync();
+                await RefreshGameNameAsync(_lifetime.Token).ConfigureAwait(true);
+                if (IsCurrent(generation)) await ConnectAsync(generation, _lifetime.Token).ConfigureAwait(true);
+            }
             catch (Exception error)
             {
                 if (IsCurrent(generation) && !HandleTerminal(error)) { SetStatus("已登录 · 上线失败，请重试"); Record(DiagnosticLogLevel.Error, "账号上线失败", error); }

@@ -125,7 +125,7 @@ namespace T7R.ManagedHarness
             var api = new FakeApi { PendingLogin = loginResponse.Task, PendingOnline = onlineResponse.Task };
             var session = api.Session;
             api.Session = new AccountSession(session.SessionId, session.SessionToken, session.ExpiresAt, session.AccountId,
-                session.LoginName, session.MachineId, session.QqNumber, "重燃玩家", null);
+                session.LoginName, session.MachineId, session.QqNumber, "重燃玩家", null, session.GameName);
             using (var model = Model(api, new MemoryStore(), new ManualDelay()))
             {
                 var panel = new AccountPanel { DataContext = model, HorizontalAlignment = HorizontalAlignment.Right,

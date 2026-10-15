@@ -59,9 +59,9 @@ namespace T7R.Desktop.ViewModels
 
         private Task StartAsync()
         {
+            if (!CanStart) return Task.CompletedTask;
             SelectedPage = 0;
             var directory = ClientDirectory;
-            var name = PlayerName.Trim();
             var version = _validationVersion;
             var skipStartupAnimation = SkipStartupAnimation;
             var outputDevice = ParseOutputDevice(SelectedOutputDeviceId);
@@ -73,7 +73,6 @@ namespace T7R.Desktop.ViewModels
                 if (!result.IsValid) throw new InvalidOperationException(result.Message);
                 token.ThrowIfCancellationRequested();
                 SetProperty(ref _clientDirectory, result.Root, nameof(ClientDirectory));
-                SetProperty(ref _playerName, name, nameof(PlayerName));
                 if (!SaveValidatedFields()) throw new InvalidOperationException(SettingsFeedback);
                 _bridge.SetOutputDevice(outputDevice);
                 var check = await _bridge.CheckAsync(result.Directory, token);
@@ -81,6 +80,11 @@ namespace T7R.Desktop.ViewModels
                 token.ThrowIfCancellationRequested();
                 _activeOutputDevice = outputDevice;
                 _outputDeviceConfirmed = false;
+                if (Account.IsRegistrationOpen) throw new InvalidOperationException("请先设置游戏名称，完成注册。");
+                var name = PlayerName.Trim();
+                string nameError = PlayerNameRules.Validate(name);
+                if (nameError.Length != 0) throw new InvalidOperationException(nameError);
+                SetProperty(ref _playerName, name, nameof(PlayerName));
                 return await _bridge.StartAsync(result.Directory, name, skipStartupAnimation, token);
             }, OperationKind.Start, "启动");
         }
@@ -241,7 +245,7 @@ namespace T7R.Desktop.ViewModels
                 Present("准备就绪", string.Empty, "Success", "✓", "启动游戏");
             else Present("准备就绪", string.Empty, "Success", "✓", "启动游戏");
 
-            foreach (var property in new[] { nameof(IsBusy), nameof(CanClose), nameof(AreSessionFieldsLocked), nameof(CanStart),
+            foreach (var property in new[] { nameof(IsBusy), nameof(CanClose), nameof(AreSessionFieldsLocked), nameof(ArePlayerNameFieldsLocked), nameof(CanEditPlayerName), nameof(CanStart),
                 nameof(CanCancel), nameof(CanStop), nameof(StopButtonText), nameof(CancelButtonText), nameof(ShowProgress),
                 nameof(EndpointText), nameof(StageText), nameof(DirectoryMessage), nameof(IsDirectoryValid),
                 nameof(HasDirectoryError), nameof(DirectorySymbol), nameof(HasSessionLog), nameof(MainActionIcon),

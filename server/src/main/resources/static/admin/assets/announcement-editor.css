@@ -1,0 +1,33 @@
+.ui-scope .EasyMDEContainer { min-width: 0; }
+.ui-scope .EasyMDEContainer .editor-toolbar {
+  display: flex; flex-wrap: wrap; gap: var(--ui-space-1); padding: var(--ui-space-2);
+  border-color: var(--ui-control-border); border-radius: var(--ui-radius-control) var(--ui-radius-control) 0 0;
+  background: var(--ui-surface-muted); opacity: 1;
+}
+.ui-scope .EasyMDEContainer .editor-toolbar::before,
+.ui-scope .EasyMDEContainer .editor-toolbar::after { content: none; }
+.ui-scope .EasyMDEContainer .editor-toolbar button {
+  width: auto; height: var(--ui-control-sm); padding: 0 var(--ui-space-2);
+  color: var(--ui-text); font: inherit; border-radius: var(--ui-radius-control);
+}
+.ui-scope .EasyMDEContainer .editor-toolbar button:hover,
+.ui-scope .EasyMDEContainer .editor-toolbar button.active { background: var(--ui-primary-soft); border-color: var(--ui-primary); }
+.ui-scope .EasyMDEContainer .editor-toolbar button:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
+.ui-scope .EasyMDEContainer .editor-toolbar button:disabled { opacity: .5; cursor: wait; }
+.ui-scope .EasyMDEContainer .CodeMirror {
+  border-color: var(--ui-control-border); border-radius: 0 0 var(--ui-radius-control) var(--ui-radius-control);
+  background: var(--ui-surface); color: var(--ui-text); font-family: var(--ui-font-mono); font-size: var(--ui-text-sm);
+}
+.ui-scope .EasyMDEContainer .CodeMirror-focused { border-color: var(--ui-primary); }
+.ui-scope .EasyMDEContainer.is-invalid .CodeMirror { border-color: var(--ui-danger); }
+.ui-scope .EasyMDEContainer .editor-preview { background: var(--ui-surface); font-family: var(--ui-font-sans); overflow-wrap: anywhere; }
+.ui-scope .EasyMDEContainer .editor-preview p,
+.ui-scope .EasyMDEContainer .editor-preview ul,
+.ui-scope .EasyMDEContainer .editor-preview ol { margin: 0 0 var(--ui-space-3); }
+.ui-scope .EasyMDEContainer .editor-preview h1 { font-size: 22px; }
+.ui-scope .EasyMDEContainer .editor-preview h2 { font-size: 18px; }
+.ui-scope .EasyMDEContainer .editor-preview h3 { font-size: 16px; }
+.ui-scope .EasyMDEContainer .editor-preview h4 { font-size: 14px; }
+.ui-scope .EasyMDEContainer .editor-preview h5,
+.ui-scope .EasyMDEContainer .editor-preview h6 { font-size: 13px; }
+.ui-scope .admin-markdown-count { text-align: right; color: var(--ui-text-secondary); font-size: var(--ui-text-xs); padding-top: var(--ui-space-1); }

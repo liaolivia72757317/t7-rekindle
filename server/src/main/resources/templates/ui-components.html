@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('组件验收')}"></head>
+<body class="ui-scope">
+<header th:replace="~{fragments :: managementNav('ui-components')}"></header>
+<main class="ui-container ui-main" id="main-content" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs(null, null, null, '组件验收')}"></nav>
+  <header class="ui-page-header"><div><h1 class="ui-page-title">公共组件验收</h1><p class="ui-page-description">仅含示例数据。</p></div><span class="ui-status ui-status--info">Tabler 1.6.1</span></header>
+  <div class="ui-grid">
+    <section class="card admin-panel ui-span-6"><h2>按钮与状态</h2>
+      <div class="admin-showcase-row"><button type="button" class="btn btn-primary" data-demo-toast="success">显示成功通知</button><button type="button" class="btn ui-btn-secondary" data-demo-toast="info">显示普通通知</button><button type="button" class="btn btn-outline-danger" data-demo-confirm>确认操作</button></div>
+      <div class="admin-showcase-row"><button type="button" class="btn ui-btn-secondary" disabled aria-describedby="disabled-help">不可用</button><button type="button" class="btn btn-primary" disabled aria-busy="true"><span class="admin-loading" aria-hidden="true"></span>处理中</button><button type="button" class="btn ui-btn-secondary ui-icon-button" data-bs-toggle="tooltip" title="查看组件说明" aria-label="查看组件说明"><svg th:replace="~{fragments :: icon('info-circle')}"></svg></button></div>
+      <p class="form-hint" id="disabled-help">按 Tab 检查焦点样式。</p>
+      <div class="admin-showcase-row"><span class="ui-status">未启用</span><span class="ui-status ui-status--success">已完成</span><span class="ui-status ui-status--warning">待处理</span><span class="ui-status ui-status--danger">失败</span><span class="ui-status ui-status--info">处理中</span></div>
+    </section>
+    <section class="card admin-panel ui-span-6"><h2>菜单与浮层</h2>
+      <div class="admin-showcase-row">
+        <div class="dropdown"><button class="btn ui-btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">更多操作</button><div class="dropdown-menu"><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#example-modal">查看说明</button><button class="dropdown-item" type="button" data-demo-confirm>打开确认</button></div></div>
+        <button class="btn ui-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#example-modal">打开弹窗</button>
+        <button class="btn ui-btn-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#example-drawer" aria-controls="example-drawer">打开抽屉</button>
+      </div>
+      <p class="ui-text-secondary">检查 Esc 关闭、Tab 循环和关闭后的焦点回归。危险确认初始聚焦“取消”。</p>
+      <button class="btn btn-outline-danger" type="button" data-demo-toast="warning">显示持久提醒</button>
+      <p class="form-hint">普通通知自动关闭；悬停或聚焦暂停。重复通知合并计数，同时最多显示三条。</p>
+    </section>
+    <section class="card admin-panel ui-span-12"><h2>表单与校验</h2>
+      <form class="admin-form" data-demo data-dirty>
+        <div class="ui-form-grid">
+          <div class="admin-field"><label class="form-label" for="sample-name">名称 <span aria-hidden="true">*</span></label><input class="form-control" id="sample-name" name="name" required maxlength="32" placeholder="例如：测试分组" aria-describedby="sample-name-help"><p class="form-hint" id="sample-name-help">必填，最多 32 个字符。留空提交可查看错误状态。</p></div>
+          <div class="admin-field"><label class="form-label" for="sample-select">显示范围</label><select class="form-select" id="sample-select" name="scope"><option>全部</option><option>仅当前页</option></select></div>
+          <div class="admin-field"><label class="form-label" for="sample-readonly">只读编号</label><input class="form-control" id="sample-readonly" value="EXAMPLE-001" readonly></div>
+          <div class="admin-field"><label class="form-label" for="sample-disabled">禁用字段</label><input class="form-control" id="sample-disabled" value="示例值" disabled aria-describedby="sample-disabled-help"><p class="form-hint" id="sample-disabled-help">只展示禁用状态。</p></div>
+          <div class="admin-field ui-form-full"><label class="form-label" for="sample-description">说明</label><textarea class="form-control" id="sample-description" name="description" rows="3" maxlength="200"></textarea></div>
+          <label class="form-check"><input class="form-check-input" type="checkbox" name="enabled"><span class="form-check-label">允许展示</span></label>
+        </div>
+        <div class="ui-form-actions"><button type="reset" class="btn ui-btn-secondary">重置</button><button type="submit" class="btn btn-primary">验证表单</button></div>
+      </form>
+    </section>
+    <section class="card admin-panel ui-span-12"><h2>表格与本页选择</h2>
+      <div class="ui-actions" id="sample-selection" hidden><span role="status" id="sample-selection-count"></span><button class="btn btn-link" type="button" id="sample-clear">取消选择</button></div>
+      <div class="ui-table-scroll" tabindex="0" aria-label="组件示例表格"><table class="table ui-table" id="sample-table">
+        <thead><tr><th scope="col" class="ui-center"><input class="form-check-input" type="checkbox" id="sample-all" aria-label="选择本页全部示例"></th><th scope="col" aria-sort="none" id="sample-sort-header"><button class="btn btn-link btn-sm" type="button" id="sample-sort">组件名称 <span aria-hidden="true" id="sample-sort-direction">↕</span></button></th><th scope="col">状态</th><th scope="col" class="ui-numeric">示例数量</th><th scope="col">操作</th></tr></thead>
+        <tbody>
+          <tr><td class="ui-center"><input class="form-check-input" type="checkbox" aria-label="选择按钮"></td><td>按钮</td><td><span class="ui-status ui-status--success">可用</span></td><td class="ui-numeric">12</td><td><button type="button" class="btn btn-link btn-sm" data-bs-toggle="modal" data-bs-target="#example-modal">查看说明</button></td></tr>
+          <tr><td class="ui-center"><input class="form-check-input" type="checkbox" aria-label="选择表单"></td><td>表单</td><td><span class="ui-status ui-status--success">可用</span></td><td class="ui-numeric">6</td><td><button type="button" class="btn btn-link btn-sm" data-bs-toggle="modal" data-bs-target="#example-modal">查看说明</button></td></tr>
+          <tr><td class="ui-center"><input class="form-check-input" type="checkbox" aria-label="选择通知"></td><td>通知</td><td><span class="ui-status ui-status--warning">待验收</span></td><td class="ui-numeric">4</td><td><button type="button" class="btn btn-link btn-sm" data-bs-toggle="modal" data-bs-target="#example-modal">查看说明</button></td></tr>
+        </tbody>
+      </table></div>
+      <div class="ui-pagination"><span class="admin-page-count">共 3 条示例 · 选择仅作用于本页</span><span>第 1 页</span></div>
+    </section>
+    <section class="card admin-panel ui-span-4"><h2>暂无内容</h2><div class="ui-empty"><svg th:replace="~{fragments :: icon('inbox')}"></svg><strong>暂无示例记录</strong></div></section>
+    <section class="card admin-panel ui-span-4"><h2>加载失败</h2><div class="alert alert-danger">示例数据读取失败，请重试。</div><button class="btn ui-btn-secondary" type="button" data-demo-retry>重试示例</button><p class="form-hint" role="status" id="sample-retry-status"></p></section>
+    <section class="card admin-panel ui-span-4"><h2>局部刷新</h2><p class="ui-text-secondary" role="status"><span class="admin-loading" aria-hidden="true"></span> 正在更新示例内容…</p><div class="alert alert-warning">连接中断时应标明内容可能不是最新。</div></section>
+  </div>
+</main>
+<div class="modal ui-modal fade" id="example-modal" tabindex="-1" aria-labelledby="example-modal-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title" id="example-modal-title">组件说明</h2><button class="btn ui-btn-secondary ui-icon-button" type="button" data-bs-dismiss="modal" aria-label="关闭组件说明"><svg th:replace="~{fragments :: icon('x')}"></svg></button></div>
+    <div class="modal-body"><p>标准弹窗最大宽度 640 px，标题和操作区保持可达。较长内容仅在此区域滚动。</p><p>不会提交业务操作。</p></div>
+    <div class="modal-footer"><button class="btn ui-btn-secondary" type="button" data-bs-dismiss="modal">关闭说明</button></div>
+  </div></div>
+</div>
+<div class="offcanvas offcanvas-end ui-drawer" id="example-drawer" tabindex="-1" aria-labelledby="example-drawer-title">
+  <div class="offcanvas-header"><h2 id="example-drawer-title">详情抽屉</h2><button class="btn ui-btn-secondary ui-icon-button" type="button" data-bs-dismiss="offcanvas" aria-label="关闭详情抽屉"><svg th:replace="~{fragments :: icon('x')}"></svg></button></div>
+  <div class="offcanvas-body"><p>标准宽度 480 px，窄屏使用全宽。背景不可交互，关闭后焦点回到触发按钮。</p><dl><dt>示例名称</dt><dd>通用详情</dd><dt>展示状态</dt><dd><span class="ui-status ui-status--success">可用</span></dd></dl></div>
+</div>
+<th:block th:replace="~{fragments :: footer}"></th:block>
+<script defer th:src="@{/admin/assets/ui-components.js}"></script>
+</body>
+</html>

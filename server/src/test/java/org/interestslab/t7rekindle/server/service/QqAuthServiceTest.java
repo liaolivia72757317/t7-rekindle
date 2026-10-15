@@ -20,7 +20,7 @@ class QqAuthServiceTest {
     private static final String COOKIE = "uin=o12345; skey=TEST_SESSION";
     private final Instant now = Instant.parse("2026-01-01T00:00:00Z");
     private final QqProfile profile = new QqProfile("12345", "测试昵称", "https://q.qlogo.cn/g?b=qq&nk=12345&s=100");
-    private final Account account = new Account("id", "12345", null, "ACTIVE", 0, now, "12345", "旧昵称", profile.avatarUrl());
+    private final Account account = new Account("id", "12345", null, "ACTIVE", 0, now, "12345", "旧昵称", profile.avatarUrl(), "Player");
     private final AuthMapper db = mock(AuthMapper.class);
     private final AdminMapper audit = mock(AdminMapper.class);
     private final Secrets secrets = mock(Secrets.class);
@@ -39,12 +39,12 @@ class QqAuthServiceTest {
 
     @Test void createsQqAccountWithNumericLoginAndFixedMachineBoundSession() {
         when(db.lockByName("12345")).thenReturn(null, account);
-        var result = service.login(MACHINE.toUpperCase(), COOKIE, "IP");
+        var result = service.login(MACHINE.toUpperCase(), COOKIE, "IP", "Player");
         assertThat(result.loginName()).isEqualTo("12345");
         assertThat(result.machineId()).isEqualTo(MACHINE);
         assertThat(result.nickname()).isEqualTo(profile.nickname());
         assertThat(result.expiresAt()).isEqualTo(now.plusSeconds(30L * 86400));
-        verify(db).createQqAccount(any(), eq(profile));
+        verify(db).createQqAccount(any(), eq(profile), anyString());
         verify(db).createSession(argThat(s -> s.machineId().equals(MACHINE) && s.tokenHash().equals(Secrets.hash(result.sessionToken()))));
         verify(limiter).check("qq", "12345", "IP");
         verify(db, never()).savePresence(any());
@@ -52,34 +52,51 @@ class QqAuthServiceTest {
 
     @Test void retriesConcurrentCreationInNewTransaction() {
         when(db.lockByName("12345")).thenReturn(null, account);
-        doThrow(new DuplicateKeyException("duplicate")).when(db).createQqAccount(any(), eq(profile));
-        assertThat(service.login(MACHINE, COOKIE, "IP").accountId()).isEqualTo("id");
+        doThrow(new DuplicateKeyException("duplicate")).when(db).createQqAccount(any(), eq(profile), anyString());
+        assertThat(service.login(MACHINE, COOKIE, "IP", "Player").accountId()).isEqualTo("id");
         verify(verifier, times(1)).verify(COOKIE);
     }
 
-    @Test void rejectedNonMemberStillCreatesAnAccountAndAuditsWithoutIssuingSession() {
-        when(db.lockByName("12345")).thenReturn(null, account);
-        var rejection = notMember("123456");
-        doThrow(rejection).when(groups).require("12345", false);
-        assertThatThrownBy(() -> service.login(MACHINE, COOKIE, "IP")).isSameAs(rejection);
-        verify(db).createQqAccount(any(), eq(profile));
-        verify(db).updateQqProfile("id", profile);
-        verify(audit).audit("id", "QQ_GROUP_NOT_MEMBER", rejection.getMessage());
-        verify(db, never()).lockSessions(any());
-        verify(db, never()).createSession(any());
-        verify(db, never()).savePresence(any());
-        verifyNoInteractions(secrets, events);
+    @Test void retriesExistingAccountSessionConflictWithoutRequestedName() {
+        doThrow(new DuplicateKeyException("duplicate")).doNothing().when(db).createSession(any());
+        assertThat(service.login(MACHINE, COOKIE, "IP").accountId()).isEqualTo("id");
+        verify(db).gameNameOwner(null);
+        verify(db, times(2)).createSession(any());
     }
 
-    @Test void rejectedConcurrentCreationRetriesAndKeepsOriginalRejection() {
-        when(db.lockByName("12345")).thenReturn(null, account);
-        doThrow(new DuplicateKeyException("duplicate")).when(db).createQqAccount(any(), eq(profile));
+    @Test void reportsNameConflictDuringConcurrentRegistration() {
+        when(db.lockByName("12345")).thenReturn(null);
+        when(db.gameNameOwner("Player")).thenReturn("another-account");
+        doThrow(new DuplicateKeyException("duplicate")).when(db).createQqAccount(any(), eq(profile), anyString());
+        assertThatThrownBy(() -> service.login(MACHINE, COOKIE, "IP", "Player"))
+                .isInstanceOfSatisfying(Problem.class,
+                        error -> assertThat(error.code()).isEqualTo("GAME_NAME_EXISTS"));
+        verify(db, times(1)).createQqAccount(any(), eq(profile), anyString());
+    }
+
+    @Test void completesExistingQqAccountRegistrationWithoutCreatingAnotherAccount() {
+        when(db.lockByName("12345")).thenReturn(new Account("id", "12345", null, "ACTIVE", 0,
+                now, "12345", "旧昵称", profile.avatarUrl(), null));
+        assertThat(service.login(MACHINE, COOKIE, "IP", "Player").gameName()).isEqualTo("Player");
+        verify(db).setGameName("id", "Player");
+        verify(db, never()).createQqAccount(any(), any(), any());
+    }
+
+    @Test void rejectedNewNonMemberDoesNotCreateAccountOrSession() {
+        when(db.lockByName("12345")).thenReturn(null);
         var rejection = notMember("123456");
         doThrow(rejection).when(groups).require("12345", false);
         assertThatThrownBy(() -> service.login(MACHINE, COOKIE, "IP")).isSameAs(rejection);
-        verify(audit).audit("id", "QQ_GROUP_NOT_MEMBER", rejection.getMessage());
-        verify(verifier).verify(COOKIE);
-        verify(groups).require("12345", false);
+        verify(db, never()).createQqAccount(any(), any(), any());
+        verify(db, never()).createSession(any());
+        verify(audit).audit("anonymous", "QQ_GROUP_NOT_MEMBER", rejection.getMessage());
+    }
+
+    @Test void missingNameDoesNotRegisterOrIssueCredentials() {
+        when(db.lockByName("12345")).thenReturn(null);
+        assertThatThrownBy(() -> service.login(MACHINE, COOKIE, "IP")).isInstanceOfSatisfying(Problem.class,
+                error -> assertThat(error.code()).isEqualTo("REGISTRATION_REQUIRED"));
+        verify(db, never()).createQqAccount(any(), any(), any());
         verify(db, never()).createSession(any());
     }
 
@@ -91,7 +108,7 @@ class QqAuthServiceTest {
         assertThatThrownBy(() -> service.login(MACHINE, COOKIE, "IP")).isSameAs(rejection);
         verify(audit, times(2)).audit("id", "QQ_GROUP_NOT_MEMBER", rejection.getMessage());
         verify(db, times(2)).updateQqProfile("id", profile);
-        verify(db, never()).createQqAccount(any(), any());
+        verify(db, never()).createQqAccount(any(), any(), any());
         verify(db, never()).setStatus(any(), any());
         verify(db, never()).revokeSession(any(), any());
         verify(db, never()).createSession(any());
@@ -110,7 +127,7 @@ class QqAuthServiceTest {
         assertThatThrownBy(() -> service.login(MACHINE, COOKIE, "IP")).isInstanceOfSatisfying(Problem.class,
                 error -> assertThat(error.code()).isEqualTo("QQ_ACCOUNT_CONFLICT"));
         verify(db, never()).updateQqProfile(any(), any());
-        verify(db, never()).createQqAccount(any(), any());
+        verify(db, never()).createQqAccount(any(), any(), any());
         verify(db, never()).createSession(any());
         verifyNoInteractions(audit);
     }

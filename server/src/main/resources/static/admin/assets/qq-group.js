@@ -1,7 +1,7 @@
 "use strict";
 
 (() => {
-  const root = document.getElementById("qqGroup");
+  const root = document.querySelector("[data-qq-group]");
   if (!root) return;
   const form = document.getElementById("groupSettings");
   const select = document.getElementById("groupNumber");
@@ -13,15 +13,30 @@
   const identity = document.getElementById("groupIdentity");
   const scanField = document.getElementById("scanId");
   const refresh = document.getElementById("groupsRefresh");
+  const keyReady = !start.disabled;
   let generation = 0;
   let scanId = "";
   let timer;
+  let edited = false;
+  form.addEventListener("input", () => { edited = true; });
+
+  function beginActivity() {
+    clearTimeout(timer);
+    start.disabled = !keyReady;
+    if (refresh) refresh.disabled = false;
+    select.removeAttribute("aria-busy");
+    return ++generation;
+  }
 
   async function request(path) {
-    const response = await fetch(`/admin/qq-group${path}`, {
-      method: "POST", credentials: "same-origin", cache: "no-store",
-      headers: { "X-CSRF-TOKEN": form.querySelector('[name="_csrf"]').value, "X-Requested-With": "XMLHttpRequest" }
-    });
+    let response;
+    try {
+      response = await fetch(`${root.dataset.apiBase}${path}`, {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+        headers: { "X-CSRF-TOKEN": form.querySelector('[name="_csrf"]').value, "X-Requested-With": "XMLHttpRequest" }
+      });
+    } catch (error) { throw new Error("请求超时或连接中断，请重试扫码或刷新群列表。", { cause: error }); }
     if (!response.headers.get("Content-Type")?.includes("application/json")) {
       if (response.ok && response.status !== 200) return null;
       throw new Error("后台登录可能已过期，请刷新页面重试。");
@@ -39,19 +54,30 @@
   }
   select.addEventListener("change", () => { save.disabled = !select.value; });
   async function currentGroups() {
-    const current = ++generation;
-    clearTimeout(timer);
+    const current = beginActivity();
+    const previousDisabled = select.disabled;
+    const previousSaveDisabled = save.disabled;
+    refresh.disabled = true;
+    select.disabled = save.disabled = true;
+    select.setAttribute("aria-busy", "true");
     frame.hidden = cancel.hidden = true;
-    scanField.value = "";
-    groups([], "");
     status.textContent = "正在读取当前账号的可管理群…";
     try {
       const result = await request("/groups");
       if (current !== generation) return;
+      scanField.value = "";
       groups(result, root.dataset.group);
       identity.textContent = `当前群站账号：${root.dataset.qq}`;
       status.textContent = result.length ? "请选择目标群并保存。" : "当前 QQ 没有可管理的群，请更换账号扫码。";
-    } catch (error) { if (current === generation) status.textContent = error.message; }
+      if (!edited) form.dispatchEvent(new Event("ui:reset-form"));
+    } catch (error) {
+      if (current === generation) {
+        select.disabled = previousDisabled;
+        save.disabled = previousSaveDisabled;
+        status.textContent = (select.options.length > 1 ? "群列表刷新未完成，保留上次内容。" : "") + error.message;
+      }
+    }
+    finally { if (current === generation) { refresh.disabled = false; select.removeAttribute("aria-busy"); } }
   }
   async function poll(current) {
     if (current !== generation) return;
@@ -70,8 +96,7 @@
     } catch (error) { if (current === generation) { status.textContent = error.message; frame.hidden = true; } }
   }
   start.addEventListener("click", async () => {
-    const current = ++generation;
-    clearTimeout(timer);
+    const current = beginActivity();
     start.disabled = true;
     frame.hidden = cancel.hidden = true;
     scanField.value = "";
@@ -81,24 +106,30 @@
       const result = await request("/qr");
       if (current !== generation) return;
       scanId = result.id;
-      document.getElementById("qrImage").src = `/admin/qq-group/qr/${scanId}/image`;
+      document.getElementById("qrImage").src = `${root.dataset.apiBase}/qr/${encodeURIComponent(scanId)}/image`;
       frame.hidden = cancel.hidden = false;
       status.textContent = result.message;
       timer = setTimeout(() => poll(current), 3000);
     } catch (error) { if (current === generation) status.textContent = error.message; }
-    finally { start.disabled = false; }
+    finally { if (current === generation) start.disabled = false; }
   });
   cancel.addEventListener("click", async () => {
-    ++generation;
-    clearTimeout(timer);
+    const current = beginActivity();
     frame.hidden = cancel.hidden = true;
     scanField.value = "";
     groups([], "");
-    try { await request(`/qr/${scanId}/cancel`); status.textContent = "扫码已取消，原配置保持不变。"; }
-    catch (error) { status.textContent = error.message; }
-    if (root.dataset.qq) await currentGroups();
+    try { await request(`/qr/${scanId}/cancel`); if (current === generation) status.textContent = "扫码已取消，原配置保持不变。"; }
+    catch (error) { if (current === generation) status.textContent = error.message; }
+    if (current === generation && root.dataset.qq) await currentGroups();
   });
   refresh?.addEventListener("click", currentGroups);
-  window.addEventListener("pagehide", () => { ++generation; clearTimeout(timer); frame.hidden = true; });
+  window.addEventListener("pagehide", () => { beginActivity(); frame.hidden = cancel.hidden = true; });
+  window.addEventListener("pageshow", event => {
+    if (!event.persisted) return;
+    scanField.value = "";
+    groups([], "");
+    if (root.dataset.qq) currentGroups();
+    else status.textContent = "请重新扫码载入群列表。";
+  });
   if (root.dataset.qq) currentGroups();
 })();

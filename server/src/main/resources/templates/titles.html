@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('称号管理')}"></head>
+<body class="ui-scope">
+<header th:replace="~{fragments :: managementNav('titles')}"></header>
+<main class="ui-container ui-main" id="main-content" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs('服务维护', null, null, '称号管理')}"></nav>
+  <header class="ui-page-header"><div><h1 class="ui-page-title">称号管理</h1></div><a class="btn btn-primary" th:href="@{/admin/titles#title-editor}">新增称号</a></header>
+  <p class="alert alert-success" role="status" th:if="${param.saved}">称号已保存，在线玩家通常约 15 秒同步。</p>
+  <p class="alert alert-success" role="status" th:if="${param.created}">称号已创建。</p>
+  <section class="card admin-panel">
+    <div class="ui-table-scroll" tabindex="0" aria-label="称号目录">
+      <table class="table ui-table"><thead><tr><th scope="col">称号 / ID</th><th scope="col">介绍</th><th scope="col">获取方式</th><th scope="col">展示状态</th><th scope="col">排序</th><th scope="col">管理</th></tr></thead>
+        <tbody><tr th:each="item : ${titles}">
+          <td><strong th:text="${item.name}"></strong><code class="admin-subline" th:text="${item.titleId}"></code><span class="ui-text-secondary" th:text="${item.custom ? '社区称号' : '原游戏称号'}"></span></td>
+          <td th:text="${item.description.isEmpty() ? '—' : item.description}"></td><td th:text="${item.rule}"></td>
+          <td><span class="ui-status" th:classappend="${item.enabled ? 'ui-status--success' : ''}" th:text="${item.enabled ? '允许佩戴' : '暂停展示'}"></span></td>
+          <td th:text="${item.sortOrder}"></td><td><div class="ui-form-actions"><a th:href="@{/admin/titles(edit=${item.titleId})} + '#title-editor'">编辑</a><a th:href="@{/admin/titles/{id}/grants(id=${item.titleId})}">发放与撤销</a></div></td>
+        </tr><tr th:if="${titles.isEmpty()}"><td colspan="6" class="ui-empty">暂无称号。请点击“新增称号”。</td></tr></tbody>
+      </table>
+    </div>
+    <p class="form-hint" th:text="'已维护 ' + ${titles.size()} + ' / 64 个称号。'"></p>
+  </section>
+  <div class="modal ui-modal fade" id="title-editor" tabindex="-1" aria-labelledby="title-editor-label" data-form-modal data-bs-backdrop="static" th:attr="data-modal-auto=${draftTitleId != null || error != null}">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header"><h2 class="modal-title" id="title-editor-label" th:text="${draftTitleId == null ? '新增称号' : '编辑称号'}"></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button></div>
+      <div class="modal-body">
+<div th:replace="~{fragments :: error}"></div>
+    <p class="ui-text-secondary" th:if="${draftTitleId == null}">管理员授予，永久有效。</p>
+    <form th:action="${draftTitleId == null} ? @{/admin/titles} : @{/admin/titles/{id}(id=${draftTitleId})}" method="post" class="admin-form" data-dirty data-async>
+      <div class="admin-field"><label for="title-name" class="form-label">名称 <span aria-hidden="true">*</span></label>
+        <input id="title-name" class="form-control" name="name" required maxlength="31" th:readonly="${original}" th:value="${draft.name}" aria-describedby="title-name-help">
+        <p id="title-name-help" class="form-hint" th:text="${original ? '原游戏称号名称及获取规则保持不变。' : '最多 31 个 GBK 字节（约 15 个汉字），不支持表情符号。'}"></p>
+      </div>
+      <div class="admin-field"><label for="title-description" class="form-label">介绍文案</label>
+        <input id="title-description" class="form-control" name="description" maxlength="64" th:value="${draft.description}" aria-describedby="title-description-help">
+        <p id="title-description-help" class="form-hint">最多 64 个 GBK 字节（约 32 个汉字），使用纯文本。介绍不改变获取条件。</p>
+      </div>
+      <div class="admin-field"><label for="title-sort" class="form-label">排序 <span aria-hidden="true">*</span></label><input id="title-sort" class="form-control" type="number" name="sortOrder" min="0" max="9999" required th:value="${draft.sortOrder}"></div>
+      <div><label class="form-check"><input class="form-check-input" type="checkbox" name="enabled" value="true" th:checked="${draft.enabled}" aria-describedby="title-enabled-help"><span class="form-check-label">允许展示与佩戴</span></label>
+        <p id="title-enabled-help" class="form-hint">关闭后保留持有记录，并卸下已佩戴称号；重新开放不会自动戴回。</p>
+      </div>
+      <div class="ui-form-actions"><button class="btn btn-primary" type="submit" th:text="${draftTitleId == null ? '创建称号' : '保存称号'}"></button><a th:if="${draftTitleId != null}" class="btn ui-btn-secondary" th:href="@{/admin/titles}">取消编辑</a></div>
+    </form>
+
+      </div>
+      <div class="modal-footer"><button type="button" class="btn ui-btn-secondary" data-bs-dismiss="modal">关闭</button></div>
+    </div></div>
+  </div>
+  <section class="card admin-panel"><h2>保留的登录奖励</h2><p class="ui-text-secondary"><time data-local-time datetime="2026-09-30T16:00:00Z">2026-09-30T16:00:00Z</time> 至 <time data-local-time datetime="2026-10-31T16:00:00Z">2026-10-31T16:00:00Z</time>（不含结束时刻），登录并上线可获得“内测精英”，不补发历史记录。</p></section>
+</main>
+<th:block th:replace="~{fragments :: footer}"></th:block>
+</body>
+</html>

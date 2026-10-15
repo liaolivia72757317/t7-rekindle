@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('首页')}"></head>
+<body class="ui-scope">
+<header th:replace="~{fragments :: managementNav('home')}"></header>
+<main class="ui-container ui-main" id="main-content" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs(null, null, null, '首页')}"></nav>
+  <header class="ui-page-header"><div><h1 class="ui-page-title">管理概览</h1></div>
+    <a class="btn ui-btn-secondary" th:href="@{/admin}">刷新概览</a></header>
+  <section class="ui-grid" aria-label="账户统计">
+    <div class="card admin-panel ui-span-4"><dl class="admin-home-metric"><dt>账户总数</dt><dd th:text="${stats.total}">0</dd></dl></div>
+    <div class="card admin-panel ui-span-4"><dl class="admin-home-metric"><dt>已启用账户</dt><dd th:text="${stats.enabled}">0</dd></dl></div>
+    <div class="card admin-panel ui-span-4"><dl class="admin-home-metric"><dt>在线账户</dt><dd th:text="${stats.online}">0</dd></dl></div>
+  </section>
+  <div class="ui-grid">
+    <section class="card admin-panel ui-span-6 admin-home-panel" aria-labelledby="announcement-heading">
+      <div class="admin-home-heading"><h2 id="announcement-heading">当前公告</h2><a th:href="@{/admin/announcements}">管理公告 →</a></div>
+      <div th:if="${announcement != null}">
+        <p class="ui-status ui-status--success">已发布</p>
+        <h3 class="admin-home-title" th:text="${announcement.title}"></h3>
+        <p class="admin-home-summary" th:text="${announcement.summary}"></p>
+        <p class="ui-text-secondary admin-time">发布时间：<th:block th:replace="~{fragments :: localTime(${announcement.publishedAt}, '—')}"></th:block></p>
+        <a th:href="@{/admin/announcements/{id}(id=${announcement.announcementId})}">查看公告 →</a>
+      </div>
+      <div th:if="${announcement == null}" class="ui-empty"><svg th:replace="~{fragments :: icon('speakerphone')}"></svg><strong>暂无已发布公告</strong><span>启动器使用内置公告。</span><a th:href="@{/admin/announcements/new}">创建公告 →</a></div>
+    </section>
+    <section class="card admin-panel ui-span-6 admin-home-panel" aria-labelledby="group-heading">
+      <div class="admin-home-heading"><h2 id="group-heading">QQ 群校验</h2><a th:href="@{/admin/qq-group}">管理校验 →</a></div>
+      <p><span class="ui-status" th:classappend="${settings.enabled ? 'ui-status--info' : ''}" th:text="${settings.enabled ? '校验已开启' : '校验已关闭'}"></span></p>
+      <dl class="admin-details">
+        <div><dt>目标群</dt><dd><span th:text="${settings.groupName ?: '尚未配置'}"></span> <code th:if="${settings.groupNumber != null}" th:text="${settings.groupNumber}"></code></dd></div>
+        <div><dt>凭据状态</dt><dd><span class="ui-status" th:classappend="${settings.healthStatus == 'READY' ? 'ui-status--success' : 'ui-status--warning'}"
+          th:text="${settings.healthStatus == 'READY' ? '最近检查可用' : (settings.healthStatus == 'KEY_MISSING' ? '请配置加密密钥' : (settings.qqNumber == null ? '尚未扫码登录' : '请检查凭据或重新扫码'))}"></span></dd></div>
+        <div><dt>最近验证</dt><dd class="admin-time"><th:block th:replace="~{fragments :: localTime(${settings.lastVerifiedAt}, '尚未验证')}"></th:block></dd></div>
+      </dl>
+    </section>
+  </div>
+  <section class="card admin-panel" aria-labelledby="activity-heading">
+    <div class="admin-home-heading"><h2 id="activity-heading">最近操作</h2><a th:href="@{/admin/audit}">查看全部 →</a></div>
+
+    <div class="ui-table-scroll" tabindex="0" aria-label="最近操作"><table class="table ui-table"><thead><tr><th scope="col">时间</th><th scope="col">操作者</th><th scope="col">动作</th><th scope="col">对象</th></tr></thead><tbody>
+      <tr th:each="item : ${records}"><td class="admin-time"><th:block th:replace="~{fragments :: localTime(${item.createdAt}, '—')}"></th:block></td><td><code th:text="${item.actor}"></code></td><td><code th:text="${item.action}"></code></td><td><code th:text="${item.target}"></code></td></tr>
+      <tr th:if="${records.isEmpty()}"><td colspan="4" class="ui-empty">暂无操作记录。</td></tr>
+    </tbody></table></div>
+  </section>
+</main>
+<th:block th:replace="~{fragments :: footer}"></th:block>
+</body>
+</html>

@@ -9,10 +9,10 @@ namespace T7R.Desktop.Services
     {
         [JsonConstructor]
         public AccountSession(string sessionId, string sessionToken, DateTimeOffset expiresAt, string accountId,
-            string loginName, string machineId, string qqNumber, string nickname, string avatarUrl)
+            string loginName, string machineId, string qqNumber, string nickname, string avatarUrl, string gameName = null)
         {
             SessionId = sessionId; SessionToken = sessionToken; ExpiresAt = expiresAt; AccountId = accountId;
-            LoginName = loginName; MachineId = machineId; QqNumber = qqNumber; Nickname = nickname; AvatarUrl = avatarUrl;
+            LoginName = loginName; MachineId = machineId; QqNumber = qqNumber; Nickname = nickname; AvatarUrl = avatarUrl; GameName = gameName;
         }
         public string SessionId { get; }
         public string SessionToken { get; }
@@ -23,8 +23,18 @@ namespace T7R.Desktop.Services
         public string QqNumber { get; }
         public string Nickname { get; }
         public string AvatarUrl { get; }
+        public string GameName { get; }
         internal AccountSession WithToken(string token) => new AccountSession(SessionId, token, ExpiresAt,
-            AccountId, LoginName, MachineId, QqNumber, Nickname, AvatarUrl);
+            AccountId, LoginName, MachineId, QqNumber, Nickname, AvatarUrl, GameName);
+        internal AccountSession WithGameName(string name) => new AccountSession(SessionId, SessionToken, ExpiresAt,
+            AccountId, LoginName, MachineId, QqNumber, Nickname, AvatarUrl, name);
+    }
+
+    public sealed class AccountGameName
+    {
+        [JsonConstructor]
+        public AccountGameName(string gameName) { GameName = gameName; }
+        public string GameName { get; }
     }
 
     public sealed class AccountConnection
@@ -59,6 +69,9 @@ namespace T7R.Desktop.Services
     public interface IAccountApi : IDisposable
     {
         Task<AccountSession> LoginAsync(string machineId, string cookie, CancellationToken cancellation);
+        Task<AccountSession> CompleteRegistrationAsync(string machineId, string cookie, string gameName, CancellationToken cancellation);
+        Task<AccountGameName> GameNameAsync(AccountSession session, CancellationToken cancellation);
+        Task<AccountGameName> SetGameNameAsync(AccountSession session, string gameName, CancellationToken cancellation);
         Task<AccountSession> CurrentAsync(AccountSession session, CancellationToken cancellation);
         Task<AccountConnection> OnlineAsync(AccountSession session, CancellationToken cancellation);
         Task<AccountConnection> HeartbeatAsync(AccountSession session, string connectionId, CancellationToken cancellation);

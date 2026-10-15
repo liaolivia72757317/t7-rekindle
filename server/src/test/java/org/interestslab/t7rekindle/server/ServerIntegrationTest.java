@@ -94,7 +94,7 @@ class ServerIntegrationTest {
         String cookie = "uin=o12345; skey=TEST_SESSION";
         when(qqClient.getNick(cookie)).thenReturn("t7QqNick({\"retcode\":0,\"result\":{\"nick\":\"测试昵称\"}})");
         var response = mvc.perform(post("/api/v1/auth/qq/sessions").contentType("application/json")
-                .content(json.writeValueAsString(java.util.Map.of("machineId", machine, "qqSessionCookie", cookie))))
+                .content(json.writeValueAsString(java.util.Map.of("machineId", machine, "qqSessionCookie", cookie, "gameName", "测试玩家"))))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.loginName").value("12345")).andReturn();
         var first = json.readValue(response.getResponse().getContentAsString(), QqSessionCredentials.class);
         mvc.perform(get("/api/v1/auth/session").header("Authorization", "Bearer " + first.sessionToken())).andExpect(status().isUnauthorized());
@@ -117,7 +117,7 @@ class ServerIntegrationTest {
     }
 
     @Test void legacyNumericPasswordAccountIsPreservedAndConcurrentQqRegistrationIsUnique() throws Exception {
-        db.createAccount("00000000-0000-0000-0000-000000000001", "23456", secrets.encode(PASSWORD));
+        db.createAccount("00000000-0000-0000-0000-000000000001", "23456", secrets.encode(PASSWORD), "legacy");
         assertThat(auth.login("23456", PASSWORD, "IP")).isNotNull();
         String cookie = "uin=23456; skey=TEST_SESSION";
         when(qqClient.getNick(cookie)).thenReturn("t7QqNick({\"retcode\":0,\"result\":{\"nick\":\"name\"}})");
@@ -127,7 +127,7 @@ class ServerIntegrationTest {
         when(qqClient.getNick(concurrentCookie)).thenReturn("t7QqNick({\"retcode\":0,\"result\":{\"nick\":\"name\"}})");
         try (var pool = Executors.newFixedThreadPool(4)) {
             var work = java.util.stream.IntStream.range(0, 4).<Callable<QqSessionCredentials>>mapToObj(i ->
-                    () -> qq.login("12345678-1234-1234-1234-123456789abc", concurrentCookie, "IP")).toList();
+                    () -> qq.login("12345678-1234-1234-1234-123456789abc", concurrentCookie, "IP", "Player")).toList();
             var ids = new java.util.HashSet<String>();
             for (var result : pool.invokeAll(work)) ids.add(result.get().accountId());
             assertThat(ids).hasSize(1);
@@ -150,7 +150,9 @@ class ServerIntegrationTest {
     @BeforeEach void reset() {
         jdbc.update("DELETE FROM account_title_selection");
         jdbc.update("DELETE FROM account_title");
-        jdbc.update("UPDATE player_title SET description='测试纪念',sort_order=title_id-1007,enabled=TRUE");
+        jdbc.update("DELETE FROM player_title WHERE title_id>1000000");
+        jdbc.update("UPDATE player_title SET description='测试纪念',sort_order=CASE WHEN title_id=1000000 THEN 2 ELSE title_id-1007 END,enabled=TRUE");
+        jdbc.update("UPDATE player_title SET name='重燃共建者' WHERE title_id=1000000");
         jdbc.update("DELETE FROM announcement");
         jdbc.update("DELETE FROM account_presence");
         jdbc.update("DELETE FROM auth_session");
@@ -164,7 +166,7 @@ class ServerIntegrationTest {
 
     @Test void startupMigratesBeforeInitializingAdmin() {
         assertThat(flyway.info().applied()).extracting(migration -> migration.getScript())
-                .containsExactly("V001__authentication.sql", "V002__administration.sql", "V003__qq_authentication.sql", "V004__qq_group_verification.sql", "V005__announcements.sql", "V006__account_titles.sql");
+                .containsExactly("V001__authentication.sql", "V002__administration.sql", "V003__qq_authentication.sql", "V004__qq_group_verification.sql", "V005__announcements.sql", "V006__account_titles.sql", "V007__custom_titles.sql", "V008__account_game_names.sql");
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(adminDb.admin()).isNotNull();
         assertThat(admins.initialize()).isNull();
@@ -259,7 +261,7 @@ class ServerIntegrationTest {
     }
 
     @Test void fixedExpiryAndExplicitTakeoverKeepBothCredentialsValid() {
-        var created = accounts.create(ADMIN, "sample-user");
+        var created = accounts.create(ADMIN, "sample-user", "sample-user");
         var first = auth.login(created.loginName(), created.password(), "127.0.0.1");
         var a = auth.authenticate(first.sessionToken());
         var onlineA = presence.online(a);
@@ -347,7 +349,7 @@ class ServerIntegrationTest {
     }
 
     @Test void apiUsesBearerOnlyAndNeverCreatesBrowserSession() throws Exception {
-        var created = accounts.create(ADMIN, "api-user");
+        var created = accounts.create(ADMIN, "api-user", "api-user");
         String body = json.writeValueAsString(new org.interestslab.t7rekindle.server.web.ApiController.Login(created.loginName(), created.password()));
         var login = mvc.perform(post("/api/v1/auth/sessions").contentType("application/json").content(body))
                 .andExpect(status().isCreated()).andExpect(header().string("Cache-Control", "no-store"))
@@ -367,6 +369,31 @@ class ServerIntegrationTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
+    @Test void homeStatisticsCoverAllAccountsAndUseTheExistingOnlineRules() throws Exception {
+        assertThat(accounts.stats()).isEqualTo(new AccountStats(0, 0, 0));
+        String hash = secrets.encode(PASSWORD);
+        var now = db.now();
+        for (int i = 0; i < 60; i++) {
+            String id = "home-" + String.format(java.util.Locale.ROOT, "%02d", i);
+            db.createAccount(id, id, hash, id);
+            if (i < 54) continue;
+            var session = new Session(id, id, "hash-" + i, 0, now, now.plusSeconds(3600), null, null);
+            db.createSession(session);
+            db.savePresence(new Presence(id, id, "connection-" + i, now.plusSeconds(3600)));
+        }
+        jdbc.update("UPDATE account_presence SET lease_expires_at=UTC_TIMESTAMP(3) WHERE account_id='home-54'");
+        jdbc.update("UPDATE auth_session SET expires_at=UTC_TIMESTAMP(3) WHERE session_id='home-55'");
+        db.revokeSession("home-56", "ADMIN_REVOKED");
+        db.bumpEpoch("home-57");
+        jdbc.update("UPDATE account SET status='DISABLED' WHERE account_id='home-58'");
+        assertThat(accounts.stats()).isEqualTo(new AccountStats(60, 59, 1));
+        assertThat(accounts.list("home-", 0)).hasSize(50).noneMatch(AccountView::online);
+        assertThat(accounts.list("home-", 1)).filteredOn(AccountView::online)
+                .extracting(AccountView::loginName).containsExactly("home-59");
+        mvc.perform(get("/admin").session(adminSession())).andExpect(status().isOk())
+                .andExpect(model().attribute("stats", new AccountStats(60, 59, 1)));
+    }
+
     @Test void embeddedPagesCsrfAndOneTimePasswordsWork() throws Exception {
         mvc.perform(get("/admin/login")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("_csrf")));
         mvc.perform(get("/admin/assets/admin.css")).andExpect(status().isOk());
@@ -374,7 +401,7 @@ class ServerIntegrationTest {
         mvc.perform(post("/admin/login").param("loginName", "admin").param("password", PASSWORD)).andExpect(status().isForbidden());
         MockHttpSession session = adminSession();
         mvc.perform(get("/admin/accounts").session(session)).andExpect(status().isOk());
-        var created = mvc.perform(post("/admin/accounts").session(session).with(csrf()).param("loginName", "ui-user"))
+        var created = mvc.perform(post("/admin/accounts").session(session).with(csrf()).param("loginName", "ui-user").param("gameName", "UI玩家"))
                 .andExpect(status().is3xxRedirection()).andReturn();
         String resultUrl = created.getResponse().getRedirectedUrl();
         mvc.perform(get(resultUrl).session(session)).andExpect(status().isOk())
@@ -426,7 +453,7 @@ class ServerIntegrationTest {
     }
 
     @Test void realRedisRateLimitAndAuditNeverContainPasswords() {
-        var created = accounts.create(ADMIN, "limited-user");
+        var created = accounts.create(ADMIN, "limited-user", "limited-user");
         for (int i = 0; i < 10; i++) {
             assertThatThrownBy(() -> auth.login(created.loginName(), "WRONG_PASSWORD", "127.0.0.1")).isInstanceOf(Problem.class);
         }
@@ -436,7 +463,7 @@ class ServerIntegrationTest {
     }
 
     private Identity accountIdentity(String name) {
-        var created = accounts.create(ADMIN, name);
+        var created = accounts.create(ADMIN, name, name);
         return auth.authenticate(auth.login(name, created.password(), "127.0.0.1").sessionToken());
     }
     @Test void groupAdminScansBeforeSelectionAndProtectsCandidateOwnership() throws Exception {
@@ -481,7 +508,7 @@ class ServerIntegrationTest {
         String machine = "12345678-1234-1234-1234-123456789abc";
         when(qqClient.getNick(loginCookie)).thenReturn("t7QqNick({\"retcode\":0,\"result\":{\"nick\":\"测试用户\"}})");
         when(groupClient.member(any(), eq("123456"), eq("12345"))).thenReturn(new QqGroupClient.Result<>(true, cookies));
-        var session = qq.login(machine, loginCookie, "IP");
+        var session = qq.login(machine, loginCookie, "IP", "Player");
         var identity = auth.authenticate(session.sessionToken(), machine);
         var connection = presence.online(identity);
         assertThat(accounts.list("12345", 0).getFirst().lastHeartbeatAt()).isNull();
@@ -523,7 +550,7 @@ class ServerIntegrationTest {
         assertThat(accounts.list("12345", 0).getFirst().groupCheckResult()).isEqualTo("ERROR");
         assertThatThrownBy(() -> presence.online(identity)).isInstanceOfSatisfying(Problem.class,
                 error -> assertThat(error.code()).isEqualTo("QQ_GROUP_UNAVAILABLE"));
-        assertThatThrownBy(() -> qq.login(machine, loginCookie, "IP")).isInstanceOf(Problem.class);
+        assertThatThrownBy(() -> qq.login(machine, loginCookie, "IP", "Player")).isInstanceOf(Problem.class);
         mvc.perform(get("/api/v1/auth/session").header("Authorization", "Bearer " + session.sessionToken()).header("X-Machine-Id", machine))
                 .andExpect(status().isServiceUnavailable());
 
@@ -537,7 +564,7 @@ class ServerIntegrationTest {
         assertThatThrownBy(() -> presence.heartbeat(identity, "old")).isInstanceOf(Problem.class);
     }
 
-    @Test void nonMemberLoginCommitsAccountAndAuditButDoesNotIssueOrRevokeSessions() throws Exception {
+    @Test void nonMemberLoginAuditsWithoutCreatingAccountOrIssuingSessions() throws Exception {
         var cookies = groupCookies();
         groupDb.configure(true, new Group("123456", "测试群"), new Administrator("54321", "管理员"), cookieVault.encrypt(cookies));
         String loginCookie = "uin=12345; skey=TEST_USER";
@@ -551,20 +578,11 @@ class ServerIntegrationTest {
                     .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("123456")))
                     .andExpect(jsonPath("$.sessionToken").doesNotExist());
         }
-        var listed = accounts.list("12345", 0);
-        assertThat(listed).hasSize(1);
-        var account = listed.getFirst();
-        assertThat(account.qqNumber()).isEqualTo("12345");
-        assertThat(account.nickname()).isEqualTo("测试用户");
-        assertThat(account.status()).isEqualTo("ACTIVE");
-        assertThat(account.online()).isFalse();
-        assertThat(account.lastHeartbeatAt()).isNull();
-        assertThat(account.groupCheckResult()).isEqualTo("NOT_MEMBER");
-        assertThat(account.groupCheckedAt()).isNotNull();
+        assertThat(accounts.list("12345", 0)).isEmpty();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_session", Integer.class)).isZero();
         var rejected = adminDb.audits(0).stream().filter(item -> item.action().equals("QQ_GROUP_NOT_MEMBER")).toList();
         assertThat(rejected).hasSize(2).allSatisfy(item -> {
-            assertThat(item.actor()).isEqualTo(account.accountId());
+            assertThat(item.actor()).isEqualTo("anonymous");
             assertThat(item.target()).contains("123456").doesNotContain("TEST_USER");
         });
         mvc.perform(get("/admin/audit").session(adminSession())).andExpect(status().isOk())
@@ -572,8 +590,8 @@ class ServerIntegrationTest {
 
         redis.delete("rekindle:qq-group:1:12345");
         when(groupClient.member(any(), eq("123456"), eq("12345"))).thenReturn(new QqGroupClient.Result<>(true, cookies));
-        var session = qq.login(machine, loginCookie, "IP");
-        assertThat(session.accountId()).isEqualTo(account.accountId());
+        var session = qq.login(machine, loginCookie, "IP", "Player");
+        assertThat(accounts.list("12345", 0)).hasSize(1);
         var identity = auth.authenticate(session.sessionToken(), machine);
         presence.online(identity);
 
@@ -598,7 +616,7 @@ class ServerIntegrationTest {
     }
 
     @Test void titleOwnershipApiRequiresOnlineOwnerAndPersistsUnequipAndRevocation() throws Exception {
-        var created = accounts.create(ADMIN, "title-player");
+        var created = accounts.create(ADMIN, "title-player", "title-player");
         var session = auth.login(created.loginName(), created.password(), "IP");
         var identity = auth.authenticate(session.sessionToken());
         var online = presence.online(identity);
@@ -607,7 +625,7 @@ class ServerIntegrationTest {
         titles.grant(ADMIN, identity.accountId(), 1007);
         mvc.perform(get(path)).andExpect(status().isUnauthorized());
         mvc.perform(get(path).header("Authorization", "Bearer " + session.sessionToken()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.titles.length()").value(2))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.titles.length()").value(3))
                 .andExpect(jsonPath("$.equippedTitleId").value(1007));
         mvc.perform(put(path + "/equipped").header("Authorization", "Bearer " + session.sessionToken())
                 .contentType("application/json").content("{\"titleId\":1008}"))
@@ -623,12 +641,75 @@ class ServerIntegrationTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ONLINE_TAKEN_OVER"));
         titles.grant(ADMIN, identity.accountId(), 1008);
         assertThat(titles.current(identity, next.connectionId()).equippedTitleId()).isEqualTo(1008);
-        titles.configure(ADMIN, 1008, new org.interestslab.t7rekindle.server.domain.TitleModels.Draft("测试奖励", 9, false));
+        titles.configure(ADMIN, 1008, new org.interestslab.t7rekindle.server.domain.TitleModels.Draft(null, "测试奖励", 9, false));
         assertThat(titles.current(identity, next.connectionId()).equippedTitleId()).isNull();
-        titles.configure(ADMIN, 1008, new org.interestslab.t7rekindle.server.domain.TitleModels.Draft("测试奖励", 9, true));
+        titles.configure(ADMIN, 1008, new org.interestslab.t7rekindle.server.domain.TitleModels.Draft(null, "测试奖励", 9, true));
         assertThat(titles.current(identity, next.connectionId()).equippedTitleId()).isNull();
         presence.offline(identity, next.connectionId());
         assertThatThrownBy(() -> titles.current(identity, next.connectionId())).isInstanceOf(Problem.class);
+    }
+
+    @Test void titleAdminPagesValidateConfigurationAndProtectMutations() throws Exception {
+        var identity = accountIdentity("title-admin-test");
+        var session = adminSession();
+        String path = "/admin/accounts/" + identity.accountId() + "/titles";
+        mvc.perform(get("/admin/titles")).andExpect(redirectedUrl("/admin/login"));
+        mvc.perform(get("/admin/titles").session(session)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("内测精英")));
+        mvc.perform(post("/admin/titles/1008").session(session)).andExpect(status().isForbidden());
+        mvc.perform(post("/admin/titles/1008").session(session).with(csrf())
+                .param("description", "<b>text</b>").param("sortOrder", "0").param("enabled", "true"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/admin/titles/1008").session(session).with(csrf())
+                .param("description", "新的介绍").param("sortOrder", "2"))
+                .andExpect(redirectedUrl("/admin/titles?saved"));
+        assertThat(titles.definitions().stream().filter(t -> t.titleId() == 1008).findFirst().orElseThrow().enabled()).isFalse();
+        mvc.perform(post(path + "/1007/grant").session(session)).andExpect(status().isForbidden());
+        mvc.perform(post(path + "/1007/grant").session(session).with(csrf())).andExpect(redirectedUrl(path));
+        mvc.perform(get(path).session(session)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("已佩戴")));
+        mvc.perform(post(path + "/1007/revoke").session(session).with(csrf())).andExpect(redirectedUrl(path));
+        mvc.perform(get(path).session(session)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("已撤销")));
+    }
+
+    @Test void titleCustomCatalogueFlowsThroughCreationRecipientsAndOwnership() throws Exception {
+        var identity = accountIdentity("title-contributor");
+        var session = adminSession();
+        assertThat(titles.account(identity.accountId()).titles().stream().filter(t -> t.titleId() == 1000000)
+                .findFirst().orElseThrow().owned()).isFalse();
+        mvc.perform(post("/admin/titles").session(session).with(csrf()).param("name", "社区贡献者")
+                .param("description", "感谢社区贡献").param("sortOrder", "3").param("enabled", "true"))
+                .andExpect(redirectedUrl("/admin/titles?created"));
+        assertThat(titles.definition(1000001).name()).isEqualTo("社区贡献者");
+        String path = "/admin/titles/1000001/grants";
+        mvc.perform(get(path).session(session).param("query", "title-contributor")).andExpect(status().isOk());
+        mvc.perform(post(path + "/" + identity.accountId() + "/grant").session(session).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        assertThat(titles.recipients(1000001, "title-contributor", 0).getFirst().owned()).isTrue();
+        var online = presence.online(identity);
+        titles.equip(identity, online.connectionId(), 1000001);
+        assertThat(titles.current(identity, online.connectionId()).equippedTitleId()).isEqualTo(1000001);
+        mvc.perform(post("/admin/titles/1000001").session(session).with(csrf()).param("name", "重燃贡献者")
+                .param("description", "共同建设").param("sortOrder", "4").param("enabled", "true"))
+                .andExpect(redirectedUrl("/admin/titles?saved"));
+        assertThat(titles.current(identity, online.connectionId()).titles().stream().filter(t -> t.titleId() == 1000001)
+                .findFirst().orElseThrow().name()).isEqualTo("重燃贡献者");
+        mvc.perform(post(path + "/" + identity.accountId() + "/revoke").session(session).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        assertThat(titles.current(identity, online.connectionId()).equippedTitleId()).isNull();
+        assertThat(titles.recipients(1000001, "title-contributor", 0).getFirst().state()).isEqualTo("REVOKED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_log WHERE action='TITLE_CREATED'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test void titleConcurrentCreationAllocatesDistinctIds() throws Exception {
+        try (var pool = Executors.newFixedThreadPool(4)) {
+            var tasks = java.util.stream.IntStream.range(0, 4).<Callable<Integer>>mapToObj(i -> () -> titles.create(ADMIN,
+                    new org.interestslab.t7rekindle.server.domain.TitleModels.Draft("社区称号" + i, "", i, true))).toList();
+            var ids = new java.util.HashSet<Integer>();
+            for (var result : pool.invokeAll(tasks)) ids.add(result.get());
+            assertThat(ids).containsExactlyInAnyOrder(1000001, 1000002, 1000003, 1000004);
+        }
     }
 
     private QqCookies groupCookies() {

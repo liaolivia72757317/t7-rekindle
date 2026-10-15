@@ -1,0 +1,31 @@
+<Window x:Class="T7R.Desktop.Views.GameNameSetupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="设置游戏名称" Width="520" Height="440" MinWidth="400" MinHeight="280"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        FontFamily="{StaticResource UiFontFamily}" FontSize="16" Language="zh-CN"
+        Background="{DynamicResource PanelBackgroundBrush}" Foreground="{DynamicResource TextBrush}"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        FocusManager.FocusedElement="{Binding ElementName=NameInput}" KeyboardNavigation.TabNavigation="Cycle">
+  <Grid Margin="28">
+    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
+        <TextBlock Text="设置游戏名称" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,14"/>
+        <TextBlock Text="设置后完成注册。游戏名称全局唯一，区分大小写；后续改名请联系管理员。" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <Label Content="游戏名称" Target="{Binding ElementName=NameInput}"/>
+        <TextBox x:Name="NameInput" Text="{Binding GameName, UpdateSourceTrigger=PropertyChanged}"
+                 IsReadOnly="{Binding IsBusy}" PreviewKeyDown="OnNameKeyDown" TabIndex="0"
+                 AutomationProperties.Name="游戏名称" AutomationProperties.HelpText="最多 31 个 GBK 字节，汉字通常占 2 字节"/>
+        <TextBlock Text="最多 31 个 GBK 字节（约 15 个汉字），不支持 emoji。" TextWrapping="Wrap"
+                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,8,0,0"/>
+        <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="{DynamicResource DangerBrush}"
+                   AutomationProperties.LiveSetting="Assertive" Margin="0,8,0,0"/>
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+      <Button Content="取消登录" IsCancel="True" MinWidth="100" Margin="0,0,12,0" AutomationProperties.Name="取消登录" TabIndex="1"/>
+      <Button Content="完成注册" Command="{Binding SubmitCommand}" MinWidth="100" AutomationProperties.Name="完成注册" TabIndex="2"/>
+    </StackPanel>
+  </Grid>
+</Window>

@@ -31,6 +31,8 @@ void GraphicsSettings::install(HANDLE process, uint32_t imageBase, DWORD threadI
     verifyWorldFunctions(process, imageBase);
     if (readClientMemory(process, imageBase + TITLE_REFRESH_RVA, 6) != Bytes{0x55,0x8B,0xEC,0x6A,0xFF,0x68})
         throw std::runtime_error("title table refresh signature mismatch");
+    if (readClientMemory(process, imageBase + TITLE_REINDEX_RVA, 6) != Bytes{0x55,0x8B,0xEC,0x83,0xEC,0x14})
+        throw std::runtime_error("title table index signature mismatch");
     if (!profiles.empty() && readClientMemory(process, imageBase + 0xF34F0, 4) != Bytes{0x8B,0x41,0x2C,0xC3})
         throw std::runtime_error("combat profile hero getter signature mismatch");
     if (movementEnabled) verifyMovementAnimationFunction(process, imageBase);

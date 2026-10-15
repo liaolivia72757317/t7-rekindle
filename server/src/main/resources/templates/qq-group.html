@@ -1,46 +1,47 @@
 <!doctype html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('QQ 群校验')}"></head>
-<body class="shell">
-<aside th:replace="~{fragments :: nav('qq-group')}"></aside>
-<main class="content" id="qqGroup" th:attr="data-qq=${settings.qqNumber},data-group=${settings.groupNumber}">
-  <header class="page-header"><div><p class="eyebrow">QQ 群成员准入</p><h1>QQ 群校验</h1><p class="muted">先扫码登录，再选择有管理权限的群。普通用户仍使用原有 QQ 登录。</p></div>
-    <span class="rule-tag" th:text="${settings.enabled ? '校验已开启 · 15 分钟复查' : '校验已关闭'}"></span></header>
-  <p class="notice" th:if="${param.saved}">配置已保存，即时生效。</p>
-  <p class="notice" th:if="${param.checked}">凭据检查完成。</p>
-  <p class="notice" th:if="${!settings.keyReady}">扫码前请在服务端配置 <code>QQ_GROUP_COOKIE_KEY</code>：4–10 个字符的字符串，无需 Base64 编码。已有校验开关仍可关闭。</p>
-  <section class="panel" th:if="${settings.qqNumber != null}">
+<body class="ui-scope">
+<header th:replace="~{fragments :: managementNav('qq-group')}"></header>
+<main class="ui-container ui-main" id="main-content" tabindex="-1" data-qq-group th:attr="data-qq=${settings.qqNumber},data-group=${settings.groupNumber},data-api-base=@{/admin/qq-group}">
+  <nav th:replace="~{fragments :: breadcrumbs('服务维护', null, null, 'QQ 群校验')}"></nav>
+  <header class="ui-page-header"><div><h1 class="ui-page-title">QQ 群校验</h1></div>
+    <span class="ui-status ui-status--info" th:text="${settings.enabled ? '校验已开启 · 15 分钟复查' : '校验已关闭'}"></span></header>
+  <p class="alert alert-success" role="status" th:if="${param.saved}">配置已保存。</p>
+  <p class="alert alert-info" role="status" th:if="${param.checked}">凭据检查完成。</p>
+  <p class="alert alert-warning" id="group-key-help" th:if="${!settings.keyReady}">请在服务端配置 <code>QQ_GROUP_COOKIE_KEY</code>：4–10 个字符，无需 Base64 编码。</p>
+  <section class="card admin-panel" th:if="${settings.qqNumber != null}">
     <h2>当前配置</h2>
-    <dl class="group-details"><div><dt>目标群</dt><dd><strong th:text="${settings.groupName}"></strong> <code th:text="${settings.groupNumber}"></code></dd></div>
+    <dl class="admin-details"><div><dt>目标群</dt><dd><strong th:text="${settings.groupName}"></strong> <code th:text="${settings.groupNumber}"></code></dd></div>
       <div><dt>群站账号</dt><dd><span th:text="${settings.nickname}"></span> <code th:text="${settings.qqNumber}"></code></dd></div>
-      <div><dt>凭据状态</dt><dd><span class="badge" th:classappend="${settings.healthStatus == 'READY' ? 'good' : 'bad'}"
+      <div><dt>凭据状态</dt><dd><span class="ui-status" th:classappend="${settings.healthStatus == 'READY' ? 'ui-status--success' : 'ui-status--danger'}"
         th:text="${settings.healthStatus == 'READY' ? '最近检查可用' : (settings.healthStatus == 'KEY_MISSING' ? '请配置加密密钥' : '请检查凭据或重新扫码')}"></span></dd></div>
-      <div><dt>最近验证（UTC）</dt><dd class="time" th:text="${settings.lastVerifiedAt ?: '—'}"></dd></div></dl>
-    <div class="actions"><form th:action="@{/admin/qq-group/check}" method="post"><button class="secondary" type="submit">检查凭据</button></form>
-      <form th:if="${settings.enabled}" th:action="@{/admin/qq-group/disable}" method="post" data-confirm="确认关闭入群校验？之后登录和上线将不再检查群成员身份。"><button class="danger" type="submit">关闭入群校验</button></form></div>
+      <div><dt>最近验证</dt><dd class="admin-time"><th:block th:replace="~{fragments :: localTime(${settings.lastVerifiedAt}, '—')}"></th:block></dd></div></dl>
+    <div class="ui-actions"><form th:action="@{/admin/qq-group/check}" method="post"><button class="btn ui-btn-secondary" type="submit">检查凭据</button></form>
+      <form th:if="${settings.enabled}" th:action="@{/admin/qq-group/disable}" method="post" data-confirm="确认关闭入群校验？之后登录和上线将不再检查群成员身份。"><button class="btn btn-outline-danger" type="submit">关闭入群校验</button></form></div>
   </section>
-  <section class="panel group-setup">
-    <div class="group-scan"><p class="eyebrow">第一步 · 管理员扫码</p><h2>登录 QQ 群站</h2>
-      <p class="muted">使用群主或管理员 QQ 扫码并在手机确认。重新扫码期间，原配置继续生效。</p>
-      <div class="actions"><button type="button" id="scanStart" th:disabled="${!settings.keyReady}">扫码登录群站</button><button type="button" id="scanCancel" class="quiet" hidden>取消扫码</button></div>
-      <div class="qr-frame" id="qrFrame" hidden><img id="qrImage" width="220" height="220" alt="QQ 群站登录二维码"></div>
-      <p id="scanStatus" class="group-status" role="status" aria-live="polite">扫码成功后，右侧仅展示有管理权限的群。</p>
+  <section class="card admin-panel admin-group-setup">
+    <div class="admin-group-scan"><p class="ui-breadcrumb">第一步 · 管理员扫码</p><h2>登录 QQ 群站</h2>
+      <p class="ui-text-secondary">请用群主或管理员 QQ 扫码，原配置在保存前继续生效。</p>
+      <div class="ui-actions"><button type="button" id="scanStart" th:disabled="${!settings.keyReady}" th:attr="aria-describedby=${!settings.keyReady ? 'group-key-help' : null}" class="btn btn-primary">扫码登录群站</button><button type="button" id="scanCancel" class="btn btn-link" hidden>取消扫码</button></div>
+      <div class="admin-qr" id="qrFrame" hidden><img id="qrImage" width="220" height="220" alt="QQ 群站登录二维码"></div>
+      <p id="scanStatus" class="admin-group-status" role="status" aria-live="polite">等待扫码。</p>
     </div>
-    <div class="group-choice"><p class="eyebrow">第二步 · 选择目标群</p><h2>设置入群校验</h2>
-      <p class="muted" id="groupIdentity">尚未载入可管理的群。</p>
-      <form th:action="@{/admin/qq-group/settings}" method="post" id="groupSettings" class="stack">
+    <div class="admin-group-choice"><p class="ui-breadcrumb">第二步 · 选择目标群</p><h2>设置入群校验</h2>
+      <p class="ui-text-secondary" id="groupIdentity">请先扫码或刷新群列表。</p>
+      <form th:action="@{/admin/qq-group/settings}" method="post" id="groupSettings" class="admin-form" data-dirty data-async>
         <input type="hidden" name="version" th:value="${settings.version}"><input type="hidden" name="scanId" id="scanId" value="">
-        <label for="groupNumber">目标群</label><select id="groupNumber" name="groupNumber" required disabled><option value="">请先扫码或刷新群列表</option></select>
-        <label class="check-field"><input type="checkbox" name="enabled" value="true" th:checked="${settings.enabled}">启用入群校验</label>
-        <span class="footnote">每 15 分钟复查。群站查询异常时，已有在线连接继续保留，新登录和重新上线暂缓。</span>
-        <button type="submit" id="groupSave" data-managed-disabled disabled>保存配置</button>
+        <div class="admin-field"><label for="groupNumber" class="form-label">目标群 <span aria-hidden="true">*</span></label><select id="groupNumber" name="groupNumber" required disabled class="form-select" aria-describedby="groupIdentity"><option value="">请先扫码或刷新群列表</option></select></div>
+        <div><label class="form-check"><input type="checkbox" name="enabled" value="true" th:checked="${settings.enabled}" class="form-check-input" aria-describedby="group-policy-help"><span class="form-check-label">启用入群校验</span></label>
+        <p class="form-hint" id="group-policy-help">每 15 分钟复查。群站查询异常时，已有在线连接继续保留，新登录和重新上线暂缓。</p></div>
+        <div class="ui-form-actions"><button type="submit" id="groupSave" data-managed-disabled disabled class="btn btn-primary" aria-describedby="groupIdentity">保存配置</button></div>
       </form>
-      <button th:if="${settings.qqNumber != null}" type="button" class="quiet" id="groupsRefresh">刷新当前账号的群列表</button>
+      <button th:if="${settings.qqNumber != null}" type="button" class="btn btn-link admin-refresh" id="groupsRefresh">刷新当前账号的群列表</button>
     </div>
   </section>
-  <p class="footnote">管理员凭据加密保存。健康检查会接收群站返回的 Cookie 更新；登录状态失效时仍需重新扫码。</p>
-  <noscript><p class="notice">扫码与选群需要启用 JavaScript。</p></noscript>
+  <noscript><p class="alert alert-warning">扫码与选群需要启用 JavaScript。</p></noscript>
 </main>
+<th:block th:replace="~{fragments :: footer}"></th:block>
 <script defer th:src="@{/admin/assets/qq-group.js}"></script>
 </body>
 </html>

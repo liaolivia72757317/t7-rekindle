@@ -35,18 +35,25 @@ public class QqAuthService {
     }
 
     public QqSessionCredentials login(String machineId, String cookie, String address) {
+        return login(machineId, cookie, address, null);
+    }
+
+    public QqSessionCredentials login(String machineId, String cookie, String address, String gameName) {
         String machine = Inputs.machineId(machineId);
         limiter.check("qq", QqSessionVerifier.qqNumber(cookie), address);
         QqProfile profile = verifier.verify(cookie);
         Problem rejection = groupRejection(profile.qqNumber());
         QqSessionCredentials result;
         try {
-            result = tx.execute(status -> completeLogin(machine, profile, rejection));
+            result = tx.execute(status -> completeLogin(machine, profile, rejection, gameName));
         } catch (DuplicateKeyException error) {
-            // A concurrent first login may have created the same QQ account.
-            result = tx.execute(status -> completeLogin(machine, profile, rejection));
+            // Retry a simultaneous registration for the same QQ; the stored name wins.
+            if (db.gameNameOwner(gameName == null ? null : GameNameRules.normalize(gameName)) != null
+                    && db.accountByName(profile.qqNumber()) == null) throw GameNameRules.exists();
+            try { result = tx.execute(status -> completeLogin(machine, profile, rejection, gameName)); }
+            catch (DuplicateKeyException conflict) { throw GameNameRules.exists(); }
         }
-        // 拒绝结果在事务提交后抛出，保留账户与操作记录。
+        // 拒绝结果在事务提交后抛出，保留操作记录。
         if (rejection != null) throw rejection;
         return result;
     }
@@ -61,21 +68,27 @@ public class QqAuthService {
         }
     }
 
-    private QqSessionCredentials completeLogin(String machine, QqProfile profile, Problem rejection) {
+    private QqSessionCredentials completeLogin(String machine, QqProfile profile, Problem rejection, String requestedName) {
         Account account = db.lockByName(profile.qqNumber());
-        if (account == null) {
-            db.createQqAccount(UUID.randomUUID().toString(), profile);
-            account = db.lockByName(profile.qqNumber());
-        }
-        if (!profile.qqNumber().equals(account.qqNumber())) {
+        if (account != null && !profile.qqNumber().equals(account.qqNumber())) {
             throw new Problem(409, "QQ_ACCOUNT_CONFLICT", "QQ 号与已有密码账号重名，请联系管理员处理");
         }
         if (rejection != null) {
-            db.updateQqProfile(account.accountId(), profile);
-            audit.audit(account.accountId(), "QQ_GROUP_NOT_MEMBER", rejection.getMessage());
+            if (account != null) db.updateQqProfile(account.accountId(), profile);
+            audit.audit(account == null ? "anonymous" : account.accountId(), "QQ_GROUP_NOT_MEMBER", rejection.getMessage());
             return null;
         }
-        if (!account.status().equals("ACTIVE")) throw Problem.unauthorized();
+        if (account != null && !account.status().equals("ACTIVE")) throw Problem.unauthorized();
+        String name = account == null ? null : account.gameName();
+        if (name == null) {
+            GameNameRules.requireRegistered(requestedName);
+            name = GameNameRules.normalize(requestedName);
+            if (account == null) {
+                db.createQqAccount(UUID.randomUUID().toString(), profile, name);
+                account = db.lockByName(profile.qqNumber());
+            } else db.setGameName(account.accountId(), name);
+            audit.audit(account.accountId(), "ACCOUNT_GAME_NAME_SET", account.accountId());
+        }
         var revoked = new HashSet<String>();
         for (Session session : db.lockSessions(account.accountId())) {
             if (!machine.equals(session.machineId())) {
@@ -96,6 +109,6 @@ public class QqAuthService {
         db.createSession(session);
         audit.audit(account.accountId(), "QQ_LOGIN", session.sessionId());
         return new QqSessionCredentials(session.sessionId(), token, session.expiresAt(), account.accountId(),
-                account.loginName(), machine, profile.qqNumber(), profile.nickname(), profile.avatarUrl());
+                account.loginName(), machine, profile.qqNumber(), profile.nickname(), profile.avatarUrl(), name);
     }
 }

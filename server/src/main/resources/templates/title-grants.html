@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('称号发放')}"></head>
+<body class="ui-scope"><header th:replace="~{fragments :: managementNav('titles')}"></header>
+<main class="ui-container ui-main" id="main-content" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs('服务维护', '称号管理', @{/admin/titles}, '称号发放')}"></nav>
+  <a class="btn ui-btn-secondary admin-back" th:href="@{/admin/titles}">← 称号管理</a>
+  <header class="ui-page-header"><div><h1 class="ui-page-title" th:text="${title.name}"></h1><p class="ui-page-description" th:text="${title.description}"></p></div><span class="ui-status" th:text="${title.enabled ? '永久持有' : '暂停展示'}"></span></header>
+  <div th:replace="~{fragments :: error}"></div>
+  <p class="alert alert-success" role="status" th:if="${param.saved}">账户称号已更新。</p>
+  <p class="alert alert-warning" th:unless="${title.enabled}">此称号已暂停展示。授予后保留持有权，开放展示后才可佩戴。</p>
+  <section class="card admin-panel">
+    <form th:action="@{/admin/titles/{id}/grants(id=${title.titleId})}" method="get" class="admin-toolbar">
+      <div class="admin-field"><label for="query" class="form-label">按登录名前缀查找账户</label><input id="query" class="form-control" name="query" maxlength="64" th:value="${query}" placeholder="例如 player"></div>
+      <button type="submit" class="btn btn-primary">查询</button><a class="btn ui-btn-secondary" th:href="@{/admin/titles/{id}/grants(id=${title.titleId})}">重置</a>
+    </form>
+    <div class="ui-table-scroll" tabindex="0" aria-label="称号发放账户列表">
+      <table class="table ui-table"><thead><tr><th scope="col">账户</th><th scope="col">持有状态</th><th scope="col">授予时间</th><th scope="col">撤销时间</th><th scope="col">操作</th></tr></thead>
+        <tbody><tr th:each="item : ${recipients}">
+          <td><a th:href="@{/admin/accounts/{id}/titles(id=${item.accountId})}" th:text="${item.loginName}"></a><span class="admin-subline" th:text="${item.nickname}"></span></td>
+          <td><span class="ui-status" th:classappend="${item.owned ? 'ui-status--success' : ''}" th:text="${item.equipped ? '已佩戴' : (item.owned ? '已持有' : (item.state == 'REVOKED' ? '已撤销' : '未获得'))}"></span></td>
+          <td class="admin-time"><th:block th:replace="~{fragments :: localTime(${item.grantedAt}, '—')}"></th:block></td><td class="admin-time"><th:block th:replace="~{fragments :: localTime(${item.revokedAt}, '—')}"></th:block></td>
+          <td><form th:action="${item.owned} ? @{/admin/titles/{id}/grants/{account}/revoke(id=${title.titleId},account=${item.accountId})} : @{/admin/titles/{id}/grants/{account}/grant(id=${title.titleId},account=${item.accountId})}" method="post"
+                    th:attr="data-confirm=${item.owned ? '确认撤销此账户的称号？已佩戴时将同步卸下。' : '确认向此账户授予称号？'},data-confirm-danger=${item.owned}">
+            <input type="hidden" name="query" th:value="${query}"><input type="hidden" name="page" th:value="${page}">
+            <button type="submit" class="btn btn-sm" th:classappend="${item.owned ? 'btn-outline-danger' : 'btn-primary'}" th:text="${item.owned ? '撤销称号' : '授予称号'}"></button>
+          </form></td>
+        </tr><tr th:if="${recipients.isEmpty()}"><td colspan="5" class="ui-empty">没有匹配账户。</td></tr></tbody>
+      </table>
+    </div>
+    <nav class="ui-pagination" aria-label="称号发放分页"><span th:text="'本页 ' + ${recipients.size()} + ' 条'"></span><a class="btn ui-btn-secondary btn-sm" th:if="${page > 0}" th:href="@{/admin/titles/{id}/grants(id=${title.titleId},query=${query},page=${page - 1})}">上一页</a><span th:text="'第 ' + (${page} + 1) + ' 页'"></span><a class="btn ui-btn-secondary btn-sm" th:if="${recipients.size() == 50}" th:href="@{/admin/titles/{id}/grants(id=${title.titleId},query=${query},page=${page + 1})}">下一页</a></nav>
+    <p class="form-hint">无已佩戴称号时自动佩戴；撤销后可重新授予。</p>
+  </section>
+</main><th:block th:replace="~{fragments :: footer}"></th:block>
+</body></html>

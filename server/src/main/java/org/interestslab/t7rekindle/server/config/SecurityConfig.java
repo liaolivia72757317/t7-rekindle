@@ -25,6 +25,7 @@ import org.interestslab.t7rekindle.server.domain.Models.AdminIdentity;
 import org.interestslab.t7rekindle.server.domain.Problem;
 import org.interestslab.t7rekindle.server.service.AdminService;
 import org.interestslab.t7rekindle.server.service.AuthService;
+import org.interestslab.t7rekindle.server.service.GameNameRules;
 import org.interestslab.t7rekindle.server.web.WebErrors;
 
 @Configuration
@@ -58,7 +59,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(rules -> rules.requestMatchers("/admin/login", "/admin/assets/**").permitAll()
                         .anyRequest().hasRole("ADMIN"))
                 .exceptionHandling(handling -> handling
-                        .authenticationEntryPoint((request, response, error) -> response.sendRedirect("/admin/login")))
+                        .authenticationEntryPoint((request, response, error) -> response.sendRedirect(request.getContextPath() + "/admin/login")))
                 .headers(headers -> headers.contentSecurityPolicy(policy -> policy.policyDirectives(
                         "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; "
                                 + "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")))
@@ -96,7 +97,13 @@ public class SecurityConfig {
                 try {
                     String authorization = request.getHeader("Authorization");
                     if (authorization == null || !authorization.startsWith("Bearer ")) throw Problem.unauthorized();
-                    authenticate(auth.authenticate(authorization.substring(7), request.getHeader("X-Machine-Id")), "ROLE_ACCOUNT");
+                    var identity = auth.authenticate(authorization.substring(7), request.getHeader("X-Machine-Id"));
+                    String path = request.getRequestURI();
+                    String method = request.getMethod();
+                    boolean registration = path.equals("/api/v1/auth/session") && List.of("GET", "DELETE").contains(method)
+                            || path.equals("/api/v1/auth/game-name") && List.of("GET", "PUT").contains(method);
+                    if (!registration) GameNameRules.requireRegistered(identity.gameName());
+                    authenticate(identity, "ROLE_ACCOUNT");
                 } catch (Problem error) {
                     errors.write(response, error);
                     return;
@@ -121,15 +128,15 @@ public class SecurityConfig {
                 try {
                     AdminIdentity current = admins.current(identity);
                     authenticate(current, "ROLE_ADMIN");
-                    String path = request.getRequestURI();
+                    String path = request.getRequestURI().substring(request.getContextPath().length());
                     if (current.mustChangePassword() && !path.equals("/admin/password")
                             && !path.equals("/admin/logout") && !path.startsWith("/admin/assets/")) {
-                        response.sendRedirect("/admin/password");
+                        response.sendRedirect(request.getContextPath() + "/admin/password");
                         return;
                     }
                 } catch (Problem error) {
                     session.invalidate();
-                    response.sendRedirect("/admin/login");
+                    response.sendRedirect(request.getContextPath() + "/admin/login");
                     return;
                 } catch (DataAccessException error) {
                     response.sendError(503);

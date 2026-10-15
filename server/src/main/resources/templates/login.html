@@ -1,17 +1,19 @@
 <!doctype html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('管理员登录')}"></head>
-<body class="login-page">
-<main class="login-card">
-  <div class="brand"><span class="brand-seal" aria-hidden="true">T7</span><span>REKINDLE<small>服务管理</small></span></div>
-  <h1>管理员登录</h1><p class="muted">管理账户、在线会话与访问凭证。</p>
-  <p th:if="${param.changed}" class="notice" role="status">密码已更新，请使用新密码登录。</p>
-  <form th:action="@{/admin/login}" method="post" class="stack">
-    <label for="loginName">管理员账户</label><input id="loginName" name="loginName" value="admin" readonly autocomplete="username">
-    <label for="password">密码</label><input id="password" name="password" type="password" required minlength="8" maxlength="128" autocomplete="current-password" autofocus>
-    <button type="submit">登录管理后台</button>
+<body class="ui-scope">
+<header th:replace="~{fragments :: authHeader}"></header>
+<main class="card ui-auth-card" id="main-content" tabindex="-1">
+  <h1 class="ui-page-title">管理员登录</h1>
+  <p th:if="${param.changed}" class="alert alert-success" role="status">密码已更新，请使用新密码登录。</p>
+  <div th:replace="~{fragments :: error}"></div>
+  <form th:action="@{/admin/login}" method="post" class="admin-form">
+    <div class="admin-field"><label for="loginName" class="form-label">管理员账户</label><input class="form-control" id="loginName" name="loginName" value="admin" readonly autocomplete="username"></div>
+    <div class="admin-field"><label for="password" class="form-label">密码 <span aria-hidden="true">*</span></label><input class="form-control" id="password" name="password" type="password" required minlength="8" maxlength="128" autocomplete="current-password" autofocus></div>
+    <button class="btn btn-primary" type="submit">登录</button>
   </form>
-  <p class="footnote">首次部署的随机密码由服务启动控制台提供。首次登录后需要修改密码。</p>
+  <p class="form-hint admin-auth-help">初始密码见服务端控制台。</p>
 </main>
+<th:block th:replace="~{fragments :: footer}"></th:block>
 </body>
 </html>

@@ -1,0 +1,90 @@
+/*
+ * T7R UI foundation 1.0 — project-owned tokens, not Tabler native variables.
+ * Load after the pinned Tabler stylesheet, before ui-tabler-adapter.css.
+ * Values are documented in docs/planning/admin-ui.md.
+ */
+:root {
+  color-scheme: light;
+  --ui-bg: #f5f7fa;
+  --ui-surface: #ffffff;
+  --ui-surface-muted: #f8fafc;
+  --ui-text: #182433;
+  --ui-text-secondary: #5b6778;
+  --ui-text-muted: #667382;
+  --ui-border: #dee3ea;
+  --ui-control-border: #8793a3;
+  --ui-primary: #206bc4;
+  --ui-primary-hover: #1b5aa5;
+  --ui-primary-active: #164c8e;
+  --ui-primary-soft: #e9f1fb;
+  --ui-success: #2b7d35;
+  --ui-success-soft: #eaf5ed;
+  --ui-warning: #a35d0a;
+  --ui-warning-soft: #fff4dd;
+  --ui-danger: #c43131;
+  --ui-danger-hover: #a82a2a;
+  --ui-danger-active: #902323;
+  --ui-danger-soft: #fceded;
+  --ui-neutral: #5b6778;
+  --ui-neutral-soft: #eef1f5;
+  --ui-hover-bg: #f1f4f8;
+  --ui-disabled-bg: #eef1f5;
+  --ui-backdrop: rgba(24, 36, 51, .36);
+  --ui-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --ui-font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  --ui-text-xs: .75rem;
+  --ui-text-sm: .875rem;
+  --ui-text-md: 1rem;
+  --ui-text-lg: 1.125rem;
+  --ui-text-xl: 1.5rem;
+  --ui-text-metric: 1.75rem;
+  --ui-leading-xs: 1.125rem;
+  --ui-leading-sm: 1.25rem;
+  --ui-leading-md: 1.5rem;
+  --ui-leading-lg: 1.625rem;
+  --ui-leading-xl: 2rem;
+  --ui-leading-metric: 2.25rem;
+  --ui-space-1: .25rem;
+  --ui-space-2: .5rem;
+  --ui-space-3: .75rem;
+  --ui-space-4: 1rem;
+  --ui-space-6: 1.5rem;
+  --ui-space-8: 2rem;
+  --ui-space-12: 3rem;
+  --ui-radius-control: .25rem;
+  --ui-radius-panel: .375rem;
+  --ui-border-width: 1px;
+  --ui-shadow-floating: 0 4px 16px rgba(24, 36, 51, .10);
+  --ui-shadow-modal: 0 12px 36px rgba(24, 36, 51, .16);
+  --ui-container-max: 1320px;
+  --ui-page-gutter: 24px;
+  --ui-topbar-height: 56px;
+  --ui-nav-height: 48px;
+  /* Runtime should update this to the measured shell height. */
+  --ui-shell-height: 104px;
+  --ui-control-sm: 32px;
+  --ui-control-height: 36px;
+  --ui-control-lg: 40px;
+  --ui-table-head-height: 40px;
+  --ui-table-row-height: 44px;
+  --ui-modal-sm: 440px;
+  --ui-modal-md: 640px;
+  --ui-modal-lg: 880px;
+  --ui-drawer-width: 480px;
+  --ui-drawer-wide: 640px;
+  --ui-toast-width: 360px;
+  --ui-z-content-sticky: 100;
+  --ui-z-shell: 1020;
+  --ui-z-toast: 1090;
+  --ui-motion-fast: 120ms;
+  --ui-motion-default: 150ms;
+  --ui-motion-drawer: 200ms;
+  --ui-ease: ease-out;
+}
+@media (max-width: 991.98px) {
+  :root { --ui-shell-height: 56px; }
+}
+@media (max-width: 767.98px) {
+  :root { --ui-page-gutter: 16px; }
+}

@@ -41,6 +41,13 @@ namespace T7R.Desktop.Services
         public Task<AccountSession> LoginAsync(string machineId, string cookie, CancellationToken cancellation) =>
             SendAsync<AccountSession>(HttpMethod.Post, "qq/sessions", null, new { machineId, qqSessionCookie = cookie }, cancellation);
 
+        public Task<AccountSession> CompleteRegistrationAsync(string machineId, string cookie, string gameName, CancellationToken cancellation) =>
+            SendAsync<AccountSession>(HttpMethod.Post, "qq/sessions", null, new { machineId, qqSessionCookie = cookie, gameName }, cancellation);
+        public Task<AccountGameName> GameNameAsync(AccountSession session, CancellationToken cancellation) =>
+            SendAsync<AccountGameName>(HttpMethod.Get, "game-name", session, null, cancellation);
+        public Task<AccountGameName> SetGameNameAsync(AccountSession session, string gameName, CancellationToken cancellation) =>
+            SendAsync<AccountGameName>(HttpMethod.Put, "game-name", session, new { gameName }, cancellation);
+
         public async Task<AccountSession> CurrentAsync(AccountSession session, CancellationToken cancellation) =>
             (await SendAsync<AccountSession>(HttpMethod.Get, "session", session, null, cancellation).ConfigureAwait(false))
                 .WithToken(session.SessionToken);

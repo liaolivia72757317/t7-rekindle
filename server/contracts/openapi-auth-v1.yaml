@@ -7,6 +7,8 @@ info:
     普通账户的凭证与在线资格分离。Session 创建后固定有效 30 天，无 refresh 接口。
     登录不占用在线资格；显式上线接管当前连接。被接管的 session 仍可鉴权。
     QQ 登录会撤销该账号其他机器上的 session，loginName 为 QQ 号字符串。
+    gameName 独立于登录名及 QQ 昵称，全局区分大小写唯一；未设置时必须先完成注册。
+    缺少游戏名称的 Session 仅可读取自身身份、读取或初始化名称以及退出登录，其他认证接口返回 409 REGISTRATION_REQUIRED。
     机器绑定的 session 在所有请求（含 SSE）中必须附带匹配的 X-Machine-Id。
     客户端每 15 秒心跳，租约 45 秒；心跳不会延长 session 有效期。
     收到 ONLINE_TAKEN_OVER 或 NOT_ONLINE 后停止心跳，由用户显式重新上线。
@@ -46,7 +48,11 @@ paths:
     post:
       operationId: createQqSession
       summary: 验证 QQ 互联登录状态，创建或更新 QQ 账号并签发机器绑定凭证
-      description: QQ 身份已验证但未加入指定群时，仍创建或更新账户并记录 QQ_GROUP_NOT_MEMBER 操作日志，返回 403 且不签发新 Session；既有 Session 不因此撤销。
+      description: |
+        QQ 身份及群资格验证通过后，未注册或缺少游戏名称时返回 409 REGISTRATION_REQUIRED。
+        使用相同 QQ Cookie 携带 gameName 再次提交，重新验证后原子保存名称并签发 Session。
+        新用户只有成功提交名称后才创建账户；取消或失败不创建账户。已有名称不被此接口修改。
+        未入群返回 403 并记录拒绝日志；仅更新既有账户的 QQ 资料，不创建账户或签发新 Session。
       security: []
       requestBody:
         required: true
@@ -57,6 +63,7 @@ paths:
               required: [machineId, qqSessionCookie]
               properties:
                 machineId: {type: string, format: uuid, description: Windows MachineGuid}
+                gameName: {$ref: '#/components/schemas/GameNameValue'}
                 qqSessionCookie: {type: string, maxLength: 16384, writeOnly: true, description: 仅包含 get_nick 地址作用域内的 Cookie，不持久化}
       responses:
         '201':
@@ -68,7 +75,7 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/GroupRequired'}
         '409':
-          description: QQ_ACCOUNT_CONFLICT，保留同名旧密码账号，由管理员处理冲突
+          description: REGISTRATION_REQUIRED（需提交名称）、GAME_NAME_EXISTS（名称已占用），或 QQ_ACCOUNT_CONFLICT（保留同名旧密码账号，由管理员处理）
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Error'}
@@ -121,13 +128,64 @@ paths:
         '204': {description: 已撤销；重复使用已撤销凭证返回 401}
         '401': {$ref: '#/components/responses/Error'}
         '503': {$ref: '#/components/responses/Error'}
+  /api/v1/auth/game-name:
+    parameters:
+      - {$ref: '#/components/parameters/MachineId'}
+    get:
+      operationId: getGameName
+      summary: 读取当前账户的服务端游戏名称
+      description: 不要求在线或群成员资格。启动器登录后每 30 秒读取，重新上线前也刷新；失败保留最近确认的名称。
+      responses:
+        '200':
+          description: 当前名称；旧账户未设置时为 null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gameName]
+                properties:
+                  gameName: {type: [string, 'null']}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+    put:
+      operationId: initializeGameName
+      summary: 为当前旧账户首次设置游戏名称
+      description: 复核身份及群资格，只允许首次设置；重复提交相同名称幂等，已有不同名称仅管理员可修改。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gameName]
+              properties:
+                gameName: {$ref: '#/components/schemas/GameNameValue'}
+      responses:
+        '200':
+          description: 已保存的规范名称
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gameName]
+                properties:
+                  gameName: {$ref: '#/components/schemas/GameNameValue'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/GroupRequired'}
+        '409':
+          description: GAME_NAME_EXISTS 或 GAME_NAME_ALREADY_SET
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /api/v1/auth/online:
     parameters:
       - {$ref: '#/components/parameters/MachineId'}
     post:
       operationId: acquireOnlineConnection
       summary: 显式上线，原子接管账户的在线资格
-      description: 每次调用生成新的 connectionId，包括复用同一 session 的不同客户端。
+      description: 每次调用生成新的 connectionId，包括复用同一 session 的不同客户端。缺少名称返回 409 REGISTRATION_REQUIRED。
       responses:
         '200':
           description: 新在线连接
@@ -135,6 +193,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/OnlineConnection'}
         '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/GroupRequired'}
         '503': {$ref: '#/components/responses/Error'}
   /api/v1/auth/online/{connectionId}/heartbeat:
@@ -198,7 +257,7 @@ paths:
               type: object
               required: [titleId]
               properties:
-                titleId: {type: [integer, 'null'], enum: [1007, 1008, null]}
+                titleId: {type: [integer, 'null'], minimum: 1, maximum: 2147483647, description: 已持有且开放展示的目录 ID；null 表示卸下}
       responses:
         '200':
           description: 保存后的完整账户称号快照
@@ -268,8 +327,8 @@ components:
             type: object
             required: [titleId, name, description, rule, sortOrder, enabled, owned, source, grantedAt, revokedAt]
             properties:
-              titleId: {type: integer, enum: [1007, 1008]}
-              name: {type: string, description: 原游戏名称，不支持后台修改}
+              titleId: {type: integer, minimum: 1, maximum: 2147483647, description: 原游戏保留 1007、1008；社区自定义 ID 从 1000000 起，由服务端分配}
+              name: {type: string, maxLength: 31, description: GBK 纯文本，实际最多 31 个 GBK 字节；原游戏名称不可修改，自定义名称可维护}
               description: {type: string, maxLength: 64, description: GBK 可编码的纯文本，实际限制为 64 个 GBK 字节}
               rule: {type: string, description: 固定获取规则与永久有效说明}
               sortOrder: {type: integer, minimum: 0, maximum: 9999}
@@ -294,13 +353,19 @@ components:
         sessionId: {type: string, format: uuid}
         sessionToken: {type: string, pattern: '^[A-Za-z0-9_-]{43}$'}
         expiresAt: {type: string, format: date-time}
+    GameNameValue:
+      type: string
+      minLength: 1
+      maxLength: 31
+      description: 去除首尾空白后全局区分大小写唯一；GBK 编码最多 31 字节，禁止控制字符、emoji、欧元符号、私用区及 GBK 不支持的字符。禁用账户仍占用名称。
     Identity:
       type: object
-      required: [accountId, sessionId, loginName, expiresAt]
+      required: [accountId, sessionId, loginName, expiresAt, gameName]
       properties:
         accountId: {type: string, format: uuid}
         sessionId: {type: string, format: uuid}
         loginName: {type: string}
+        gameName: {type: [string, 'null'], description: 旧账户尚未完成注册时为 null}
         expiresAt: {type: string, format: date-time}
         machineId: {type: [string, 'null'], format: uuid}
         qqNumber: {type: [string, 'null'], description: QQ 号，不使用 JSON 数值表示}
@@ -311,7 +376,9 @@ components:
         - {$ref: '#/components/schemas/SessionCredentials'}
         - {$ref: '#/components/schemas/Identity'}
         - type: object
-          required: [machineId, qqNumber, nickname, avatarUrl]
+          required: [machineId, qqNumber, nickname, avatarUrl, gameName]
+          properties:
+            gameName: {$ref: '#/components/schemas/GameNameValue'}
     KickEvent:
       type: object
       required: [accountId, sessionId, connectionId, reason]

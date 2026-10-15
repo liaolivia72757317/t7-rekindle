@@ -24,7 +24,7 @@ namespace T7R.ManagedHarness
             var api = new FakeApi();
             var session = api.Session;
             api.Session = new AccountSession(session.SessionId, session.SessionToken, session.ExpiresAt, session.AccountId,
-                session.LoginName, session.MachineId, session.QqNumber, "重燃玩家", null);
+                session.LoginName, session.MachineId, session.QqNumber, "重燃玩家", null, session.GameName);
             using (var model = Model(api, new MemoryStore(), new ManualDelay()))
             {
                 RunTask(model.LoginAsync());
@@ -111,7 +111,7 @@ namespace T7R.ManagedHarness
                 string number = longName ? "12345678901234567890" : session.QqNumber;
                 api.Session = new AccountSession(session.SessionId, session.SessionToken, session.ExpiresAt, session.AccountId,
                     number, session.MachineId, number,
-                    longName ? "一位名字很长的铁骑玩家用于检查昵称省略" : "重燃玩家", null);
+                    longName ? "一位名字很长的铁骑玩家用于检查昵称省略" : "重燃玩家", null, session.GameName);
                 using (var model = Model(api, new MemoryStore(), new ManualDelay()))
                 {
                     var panel = new AccountPanel { DataContext = model, HorizontalAlignment = HorizontalAlignment.Right,

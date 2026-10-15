@@ -57,14 +57,40 @@ namespace T7R.ManagedHarness
             Assert(Marshal.SizeOf(typeof(NativeTitleRequest)) == 32 && Marshal.OffsetOf(typeof(NativeTitleRequest), "Epoch").ToInt32() == 16,
                 "managed title request ABI differs from native");
             var text = JsonConvert.SerializeObject(new { titles = TitleData().Titles.Select(t => new {
-                titleId = t.TitleId, description = t.Description, rule = t.Rule }).ToArray() });
-            var bytes = NativeBridgeService.TitleDescriptions(text);
-            Assert(bytes.Length == 256 && bytes[127] == 0 && bytes[255] == 0
-                && Encoding.GetEncoding(936).GetString(bytes, 128, 128).Contains("2026年10月"), "original title descriptions are not GBK/null padded");
-            Assert(NativeBridgeService.TitleDescriptions("{\"titles\":[]}").Length == 0, "offline catalogue rewrote original resources");
+                titleId = t.TitleId, name = t.Name, description = t.Description, rule = t.Rule }).ToArray() });
+            var bytes = NativeBridgeService.TitleCatalogue(text);
+            Assert(bytes.Length == 8 + 2 * 164 && BitConverter.ToUInt32(bytes, 0) == 1
+                && BitConverter.ToUInt32(bytes, 4) == 2 && BitConverter.ToInt32(bytes, 8) == 1007
+                && Encoding.GetEncoding(936).GetString(bytes, 8 + 164 + 36, 128).Contains("2026年10月"), "title catalogue is not versioned GBK/null padded");
+            Assert(NativeBridgeService.TitleCatalogue("{\"titles\":[]}").Length == 0, "offline catalogue rewrote original resources");
+            CustomTitleCatalogue();
             bool invalid = false;
             try { new AccountTitles(TitleData().Titles, 999); } catch (InvalidDataException) { invalid = true; }
             Assert(invalid, "response equipped an unowned title");
+        }
+
+        private static void CustomTitleCatalogue()
+        {
+            Func<int, string, string, object> item = (id, name, description) => new {
+                titleId = id, name, description, rule = "获取：管理员授予；永久。" };
+            Func<object[], byte[]> encode = items => NativeBridgeService.TitleCatalogue(JsonConvert.SerializeObject(new { titles = items }));
+            var bytes = encode(new[] { item(1000000, "重燃共建者", "共同续写战场") });
+            Assert(bytes.Length == 172 && BitConverter.ToInt32(bytes, 8) == 1000000
+                && Encoding.GetEncoding(936).GetString(bytes, 12, 32).TrimEnd('\0') == "重燃共建者"
+                && bytes[43] == 0 && bytes[171] == 0, "custom title metadata was lost");
+            foreach (var items in new[] {
+                new[] { item(999, "称号", "") }, new[] { item(1000000, new string('长', 16), "") },
+                new[] { item(1000000, "称号\0隐藏", "") }, new[] { item(1000000, "😀", "") },
+                new[] { item(1000000, "称号", new string('长', 64)) },
+                new[] { item(1000000, "称号", ""), item(1000000, "重复", "") },
+                Enumerable.Range(0, 65).Select(i => item(1000000 + i, "称号", "")).ToArray() })
+            {
+                bool rejected = false;
+                try { encode(items); } catch (InvalidDataException) { rejected = true; }
+                Assert(rejected, "invalid custom title catalogue accepted");
+            }
+            Assert(encode(Enumerable.Range(0, 64).Select(i => item(1000000 + i, "称号", "")).ToArray()).Length == 10504,
+                "maximum title catalogue rejected");
         }
 
         private static async Task LateTitleResponseAsync()

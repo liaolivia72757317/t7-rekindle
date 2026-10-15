@@ -16,13 +16,14 @@
             <Border Style="{StaticResource Card}" Padding="24" Background="{DynamicResource ControlBackgroundBrush}" VerticalAlignment="Top">
               <StackPanel>
                 <Label Content="玩家名称" Target="{Binding ElementName=NameInput}" FontWeight="Normal" FontSize="18" />
-                <TextBox x:Name="NameInput" Text="{Binding PlayerName, UpdateSourceTrigger=Explicit}" IsReadOnly="{Binding AreSessionFieldsLocked}"
+                <TextBox x:Name="NameInput" Text="{Binding PlayerName, UpdateSourceTrigger=Explicit}" IsReadOnly="{Binding ArePlayerNameFieldsLocked}"
                          LostKeyboardFocus="OnEditCompleted" PreviewKeyDown="OnEditKeyDown" HorizontalScrollBarVisibility="Auto"
-                         AutomationProperties.Name="玩家名称" AutomationProperties.HelpText="结束编辑后自动保存" TabIndex="8">
+                         AutomationProperties.Name="玩家名称" AutomationProperties.HelpText="{Binding PlayerNameHint}" TabIndex="8">
                   <TextBox.Style><Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Style.Triggers>
                     <DataTrigger Binding="{Binding ShowPlayerNameError}" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" /></DataTrigger>
                   </Style.Triggers></Style></TextBox.Style>
                 </TextBox>
+                <TextBlock Text="{Binding PlayerNameHint}" TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
                 <TextBlock x:Name="NameError" Text="{Binding NameFieldError}" Style="{StaticResource FieldError}" />
                 <Label Content="游戏目录" Target="{Binding ElementName=DirectoryInput}" FontWeight="Normal" FontSize="18" Margin="0,20,0,8" />
                 <Grid>

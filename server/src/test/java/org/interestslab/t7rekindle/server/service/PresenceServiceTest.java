@@ -20,7 +20,7 @@ class PresenceServiceTest {
     private final TitleService titles = mock(TitleService.class);
     private final TransactionTemplate tx = mock(TransactionTemplate.class);
     private final Instant now = Instant.parse("2026-01-01T00:00:00Z");
-    private final Identity identity = new Identity("account", "session", "sample", now.plusSeconds(100));
+    private final Identity identity = new Identity("account", "session", "sample", now.plusSeconds(100), null, null, null, null, "Player");
     private PresenceService service;
 
     @BeforeEach void setup() {
@@ -41,7 +41,7 @@ class PresenceServiceTest {
         assertThat(first.leaseExpiresAt()).isEqualTo(now.plusSeconds(45));
         assertThat(first.heartbeatIntervalSeconds()).isEqualTo(15);
         verify(titles, times(2)).rewardOnline("account", now);
-        var expiring = new Identity("account", "session", "sample", now.plusSeconds(5));
+        var expiring = new Identity("account", "session", "sample", now.plusSeconds(5), null, null, null, null, "Player");
         when(auth.requireLocked(expiring)).thenReturn(expiring);
         assertThat(service.online(expiring).leaseExpiresAt()).isEqualTo(expiring.expiresAt());
     }

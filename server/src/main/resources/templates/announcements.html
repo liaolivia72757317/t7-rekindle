@@ -1,23 +1,25 @@
 <!doctype html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('公告管理')}"></head>
-<body class="shell">
-<aside th:replace="~{fragments :: nav('announcements')}"></aside>
-<main class="content">
-  <header class="page-header"><div><p class="eyebrow">启动器首页</p><h1>公告管理</h1><p class="muted">首页展示最近发布的一条公告。编辑先存草稿，发布后才替换线上内容。</p></div><a class="rule-tag" th:href="@{/admin/announcements/new}">新建公告 →</a></header>
-  <section class="panel">
-    <div class="table-scroll" tabindex="0" aria-label="公告列表">
-      <table><thead><tr><th>标题（编辑稿）</th><th>上线状态</th><th>最近修改（UTC）</th><th>最近发布（UTC）</th><th>管理</th></tr></thead>
+<body class="ui-scope">
+<header th:replace="~{fragments :: managementNav('announcements')}"></header>
+<main class="ui-container ui-main" id="main-content" data-list="announcements" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs('服务维护', null, null, '公告管理')}"></nav>
+  <header class="ui-page-header"><div><h1 class="ui-page-title">公告管理</h1></div><a class="btn btn-primary" th:href="@{/admin/announcements/new}">新建公告 →</a></header>
+  <section class="card admin-panel">
+    <div class="ui-table-scroll" tabindex="0" aria-label="公告列表">
+      <table class="table ui-table"><thead><tr><th scope="col">标题（编辑稿）</th><th scope="col">上线状态</th><th scope="col">最近修改</th><th scope="col">最近发布</th><th scope="col">管理</th></tr></thead>
         <tbody><tr th:each="item : ${announcements}">
           <td><strong th:text="${item.title}"></strong></td>
-          <td><span class="badge" th:classappend="${item.enabled ? 'good' : ''}" th:text="${item.enabled ? '已发布' : (item.publishedAt == null ? '草稿' : '已下线')}"></span></td>
-          <td class="time" th:text="${item.updatedAt}"></td><td class="time" th:text="${item.publishedAt ?: '—'}"></td>
+          <td><span class="ui-status" th:classappend="${item.enabled ? 'ui-status--success' : ''}" th:text="${item.enabled ? '已发布' : (item.publishedAt == null ? '草稿' : '已下线')}"></span></td>
+          <td class="admin-time"><th:block th:replace="~{fragments :: localTime(${item.updatedAt}, '—')}"></th:block></td><td class="admin-time"><th:block th:replace="~{fragments :: localTime(${item.publishedAt}, '—')}"></th:block></td>
           <td><a th:href="@{/admin/announcements/{id}(id=${item.announcementId})}">编辑与发布 →</a></td>
-        </tr><tr th:if="${announcements.isEmpty()}"><td colspan="5" class="empty">暂无公告。新建一条公告，保存草稿后发布到启动器首页。</td></tr></tbody>
+        </tr><tr th:if="${announcements.isEmpty()}"><td colspan="5" class="ui-empty">暂无公告。</td></tr></tbody>
       </table>
     </div>
-    <nav class="pagination" aria-label="公告分页"><a th:if="${page > 0}" th:href="@{/admin/announcements(page=${page - 1})}">上一页</a><span th:text="'第 ' + (${page} + 1) + ' 页'"></span><a th:if="${announcements.size() == 50}" th:href="@{/admin/announcements(page=${page + 1})}">下一页</a></nav>
+    <nav class="ui-pagination" aria-label="公告分页"><span class="admin-page-count" th:text="'本页 ' + ${announcements.size()} + ' 条'"></span><a class="btn ui-btn-secondary btn-sm" th:if="${page > 0}" th:href="@{/admin/announcements(page=${page - 1})}">上一页</a><span th:text="'第 ' + (${page} + 1) + ' 页'"></span><a class="btn ui-btn-secondary btn-sm" th:if="${announcements.size() == 50}" th:href="@{/admin/announcements(page=${page + 1})}">下一页</a></nav>
   </section>
 </main>
+<th:block th:replace="~{fragments :: footer}"></th:block>
 </body>
 </html>

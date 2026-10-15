@@ -17,7 +17,7 @@ namespace T7R.ManagedHarness
     internal static partial class AccountTests
     {
         private const string Machine = "12345678-1234-1234-1234-123456789abc";
-        internal static void Run() { RunAsync().GetAwaiter().GetResult(); TitleBridgeRoundTrip(); }
+        internal static void Run() { RunAsync().GetAwaiter().GetResult(); GameNameLaunchWorkflow(); TitleBridgeRoundTrip(); }
         internal static void Render(string output)
         {
             using (var warnings = new StringWriter())
@@ -30,6 +30,7 @@ namespace T7R.ManagedHarness
                 try
                 {
                     RenderAccountUi(output);
+                    RenderGameNameSetup(output);
                     RenderTitles(output);
                     RenderAccountLoading(output);
                     VerifyAccountLoadingAnimation();
@@ -42,6 +43,9 @@ namespace T7R.ManagedHarness
         private static async Task RunAsync()
         {
             AddressValidation();
+            await GameNameRegistrationAsync();
+            await GameNameSyncAsync();
+            await GameNameHttpAsync();
             await PresentationStateAsync();
             await WaitingForServerAsync();
             await RestoreWaitingForServerAsync();
@@ -328,7 +332,7 @@ namespace T7R.ManagedHarness
         private static AccountViewModel Model(FakeApi api, MemoryStore store, ManualDelay time) =>
             new AccountViewModel(api, store, () => Machine, token => Task.FromResult("TEST_COOKIE"), action => action(), time.Delay);
         private static AccountSession Session(string machine = Machine) => new AccountSession(Guid.NewGuid().ToString(), new string('A', 43),
-            DateTimeOffset.UtcNow.AddDays(30), Guid.NewGuid().ToString(), "12345", machine, "12345", "测试昵称", "https://q.qlogo.cn/g?b=qq&nk=12345&s=100");
+            DateTimeOffset.UtcNow.AddDays(30), Guid.NewGuid().ToString(), "12345", machine, "12345", "测试昵称", "https://q.qlogo.cn/g?b=qq&nk=12345&s=100", "测试玩家");
         private static HttpResponseMessage Json(object body) => new HttpResponseMessage(HttpStatusCode.OK)
             { Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json") };
         private static async Task Until(Func<bool> condition)
@@ -385,9 +389,18 @@ namespace T7R.ManagedHarness
             public Task PendingLogout;
             public AccountSession LastOnlineSession;
             public CancellationToken ListenCancellation;
+            public Task<AccountGameName> PendingName;
+            public Exception NameError;
+            public int NameCalls, RegistrationCalls, SetNameCalls;
             public int LoginCalls, OnlineCalls, LogoutCalls, CurrentCalls, ListenCalls, OfflineCalls;
             public Task<AccountSession> LoginAsync(string machine, string cookie, CancellationToken token)
             { LoginCalls++; return LoginError == null ? PendingLogin ?? Task.FromResult(Session) : Task.FromException<AccountSession>(LoginError); }
+            public Task<AccountSession> CompleteRegistrationAsync(string machine, string cookie, string name, CancellationToken token)
+            { RegistrationCalls++; Session = Session.WithGameName(name); return Task.FromResult(Session); }
+            public Task<AccountGameName> GameNameAsync(AccountSession session, CancellationToken token)
+            { NameCalls++; return NameError == null ? PendingName ?? Task.FromResult(new AccountGameName(Session.GameName)) : Task.FromException<AccountGameName>(NameError); }
+            public Task<AccountGameName> SetGameNameAsync(AccountSession session, string name, CancellationToken token)
+            { SetNameCalls++; Session = Session.WithGameName(name); return Task.FromResult(new AccountGameName(name)); }
             public Task<AccountSession> CurrentAsync(AccountSession session, CancellationToken token)
             { CurrentCalls++; return CurrentError == null ? PendingCurrent ?? Task.FromResult(Session) : Task.FromException<AccountSession>(CurrentError); }
             public Task<AccountConnection> OnlineAsync(AccountSession session, CancellationToken token)

@@ -1,5 +1,14 @@
 <!doctype html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments :: head('操作未完成')}"></head>
-<body class="login-page"><main class="login-card"><p class="eyebrow">T7 REKINDLE</p><h1>操作未完成</h1><p role="alert" th:text="${message ?: '请求未完成，请检查登录状态或稍后重试。'}"></p><div class="actions"><a th:href="@{/admin/accounts}">返回账户目录</a><a th:href="@{/admin/login}">重新登录</a></div></main></body>
+<body class="ui-scope">
+<header th:replace="~{fragments :: authHeader}"></header>
+<main class="card ui-auth-card" id="main-content" tabindex="-1">
+  <nav th:replace="~{fragments :: breadcrumbs(null, null, null, '操作未完成')}"></nav>
+  <h1 class="ui-page-title">操作未完成</h1>
+  <p class="alert alert-danger" role="alert" tabindex="-1" data-error-summary th:text="${message ?: '请求未完成，请检查登录状态或稍后重试。'}"></p>
+  <div class="ui-actions"><a class="btn ui-btn-secondary" th:href="@{/admin/accounts}">返回账户目录</a><a class="btn btn-primary" th:href="@{/admin/login}">重新登录</a></div>
+</main>
+<th:block th:replace="~{fragments :: footer}"></th:block>
+</body>
 </html>

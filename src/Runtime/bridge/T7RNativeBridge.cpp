@@ -73,9 +73,9 @@ extern "C" int32_t T7RNB_CALL t7r_native_publish_titles(T7RNativeSessionHandle h
         std::string value; status = copyPath(json, value, false); if (status != T7RNB_OK) return status;
         t7r::Bytes text;
         if (descriptionLength) {
-            if (!descriptions || descriptionLength != 256) return T7RNB_INVALID_ARGUMENT;
+            if (!descriptions || descriptionLength > t7r::TITLE_CATALOGUE_MAX_SIZE) return T7RNB_INVALID_ARGUMENT;
             text.assign(descriptions, descriptions + descriptionLength);
-            if (!t7r::validTitleDescriptions(text)) return T7RNB_INVALID_ARGUMENT;
+            if (!t7r::validTitleCatalogue(text)) return T7RNB_INVALID_ARGUMENT;
         }
         return session->publishTitles(epoch, std::move(value), requestId, success != 0, std::move(text));
     });
