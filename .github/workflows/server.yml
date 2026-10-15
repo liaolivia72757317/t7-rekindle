@@ -12,12 +12,12 @@ permissions:
 
 concurrency:
   group: server-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: server
@@ -33,6 +33,12 @@ jobs:
           cache-dependency-path: server/pom.xml
       - name: Verify against MySQL and Redis
         run: mvn -B -ntp clean verify
+      - name: Build container image
+        run: docker build --pull -t t7r-server:ci .
+      - name: Verify container image
+        run: >-
+          docker run --rm --network none --entrypoint sh t7r-server:ci
+          -c 'test -s /app/server.jar && test "$(id -u)" = 10001 && test "$SERVER_ADDRESS" = 0.0.0.0'
       - name: Upload server Jar and coverage
         uses: actions/upload-artifact@v7
         with:
@@ -41,3 +47,70 @@ jobs:
             server/target/rekindle-server-*.jar
             server/target/site/jacoco/
           if-no-files-found: error
+
+  publish:
+    name: Publish public GHCR image
+    needs: verify
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+       startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download verified Jar
+        uses: actions/download-artifact@v8
+        with:
+          name: rekindle-server
+          path: server/target
+      - name: Check public image contents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          jars = list(Path('target').glob('rekindle-server-*.jar'))
+          if len(jars) != 1:
+              raise SystemExit(f'Expected one server Jar, found {len(jars)}')
+          with ZipFile(jars[0]) as archive:
+              if 'BOOT-INF/classes/application-local.yml' in archive.namelist():
+                  raise SystemExit('Local application profile must not be published')
+          PY
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Build and push image
+        env:
+          IMAGE_OWNER: ${{ github.repository_owner }}
+        run: |
+          image="ghcr.io/${IMAGE_OWNER,,}/t7r-server"
+          shaTag="sha-${GITHUB_SHA:0:12}"
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            channelTag="$GITHUB_REF_NAME"
+          else
+            channelTag=latest
+          fi
+          docker build --pull \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            -t "$image:$shaTag" -t "$image:$channelTag" .
+          docker push "$image:$shaTag"
+          docker push "$image:$channelTag"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          echo "TAG=$channelTag" >> "$GITHUB_ENV"
+      - name: Verify anonymous access
+        run: |
+          docker logout ghcr.io
+          if ! docker manifest inspect "$IMAGE:$TAG" >/dev/null; then
+            echo '::error::Set the GHCR package visibility to Public, then rerun this workflow.'
+            exit 1
+          fi

@@ -42,6 +42,19 @@ mvn -B -ntp clean verify
 报告位于 `target/surefire-reports/`、`target/failsafe-reports/`、`target/site/jacoco/index.html`。业务 service 包的构建门禁为 90% 行覆盖率、100% 分支覆盖率。
 打包测试通过实际 Jar 验证迁移、首次登录改密、进程重启、管理员恢复，以及 Redis/MySQL 中断时的行为。
 
+## 容器镜像
+
+Server CI 在 `mvn clean verify` 通过后构建并检查 `t7r-server:ci` 镜像。默认分支推送通过后发布 `ghcr.io/OWNER/t7r-server:latest` 和 `:sha-COMMIT`；`v*` 标签推送通过后发布版本标签和 `:sha-COMMIT`。PR 与其他分支只验证，不发布；发布任务使用内置 `GITHUB_TOKEN`，无需额外仓库凭据。首次推送后在 GitHub Packages 的 `t7r-server` → Package settings → Change visibility 中设为 **Public**；在此之前，CI 的匿名访问检查会失败，设置后重新运行即可。
+
+本地构建：
+
+```powershell
+mvn -B -ntp clean verify
+docker build --pull -t t7r-server:ci .
+```
+
+构建上下文只发送已构建的 Jar；运行镜像使用 Java 25 JRE，进程以非 root 用户运行，容器内监听 `0.0.0.0:8080`。发布任务检查 Jar 不包含本地 `application-local.yml`；本地构建的 Jar 若包含该文件，仅用于本地验证。启动时仍需按下文注入数据库、Redis 等环境变量，并先执行数据库迁移；可通过 `docker run t7r-server:ci --migrate` 向入口命令传递迁移参数。
+
 ## 首次部署
 
 1. 准备 MySQL 8.4 和独立 Redis 8 实例。根据 `deploy/database.sql.example` 创建数据库、迁移账号和仅有 DML 权限的运行账号，使用不同随机密码。
