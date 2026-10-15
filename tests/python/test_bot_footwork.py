@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from Business.scripts import actors, app, battle, bot, bot_footwork, combat
+from Business.scripts import actors, app, battle, bot, bot_footwork, combat, weapons
 from Business.scripts.codec import move_flow
 from Business.scripts.navigation import NavMesh
 from test_bot_roster import multi
@@ -181,12 +181,17 @@ def test_successful_parry_keeps_both_bots_moving_without_preserving_their_swings
     for rid in (2, 12):
         actors.data(multi, rid).update(moving=True, forwardMs=bot.RUN_DELAY_MS)
         multi.later(actors.timerName(bot.MOVE_TIMER, rid), bot.MOVE_MS)
-    assert combat.parry(multi, 2, 12, actors.pair(world, 2, 12))
+    interception = dict(contact(12, defenceWeaponId=weapons.equipped(actors.data(multi, 12))),
+                        occurredAt=multi.now)
+    assert combat.parry(multi, 2, 12, actors.pair(world, 2, 12), contact=interception)
     for rid, reaction in ((2, 'parried'), (12, 'parry-success')):
         value = actors.data(multi, rid)
-        assert value['moving'] and value['forwardMs'] == 0
+        assert value['moving'] and value['forwardMs'] == bot.RUN_DELAY_MS
         assert actors.timerName(bot.MOVE_TIMER, rid) in multi.session['pending']
         assert value['action']['reaction'] == reaction and value['action']['index'] == -1
+        bot.broadcast(multi, True, actorId=rid)
+        move = move_flow.decode_move_bc_with_system_and_active(multi.result['send'][-1]['body'])
+        assert move.current_velocity == round(1000 * bot.JOG_SPEED)
         assert not any(item['reason'] == 'bot-stop' for item in multi.result['send'])
 
 

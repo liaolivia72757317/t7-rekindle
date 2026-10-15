@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from Business.runtime import host_runtime
-from Business.scripts import actors, app, battle, bot, combat, controls, roster, scene, spawn_resource
+from Business.scripts import actors, app, battle, bot, combat, controls, roster, scene, spawn_resource, weapons
 from Business.scripts.navigation import NavMesh
 from test_bot_player import flowAt
 from test_melee_combat import swing, advance, hp
@@ -119,7 +119,7 @@ def test_multiactor_hits_only_enemy_without_cancelling_locomotion(multi, attacke
 
 def test_lateral_bot_vs_bot_parry_keeps_other_actions(multi):
     sample(multi, {2: ((0, 0, .2), 0), 12: ((1.5, 0, .2), 180)})
-    publish(multi, 2, [contact(12)])
+    publish(multi, 2, [contact(12, defenceWeaponId=weapons.equipped(actors.data(multi, 12)))])
     battle.startAction(multi, 300610, actorId=12)
     advance(multi, battle.actionTimer(12))
     battle.startAction(multi, 300560, actorId=3)

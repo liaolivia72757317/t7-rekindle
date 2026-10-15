@@ -2,7 +2,8 @@ from copy import deepcopy
 
 import pytest
 
-from Business.scripts import actors, app, battle, bot, combat
+from Business.scripts import actors, app, battle, bot, combat, weapons
+from blade_fixture import contact
 from test_bot_roster import multi, sample
 from test_melee_combat import states
 
@@ -145,7 +146,9 @@ def test_defensive_success_releases_without_racing_the_next_think(multi, actorId
     advancePhase(multi, 1, battle.phaseMs(300550, 0))
     snapshot = sample(multi, placements)
     multi.result['send'].clear()
-    assert combat.parry(multi, 1, actorId, actors.pair(snapshot, 1, actorId))
+    interception = dict(contact(actorId, defenceWeaponId=weapons.equipped(actors.data(multi, actorId))),
+                        occurredAt=multi.now)
+    assert combat.parry(multi, 1, actorId, actors.pair(snapshot, 1, actorId), contact=interception)
     assert states(multi) == [(1, 246), (actorId, 234)]
     action = battle.actionState(multi, actorId)
     assert action['released'] == (profile == 'defensive')

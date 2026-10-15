@@ -3,7 +3,7 @@ import struct
 
 import pytest
 
-from Business.scripts import app, battle, combat
+from Business.scripts import actors, app, battle, combat, weapons
 from Business.scripts.codec import battle_flow
 from test_battle_actions import ATTACKS, BLOCKS, makeFlow, advanceAction, animationStates, sendAction
 from test_melee_combat import arena, advance, hp, states
@@ -224,9 +224,11 @@ def test_dash_ignores_contact_sampled_before_the_strike(arena, obstructed):
 
 
 def test_dash_can_be_parried_and_interrupts_its_contact_window(arena):
+    from blade_fixture import contact, publish
     battle.startAction(arena, 300600, actorId=2)
     advance(arena, battle.actionTimer(2))
     request(arena)
+    publish(arena, 1, [contact(2, defenceWeaponId=weapons.equipped(actors.data(arena, 2)))])
     advance(arena, combat.hitTimer(1))
     assert hp(arena, 2) == 100
     assert (1, 443) in states(arena)
