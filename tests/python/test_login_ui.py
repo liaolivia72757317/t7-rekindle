@@ -19,7 +19,7 @@ def test_titlebar_account_entry_is_temporarily_collapsed():
     assert account.get("DataContext") == "{Binding Account}"
 
 
-def test_account_menu_is_one_row_with_full_number_and_icon_logout():
+def test_account_menu_keeps_identity_row_and_title_entry():
     nodes = named(DESKTOP / "Views/AccountPanel.xaml")
     assert nodes["AccountMenu"].get("Width") == "280"
     assert nodes["AccountMenu"].get("Padding") == "12"
@@ -27,9 +27,12 @@ def test_account_menu_is_one_row_with_full_number_and_icon_logout():
     assert nodes["AccountNickname"].get("TextTrimming") == "CharacterEllipsis"
     root = ET.parse(DESKTOP / "Views/AccountPanel.xaml")
     buttons = list(root.iter(WPF + "Button"))
-    assert len(buttons) == 1
-    assert buttons[0].get("AutomationProperties.Name") == "退出登录"
-    assert buttons[0].get("Content") is None
+    assert [button.get(XAML + 'Name') for button in buttons] == ['LogoutButton', 'TitlesButton']
+    assert nodes['LogoutButton'].get("AutomationProperties.Name") == "退出登录"
+    assert nodes['LogoutButton'].get("Content") is None
+    assert nodes['TitlesButton'].get('Grid.Row') == '1'
+    assert nodes['TitlesButton'].get('Click') == 'OnTitles'
+    assert nodes['TitlesButton'].get('AutomationProperties.Name') == '我的称号'
 
 
 def test_login_page_has_no_duplicate_chrome_or_eager_webview():
