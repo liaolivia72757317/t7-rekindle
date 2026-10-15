@@ -71,9 +71,11 @@ def test_runtime_entry_initializes_idle_once_without_position_stop(playing):
                         instanceStartedAt=100, moveClock=controls.MOVE_CLOCK)
     scene.battleEntry(flow)
     sends = list(flow.result["send"])
-    commands = [0x36, 0xE, 0xE] + ([] if playing else [0x36, 2]) + [4]
+    commands = [0x36, 0xE, 0xE, 4] + ([] if playing else [0x36, 2]) + [4]
     assert [item["command"] for item in sends] == commands
     assert sends[0]["body"] == wire.actorState(flow.now, 6)
+    assert sends[3]['reason'] == 'combat-guard-value'
+    assert struct.unpack('>Hf', sends[3]['body']) == (48, 5.)
     if not playing:
         assert sends[-3]["body"] == wire.actorState(flow.now, 8)
         active = move_flow.decode_move_notify_active(sends[-2]["body"])
@@ -126,8 +128,10 @@ def test_runtime_battle_confirmation_closes_selection_and_starts_full_countdown_
     states = [item["body"] for item in sends
               if item["command"] == 0x36 and item["body"][:2] == b"\0\1"]
     assert states == [wire.actorState(flow.now, 6), wire.actorState(flow.now, 8)]
-    assert [item["command"] for item in sends] == [0x36, 0x36, 0xE, 0xE, 0x36, 2, 4, 0xA]
-    assert move_flow.decode_move_notify_active(sends[5]["body"]).active == 0
+    assert [item["command"] for item in sends] == [0x36, 0x36, 0xE, 0xE, 4, 0x36, 2, 4, 0xA]
+    assert sends[4]['reason'] == 'combat-guard-value'
+    assert struct.unpack('>Hf', sends[4]['body']) == (48, 5.)
+    assert move_flow.decode_move_notify_active(sends[6]["body"]).active == 0
     assert sends[-1]["body"] == wire.roundState(flow.now, 3, wire.START_MS)
     assert not controls.groundEnabled(flow)
     assert flow.session["phase"] == "start-sent"
