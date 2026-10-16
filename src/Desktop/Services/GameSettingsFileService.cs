@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using T7R.Core;
 
@@ -115,6 +117,7 @@ namespace T7R.Desktop.Services
             private readonly XmlDocument _xml = new XmlDocument { PreserveWhitespace = true, XmlResolver = null };
             private readonly XmlElement _header, _record;
             private readonly Encoding _encoding;
+            private readonly Dictionary<string, string> _numericNames = new Dictionary<string, string>();
             public string Path { get; }
             public byte[] Original { get; }
 
@@ -122,21 +125,41 @@ namespace T7R.Desktop.Services
             {
                 Path = path;
                 Original = File.ReadAllBytes(path);
-                using (var stream = new MemoryStream(Original, false))
-                using (var reader = XmlReader.Create(stream, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }))
+                _encoding = ReadEncoding(Original);
+                var text = _encoding.GetString(Original).TrimStart('\uFEFF');
+                var prefix = "__t7r_numeric_";
+                while (text.Contains(prefix)) prefix = "_" + prefix;
+                // PropertySheet accepts numeric field names that XML rejects; restore them when saving.
+                text = Regex.Replace(text, @"(<\/?)([0-9][A-Za-z0-9_.-]*)(?=[\s/>])", match =>
+                {
+                    var mapped = prefix + match.Groups[2].Value;
+                    _numericNames[mapped] = match.Groups[2].Value;
+                    return match.Groups[1].Value + mapped;
+                });
+                using (var input = new StringReader(text))
+                using (var reader = XmlReader.Create(input, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }))
                     _xml.Load(reader);
                 var root = _xml.DocumentElement;
                 if (root?.Name != "PropertySheet" || root.GetAttribute("Version") != "100") throw Invalid("PropertySheet");
                 _header = Element(root, "Header", true);
                 _record = Element(root, "Record[@Name='Config']", true);
-                var name = (_xml.FirstChild as XmlDeclaration)?.Encoding;
-                _encoding = Encoding.GetEncoding(string.IsNullOrEmpty(name) ? "utf-8" : name,
-                    EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-                if (_encoding.CodePage == 65001)
-                    _encoding = new UTF8Encoding(Original.Take(3).SequenceEqual(new byte[] { 0xef, 0xbb, 0xbf }), true);
-                else if (_encoding.CodePage == 1200 || _encoding.CodePage == 1201)
-                    _encoding = new UnicodeEncoding(_encoding.CodePage == 1201,
-                        Original.Take(2).SequenceEqual(_encoding.GetPreamble()), true);
+            }
+
+            private static Encoding ReadEncoding(byte[] bytes)
+            {
+                using (var stream = new MemoryStream(bytes, false))
+                using (var reader = new XmlTextReader(stream) { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null })
+                {
+                    // Read only the first node so XML handles the BOM/declaration before numeric fields are parsed.
+                    reader.Read();
+                    var encoding = reader.Encoding ?? Encoding.UTF8;
+                    if (encoding.CodePage == 65001)
+                        return new UTF8Encoding(bytes.Take(3).SequenceEqual(new byte[] { 0xef, 0xbb, 0xbf }), true);
+                    if (encoding.CodePage == 1200 || encoding.CodePage == 1201)
+                        return new UnicodeEncoding(encoding.CodePage == 1201,
+                            bytes.Take(2).SequenceEqual(encoding.GetPreamble()), true);
+                    return Encoding.GetEncoding(encoding.CodePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+                }
             }
 
             public GameSettingsFileSnapshot Read()
@@ -209,9 +232,18 @@ namespace T7R.Desktop.Services
 
             public void Write(Stream stream)
             {
-                using (var writer = XmlWriter.Create(stream, new XmlWriterSettings
-                { Encoding = _encoding, Indent = false, NewLineHandling = NewLineHandling.None, CloseOutput = false }))
-                    _xml.Save(writer);
+                using (var buffer = new MemoryStream())
+                {
+                    using (var writer = XmlWriter.Create(buffer, new XmlWriterSettings
+                    { Encoding = _encoding, Indent = false, NewLineHandling = NewLineHandling.None, CloseOutput = false }))
+                        _xml.Save(writer);
+                    var text = _encoding.GetString(buffer.ToArray());
+                    foreach (var name in _numericNames)
+                        text = Regex.Replace(text, @"(<\/?)(" + Regex.Escape(name.Key) + @")(?=[\s/>])",
+                            match => match.Groups[1].Value + name.Value);
+                    var bytes = _encoding.GetBytes(text);
+                    stream.Write(bytes, 0, bytes.Length);
+                }
             }
 
             private static XmlElement Element(XmlElement parent, string query, bool required)

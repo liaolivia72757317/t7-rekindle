@@ -49,6 +49,8 @@ namespace T7R.ManagedHarness
             TestValidation(CreateFixture(Path.Combine(root, "game-file-invalid")));
             TestWriteFailure(CreateFixture(Path.Combine(root, "game-file-locked")));
             TestUtf8(CreateFixture(Path.Combine(root, "game-file-utf8")));
+            TestNumericNames(CreateFixture(Path.Combine(root, "game-file-numeric")));
+            TestUnicodeWithoutDeclaration(CreateFixture(Path.Combine(root, "game-file-unicode")));
         }
 
         private static void TestReadAndSave(string directory)
@@ -133,6 +135,65 @@ namespace T7R.ManagedHarness
                 Assert(GameSettingsFileService.SaveAudio(directory, initial.Audio, new AudioSettingsValues(), out _), "UTF-8 settings save");
                 Assert(File.ReadAllBytes(path).Take(3).SequenceEqual(new byte[] { 0xef, 0xbb, 0xbf }) == bom
                     && File.ReadAllText(path, Encoding.UTF8).Contains("保留中文配置"), "UTF-8 BOM or text was not preserved");
+            }
+        }
+
+        private static void TestNumericNames(string directory)
+        {
+            var path = ConfigPath(directory);
+            var xml = File.ReadAllText(path, Gbk)
+                .Replace("</Header>", "<6_1001 Type=\"bool\" Value=\"false\"/><__t7r_numeric_6_1001 Type=\"str\" Value=\"保留\"/></Header>")
+                .Replace("</Record>", "<6_1001 Value=\"true\"/></Record>")
+                .Replace("<!--保留注释-->", "<!--保留注释及示例 <6_1001/> --><![CDATA[<6_1001/> & 保留原文]]>");
+            foreach (var encoding in new Encoding[] { Gbk, new UTF8Encoding(false), new UTF8Encoding(true),
+                new UnicodeEncoding(false, false), new UnicodeEncoding(false, true),
+                new UnicodeEncoding(true, false), new UnicodeEncoding(true, true) })
+            {
+                var declaration = encoding.CodePage == 936 ? "gb2312" : encoding.WebName;
+                File.WriteAllText(path, xml.Replace("encoding=\"gb2312\"", "encoding=\"" + declaration + "\""), encoding);
+                var original = File.ReadAllBytes(path);
+                var initial = GameSettingsFileService.Read(directory);
+                Assert(File.ReadAllBytes(path).SequenceEqual(original), "reading numeric properties changed the file");
+                Assert(GameSettingsFileService.SaveAudio(directory, initial.Audio, new AudioSettingsValues(), out var saved)
+                    && saved.Graphics.Equals(initial.Graphics), "numeric property audio save changed graphics");
+                var text = File.ReadAllText(path, encoding);
+                Assert(text.Contains("<6_1001 Type=\"bool\"") && text.Contains("<6_1001 Value=\"true\"")
+                    && text.Contains("<__t7r_numeric_6_1001") && text.Contains("<!--保留注释及示例 <6_1001/> -->")
+                    && text.Contains("<![CDATA[<6_1001/> & 保留原文]]>") && text.Contains("原样保留"),
+                    "numeric fields, existing names, comments or other records changed");
+                Assert(File.ReadAllBytes(path + ".bak").SequenceEqual(original), "numeric property backup changed original bytes");
+                var preamble = encoding.GetPreamble();
+                Assert(preamble.Length == 0 || File.ReadAllBytes(path).Take(preamble.Length).SequenceEqual(preamble),
+                    "numeric property encoding BOM changed");
+                Assert(GameSettingsFileService.Read(directory).Audio.Equals(new AudioSettingsValues()),
+                    "numeric property configuration reread failed");
+                var graphics = new GraphicsSettingsValues();
+                Assert(GameSettingsFileService.SaveGraphics(directory, initial.Graphics, graphics, out saved)
+                    && saved.Graphics.Equals(graphics) && saved.Audio.Equals(new AudioSettingsValues())
+                    && File.ReadAllText(path, encoding).Contains("<6_1001 Value=\"true\""),
+                    "numeric property graphics save changed audio or key bindings");
+            }
+        }
+
+        private static void TestUnicodeWithoutDeclaration(string directory)
+        {
+            var path = ConfigPath(directory);
+            var xml = File.ReadAllText(path, Gbk);
+            xml = xml.Substring(xml.IndexOf("<PropertySheet", StringComparison.Ordinal));
+            foreach (var bigEndian in new[] { false, true })
+            foreach (var bom in new[] { false, true })
+            {
+                var encoding = new UnicodeEncoding(bigEndian, bom, true);
+                File.WriteAllText(path, xml, encoding);
+                var initial = GameSettingsFileService.Read(directory);
+                Assert(GameSettingsFileService.SaveAudio(directory, initial.Audio, new AudioSettingsValues(), out _),
+                    "UTF-16 without declaration save failed");
+                var bytes = File.ReadAllBytes(path);
+                Assert(bytes.Take(2).SequenceEqual(new byte[] { 0xff, 0xfe }) == (bom && !bigEndian)
+                    && bytes.Take(2).SequenceEqual(new byte[] { 0xfe, 0xff }) == (bom && bigEndian)
+                    && encoding.GetString(bytes).Contains("保留中文配置"), "UTF-16 encoding or BOM changed without declaration");
+                Assert(GameSettingsFileService.Read(directory).Audio.Equals(new AudioSettingsValues()),
+                    "UTF-16 without declaration reread failed");
             }
         }
 
