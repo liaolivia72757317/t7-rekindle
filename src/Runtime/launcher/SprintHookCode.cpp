@@ -31,11 +31,41 @@ void verifySprintFunctions(HANDLE process, uint32_t imageBase) {
         {0x29B200, {0x56,0x8B,0xF1,0x8B,0x06,0x8B,0x40,0x2C,0xFF,0xD0}},
         {0x29B217, {0x66,0x0F,0x6E,0x86,0xEC,0,0,0}},
         {0x4C6E70, {0x55,0x8B,0xEC,0x83,0xEC,0x10,0x8B,0xC1,0x8B,0x4D,8}},
-        {0x4971B0, {0x8B,0x01,0xC3}}
+        {0x4971B0, {0x8B,0x01,0xC3}},
+        {0x5D3CB0, {0x55,0x8B,0xEC,0x8B,0x55,8,0x56,0x8B,0x71,0x24}}
     }) {
         if (readClientMemory(process, imageBase + entry.first, entry.second.size()) != entry.second)
             throw std::runtime_error("sprint function signature mismatch");
     }
+}
+void emitRunEligibleState(WorldHookCode& c, uint32_t imageBase) {
+    c.emit({0x60,0x8B,0x48,0x38});
+    std::vector<size_t> eligible, blocked, shield;
+    for (unsigned char state : std::array<unsigned char, 2>{1,2}) {
+        c.emit({0x83,0xF9,state}); eligible.push_back(c.branch(0x84));
+    }
+    for (uint32_t state : {95u,309u}) {
+        c.emit({0x81,0xF9}); c.word(state); shield.push_back(c.branch(0x84));
+    }
+    blocked.push_back(c.jump());
+    for (auto branch : shield) c.bind(branch);
+    // The live hero resource defines light-shield infantry (heroCategory=1),
+    // including heroes carrying medium shields; weapon performance is unrelated.
+    c.emit({0x8B,0x48,8,0x85,0xC9}); blocked.push_back(c.branch(0x84));
+    c.emit({0x68}); c.word(imageBase + 0x179ED94); c.call(imageBase + 0x26A1C0);
+    c.emit({0x85,0xC0}); blocked.push_back(c.branch(0x84));
+    c.emit({0x81,0x38}); c.word(imageBase + 0x179ECE4); blocked.push_back(c.branch(0x85));
+    c.emit({0x8B,0x50,0x2C,0x85,0xD2}); blocked.push_back(c.branch(0x8E));
+    c.emit({0x8B,0x0D}); c.word(imageBase + 0x24409D0);
+    c.emit({0x85,0xC9}); blocked.push_back(c.branch(0x84));
+    // Original hero-table accessor uses the table's integer-key index at +4.
+    c.emit({0x52,0x83,0xC1,4}); c.call(imageBase + 0x5D3CB0);
+    c.emit({0x85,0xC0}); blocked.push_back(c.branch(0x84));
+    c.emit({0x83,0xB8}); c.word(0x1C05); c.emit({1}); blocked.push_back(c.branch(0x85));
+    for (auto branch : eligible) c.bind(branch);
+    c.emit({0xB8}); c.word(1); const auto done = c.jump();
+    for (auto branch : blocked) c.bind(branch);
+    c.emit({0x33,0xC0}); c.bind(done); c.emit({0x85,0xC0,0x61});
 }
 void writeSprintDirections(Bytes& page) {
     // Indexed by W/S/A/D bits. Opposing keys cancel on each axis.
@@ -118,6 +148,8 @@ Bytes buildSprintHook(uint32_t address, uint32_t imageBase, const DashAttackProf
     c.emit({0x83,0x78,0x14,0}); invalid.push_back(c.branch(0x84));
     component(0x17ADDFC, 0); c.emit({0xA3}); c.word(offline);
     component(0x1783860, 0x178380C);
+    emitRunEligibleState(c, imageBase);
+    c.emit({0x0F,0x95,0x84,0x24}); c.word(0x200);
     c.emit({0x8B,0x70,0x38}); // ESI battle state
     c.emit({0x8B,0x48,0x40,0x89,0x0D}); c.word(sequence);
     c.emit({0x8B,0x48,0x48,0x89,0x0D}); c.word(phaseTick);
@@ -175,10 +207,8 @@ Bytes buildSprintHook(uint32_t address, uint32_t imageBase, const DashAttackProf
     c.bind(noRestore);
     std::vector<size_t> reset;
     c.emit({0x83,0x3D}); c.word(game); c.emit({4}); reset.push_back(c.branch(0x85));
-    // Weapon changes preserve locomotion and its timer; attacks and parries still reset both.
-    c.emit({0x83,0xFE,1}); const auto weaponChange = c.branch(0x84);
-    c.emit({0x83,0xFE,2}); reset.push_back(c.branch(0x85));
-    c.bind(weaponChange);
+    // Equipping and light-shield defense preserve the same continuous run timer.
+    c.emit({0x80,0xBC,0x24}); c.word(0x200); c.emit({0}); reset.push_back(c.branch(0x84));
     c.emit({0x8B,0xC7,0x83,0xE0,0x13,0x83,0xF8,1}); reset.push_back(c.branch(0x85));
     // Carry an established run through jump input/takeoff/landing while still moving forward.
     c.emit({0x83,0x3D}); c.word(tracking); c.emit({2}); const auto keepRunning = c.branch(0x84);

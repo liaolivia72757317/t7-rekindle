@@ -2,6 +2,7 @@
 #include "../core/Common.h"
 
 namespace t7r {
+class WorldHookCode;
 // Offline movement tuning; not a reconstruction of the server's speed formula.
 constexpr float JOG_SPEED = 3.f, RUN_SPEED = 5.f;
 constexpr uint32_t RUN_DELAY_MS = 1000;
@@ -14,4 +15,6 @@ Bytes buildSprintHook(uint32_t address, uint32_t imageBase, const DashAttackProf
 Bytes buildJumpPhysicsHook(uint32_t address, uint32_t imageBase, uint32_t threadId);
 Bytes jumpPhysicsJump(uint32_t address, uint32_t imageBase);
 void writeSprintDirections(Bytes& page);
+// EAX=GeFightable; preserves registers, sets ZF when the action interrupts running.
+void emitRunEligibleState(WorldHookCode& code, uint32_t imageBase);
 }

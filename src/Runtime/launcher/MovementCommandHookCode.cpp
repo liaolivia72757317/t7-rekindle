@@ -101,9 +101,7 @@ Bytes buildMovementCommandHook(uint32_t address, uint32_t imageBase, uint32_t th
         c.emit({0x81,0x38}); c.word(imageBase + table); native.push_back(c.branch(0x85));
     };
     component(0x1783860, 0x178380C);
-    c.emit({0x83,0x78,0x38,1}); const auto weaponChange = c.branch(0x84);
-    c.emit({0x83,0x78,0x38,2}); native.push_back(c.branch(0x85));
-    c.bind(weaponChange);
+    emitRunEligibleState(c, imageBase); native.push_back(c.branch(0x84));
     component(0x178692C, 0x17868BC);
     c.emit({0x83,0x78,0x60,6}); native.push_back(c.branch(0x82));
     c.emit({0x8B,0x40,0x54,0x85,0xC0}); native.push_back(c.branch(0x84));

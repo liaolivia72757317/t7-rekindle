@@ -126,6 +126,7 @@ void prepare(HANDLE process) {
     worldFixture::prepare(process);
     terrainFixture::prepare(process);
     sprintFixture::prepare(process);
+    lightShieldRunFixture::prepare(process);
     movementAnimationFixture::prepare(process);
     movementPoseFixture::prepare(process);
     movementCommandFixture::prepare(process);

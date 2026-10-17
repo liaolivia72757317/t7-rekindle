@@ -78,6 +78,8 @@ Bytes buildMovementAnimationHook(uint32_t address, uint32_t imageBase, uint32_t,
     c.emit({0xF6,0x00,0x10}); native.push_back(c.branch(0x85)); // Crouch retains its native graph coordinates.
     component(0x1783860, 0x178380C);
     c.emit({0x8B,0x58,0x38});
+    emitRunEligibleState(c, imageBase);
+    c.emit({0x0F,0x95,0x84,0x24}); c.word(0x208);
     if (dynamicProfiles) {
         c.emit({0x8B,0x90}); c.word(0x98); c.emit({0x8B,0x4E,8});
         c.call(address + COMBAT_PROFILE_CODE_OFFSET);
@@ -90,7 +92,7 @@ Bytes buildMovementAnimationHook(uint32_t address, uint32_t imageBase, uint32_t,
     c.emit({0x83,0xFB,1}); const auto weaponChange = c.branch(0x84);
     c.emit({0x83,0xFB,2}); const auto idle = c.branch(0x84);
     std::vector<size_t> shield;
-    if (dynamicProfiles) for (uint32_t state : {95u, 309u}) {
+    for (uint32_t state : {95u, 309u}) {
         c.emit({0x81,0xFB}); c.word(state); shield.push_back(c.branch(0x84));
     }
     c.emit({0x8D,0x83}); c.word(static_cast<uint32_t>(-223));
@@ -113,9 +115,7 @@ Bytes buildMovementAnimationHook(uint32_t address, uint32_t imageBase, uint32_t,
     c.emit({0x8D,0x48,0xFC,0x83,0xF9,2}); const auto notBackward = c.branch(0x87);
     coordinate(20); c.bind(notBackward);
     std::vector<size_t> slow;
-    c.emit({0x83,0xFB,1}); const auto weaponChangeGait = c.branch(0x84);
-    c.emit({0x83,0xFB,2}); slow.push_back(c.branch(0x85));
-    c.bind(weaponChangeGait);
+    c.emit({0x80,0xBC,0x24}); c.word(0x208); c.emit({0}); slow.push_back(c.branch(0x84));
     c.emit({0x83,0x3D}); c.word(data + 16); c.emit({2}); slow.push_back(c.branch(0x85));
     c.emit({0x83,0xF8,2}); const auto forward = c.branch(0x86);
     c.emit({0x83,0xF8,8}); slow.push_back(c.branch(0x85));

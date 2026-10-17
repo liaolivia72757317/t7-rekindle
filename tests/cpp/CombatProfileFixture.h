@@ -1,5 +1,6 @@
 #pragma once
 #include "MovementAnimationFixture.h"
+#include "LightShieldRunFixture.h"
 #include "../../src/Runtime/launcher/CombatProfileHookCode.h"
 
 namespace combatProfileFixture {
@@ -85,6 +86,7 @@ inline void verify(HANDLE process, uint32_t mailbox) {
     setFightState(process, 2, 7300); frame(7300, 5, 4.2f);
     if (readWord(process, mailbox + t7r::SPRINT_DATA_OFFSET + 12) != 5000)
         throw std::runtime_error("weapon profile change restarted the run timer");
+    lightShieldRunFixture::verify(process, mailbox);
     writeWord(process, CLOCK_MODE, 0); writeWord(process, worldFixture::FRAME_GATE, 0);
 }
 }
