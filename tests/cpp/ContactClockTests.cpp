@@ -163,7 +163,7 @@ void contactClockTests() {
         Sink sink;
         BattleSnapshotIngress ingress(match, 2000 + shift, 10000 + shift, 1000, sink);
         ingress.submit(sample(shift)); ingress.flush();
-        check(sink.contacts.size() == 52 + 296 && sink.contacts[1] == 4, "contact v4 layout");
+        check(sink.contacts.size() == 52 + 296 && sink.contacts[1] == 5, "contact v5 layout");
         check(integer(sink.contacts, 4) == match.epoch, "rematch epoch not retained");
         check(integer(sink.contacts, 84) == 55000, "source phase changed");
         check(real(sink.contacts, 92) == -4999., "prestart target phase not preserved");

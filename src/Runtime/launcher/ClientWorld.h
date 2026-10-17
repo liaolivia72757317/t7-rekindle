@@ -25,8 +25,9 @@ struct BladeContactMailbox {
     int32_t bodyIndex = -1;
     uint32_t region = 0; // Unknown, head, torso, legs; classified from the original rigid-body name.
     uint32_t defenceWeaponId = 0;
+    uint32_t guardVolume = 0;
 };
-static_assert(sizeof(BladeContactMailbox) == 68, "blade contact layout");
+static_assert(sizeof(BladeContactMailbox) == 72, "blade contact layout");
 struct BladeMailbox {
     uint32_t bodyCount = 0, bodyWorld = 0;
     std::array<uint32_t, MAX_BLADE_BODIES> roots{};
@@ -46,7 +47,10 @@ struct BladeMailbox {
     uint32_t defenceCount = 0;
     std::array<uint32_t, MAX_BLADE_BODIES> defenceRoots{}, defenceWorlds{}, defenceWeapons{};
     uint32_t actorPointer = 0; // Game-thread entity pointer for native command-to-RID matching only.
-    uint32_t guardWeaponId = 0; // Active equipped main hand; live blade query, not a proxy resource.
+    uint32_t guardWeaponId = 0; // Active equipped main hand, not a proxy resource.
+    GuardGeometry guard{};
+    std::array<float, 3> sweepBase{}, sweepTip{};
+    uint32_t sweepSteps = 0;
 };
 struct ActorMailbox {
     uint32_t ready = 0, targetId = 0;

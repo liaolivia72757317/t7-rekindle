@@ -240,6 +240,10 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const Di
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
             frameRuntime_.install(process, static_cast<uint32_t>(base), GetThreadId(thread),
                                       config.dashAttack, config.movementAnimation, config.combatProfiles);
+            try { guardDebug_.install(process, static_cast<uint32_t>(base)); }
+            catch (const std::exception& error) {
+                if (log) log(DiagnosticLogLevel::Warn, std::string("guard debug drawing unavailable: ") + error.what());
+            }
             if (log) log(DiagnosticLogLevel::Debug, "Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
         }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH,
             [this](HANDLE process, uint32_t base) { lobbyNews_.installHelper(process, base); }, true}},
@@ -296,7 +300,7 @@ void Bootstrap::stop() {
         if (!cleanupError.empty()) cleanupError += "; ";
         cleanupError += error.what();
     }
-    try { frameRuntime_.clear(); }
+    try { guardDebug_.clear(); frameRuntime_.clear(); }
     catch (const std::exception& error) {
         if (!cleanupError.empty()) cleanupError += "; ";
         cleanupError += error.what();
@@ -325,6 +329,11 @@ bool Bootstrap::pollAudio(AudioValues& values, uint32_t& result, bool& applied) 
     if (testAdapter_.launch) return testAdapter_.pollAudio && testAdapter_.pollAudio(values, result, applied);
     return frameRuntime_.audio().poll(values, result, applied);
 }
+void Bootstrap::updateGuardDebug(bool enabled, const WorldSnapshot* world) {
+    if (testAdapter_.pollWorld) return;
+    guardDebug_.update(enabled, world);
+}
+
 bool Bootstrap::pollWorld(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD_ACTORS>& camps) {
     if (testAdapter_.launch) return testAdapter_.pollWorld && testAdapter_.pollWorld(value);
     return frameRuntime_.world().poll(value, camps);

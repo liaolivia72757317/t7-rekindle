@@ -82,6 +82,7 @@ fn desperate_trait_uses_the_attacking_hero_maximum_health() {
     target.member.camp = 2;
     session.state.actors.insert(2, Arc::new(target));
     let event = ContactEvent {
+        guard_volume: false,
         actor_id: 1,
         target_id: 2,
         source_entity: 101,
@@ -119,6 +120,8 @@ fn desperate_trait_uses_the_attacking_hero_maximum_health() {
         weapon_id: 701,
         began_at_ms: 0,
         held_ms: 0,
+        strike_duration_ms: 600,
+        pending_breaks: BTreeMap::new(),
         start_ms: 0,
         end_ms: 600,
         closed_at_ms: None,

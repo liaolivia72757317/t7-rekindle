@@ -117,6 +117,17 @@
                     </ComboBox>
                   </Grid>
                 </Border>
+                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                  <Grid MinHeight="116">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="80" /></Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" Margin="0,12,20,12">
+                      <TextBlock Text="显示格挡调试几何" FontSize="18" TextWrapping="Wrap" />
+                      <TextBlock Text="在游戏内显示格挡区域、攻击扫掠和接触点；仅用于观察，不改变战斗裁决。" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <CheckBox x:Name="GuardDebugSwitch" Grid.Column="1" IsChecked="{Binding ShowGuardDebug}" Style="{StaticResource PreferenceSwitch}"
+                              AutomationProperties.Name="显示格挡调试几何" AutomationProperties.HelpText="默认关闭，保存后立即生效" TabIndex="13" />
+                  </Grid>
+                </Border>
                 <TextBlock Text="{Binding PreferenceError}" Style="{StaticResource FieldError}" />
               </StackPanel>
             </Border>

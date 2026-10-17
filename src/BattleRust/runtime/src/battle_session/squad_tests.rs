@@ -459,6 +459,7 @@ fn squad_attack_cooldown_uses_valid_enemy_damage_and_parries_not_invalid_contact
         let attack = session.actor(8).unwrap().action;
         session.state.now_ms = due + 250;
         let event = contacts::ContactEvent {
+            guard_volume: false,
             actor_id: 8,
             target_id: 3,
             source_entity: 8,

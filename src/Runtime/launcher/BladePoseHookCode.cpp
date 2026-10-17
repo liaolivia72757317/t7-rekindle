@@ -23,13 +23,13 @@ void nextNode(WorldHookCode& c) {
     c.bind(leaf); c.bind(done);
 }
 
-// Retain native equipped boxes when present, especially the offhand shield.
+// Only shields use native defensive roots; main-hand defence uses the query volume.
 void defenceRoots(WorldHookCode& c, uint32_t imageBase) {
     c.emit({0x60,0x8B,0xF0}); // ESI fightable; EBP blade mailbox.
     std::vector<size_t> done;
     c.emit({0x8B,0x85}); c.word(offsetof(BladeMailbox, state));
     std::vector<size_t> enabled;
-    for (uint32_t state : {223u,224u,225u,226u,231u,232u,233u,234u,309u,111u,235u,241u,247u,253u}) {
+    for (uint32_t state : {309u,111u}) {
         c.emit({0x3D}); c.word(state); enabled.push_back(c.branch(0x84));
     }
     done.push_back(c.jump());

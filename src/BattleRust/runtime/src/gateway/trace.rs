@@ -146,6 +146,50 @@ impl GatewayTrace {
         ))
     }
 
+    pub(super) fn guard_decisions(
+        &self,
+        epoch: u64,
+        outputs: &[crate::battle_session::Output],
+    ) -> io::Result<()> {
+        use crate::battle_session::Output;
+        for output in outputs {
+            let (e, verdict, duration) = match output {
+                Output::GuardRejected {
+                    reason,
+                    strike_duration_ms,
+                    evidence,
+                } => (
+                    evidence,
+                    format!("rejected:{reason:?}"),
+                    *strike_duration_ms,
+                ),
+                Output::Parry {
+                    outcome, evidence, ..
+                } => (evidence, format!("{outcome:?}"), 0),
+                Output::Damage {
+                    guard_break: true,
+                    evidence,
+                    ..
+                } => (
+                    evidence,
+                    if evidence.defence_weapon_id == 0 {
+                        "break-body-hit"
+                    } else {
+                        "break-native-contact"
+                    }
+                    .into(),
+                    0,
+                ),
+                _ => continue,
+            };
+            self.write_line(format_args!(
+                "role=2 phase=guard-decision epoch={epoch} actor={} target={} sequence={} origin={} verdict={verdict} atMs={} sourcePhaseAtMs={} targetPhaseAtMs={} targetIntent={:?} targetPhase={:?} strikeDurationMs={duration} defenceWeaponId={} region={:?}",
+                e.actor_id, e.target_id, e.sequence, if e.guard_volume { "guardVolume" } else { "native" },
+                e.occurred_at_ms, e.phase_at_ms, e.target_phase_at_ms, e.target_intent, e.target_phase, e.defence_weapon_id, e.region))?;
+        }
+        Ok(())
+    }
+
     pub(super) fn closed(&self, role: usize, error: Option<&io::Error>) -> io::Result<()> {
         if let Some(error) = error {
             let message: String = error
@@ -248,6 +292,43 @@ mod tests {
         trace.match_phase("match-bound", 7, 5000).unwrap();
         trace.match_phase("match-game-started", 7, 6000).unwrap();
         trace.match_phase("logout-sent", 7, 10000).unwrap();
+        use crate::battle_session::{GuardRejectReason, Output, ParryOutcome};
+        let fixture = include_str!("../../../../../tests/fixtures/protocol/battle-contacts-v5.txt");
+        let hex = fixture
+            .lines()
+            .find(|line| line.starts_with("contacts "))
+            .unwrap()
+            .split_whitespace()
+            .nth(1)
+            .unwrap();
+        let payload: Vec<_> = hex
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|v| u8::from_str_radix(std::str::from_utf8(v).unwrap(), 16).unwrap())
+            .skip(40)
+            .collect();
+        let sample = crate::semantic_adapter::ContactSample::decode(&payload).unwrap();
+        let evidence = Box::new(sample.events[0].event.clone());
+        trace
+            .guard_decisions(
+                7,
+                &[
+                    Output::GuardRejected {
+                        reason: GuardRejectReason::ChamberWindow,
+                        strike_duration_ms: 600,
+                        evidence: evidence.clone(),
+                    },
+                    Output::Parry {
+                        outcome: ParryOutcome::Blocked,
+                        attacker: 1,
+                        target: 2,
+                        weapon_id: 701,
+                        defence_weapon_id: 701,
+                        evidence,
+                    },
+                ],
+            )
+            .unwrap();
         for reason in [
             crate::battle_session::EndReason::Quit,
             crate::battle_session::EndReason::Timeout,
@@ -283,7 +364,10 @@ mod tests {
         assert!(line.contains("role=2 phase=uplink command=35 selector=1 bytes=6"));
         assert!(!line.contains("000001"));
         let lines: Vec<_> = line.lines().collect();
-        assert_eq!(lines.len(), 77);
+        assert_eq!(lines.len(), 79);
+        assert!(line.contains("origin=guardVolume verdict=rejected:ChamberWindow"));
+        assert!(line.contains("strikeDurationMs=600 defenceWeaponId=701 region=None"));
+        assert!(line.contains("origin=guardVolume verdict=Blocked"));
         assert!(line.contains("phase=match-game-started epoch=7 serverAtMs=6000"));
         for reason in ["quit", "timeout", "kill-target"] {
             for phase in ["settlement-start-sent", "settlement-finish-sent"] {

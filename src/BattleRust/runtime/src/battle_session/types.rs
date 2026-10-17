@@ -105,12 +105,21 @@ pub(crate) struct Buff {
 }
 
 #[derive(Clone, Debug)]
+pub(crate) struct PendingGuardBreak {
+    pub entity: u64,
+    pub life_at_ms: u64,
+    pub fraction: f64,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct Swing {
     pub sequence: u16,
     pub intent: action::Intent,
     pub weapon_id: u32,
     pub began_at_ms: u64,
     pub held_ms: u64,
+    pub strike_duration_ms: u16,
+    pub pending_breaks: BTreeMap<u32, PendingGuardBreak>,
     pub start_ms: u16,
     pub end_ms: u16,
     pub closed_at_ms: Option<u64>,
@@ -181,8 +190,32 @@ pub struct Settlement {
     pub members: Vec<RankedScore>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParryOutcome {
+    Blocked,
+    Chambered,
+    Broken,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuardRejectReason {
+    FuturePhase,
+    Interrupted,
+    NotDefending,
+    Direction,
+    ChamberWindow,
+    MissingWeapon,
+    ShieldState,
+    EquipmentChanged,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Output {
+    GuardRejected {
+        reason: GuardRejectReason,
+        strike_duration_ms: u16,
+        evidence: Box<super::contacts::ContactEvent>,
+    },
     Training(super::training::Snapshot),
     Squad {
         actor_id: u32,
@@ -219,6 +252,7 @@ pub enum Output {
         health: u32,
     },
     Parry {
+        outcome: ParryOutcome,
         attacker: u32,
         target: u32,
         weapon_id: u32,

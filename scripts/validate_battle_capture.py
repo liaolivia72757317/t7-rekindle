@@ -57,6 +57,13 @@ def validate_capture(path):
                 source_id = row.get("sourceId")
                 require(integer(source_id) and source_id != 0 and row.get("clock") == "GetTickCount64",
                         line_no, "invalid source or clock")
+                geometry = row.get("guardGeometry")
+                if geometry is not None:
+                    require(isinstance(geometry, dict) and geometry.get("shape") == "frontObb"
+                            and number(geometry.get("forwardOffset")) and geometry["forwardOffset"] > 0
+                            and number(geometry.get("heightOffset")) and geometry["heightOffset"] > 0
+                            and vector(geometry.get("halfExtents")) and all(v > 0 for v in geometry["halfExtents"]),
+                            line_no, "invalid guard geometry")
                 mapping = row.get("ridMap")
                 require(isinstance(mapping, list) and 1 <= len(mapping) <= MAX_ACTORS, line_no, "invalid RID map")
                 for entry in mapping:
@@ -185,6 +192,12 @@ def validate_capture(path):
                             and all(type(event.get(key)) is bool
                             for key in ("velocityReady", "airborne", "targetAirborne")),
                             line_no, "invalid contact heading or flags")
+                    origin = event.get("contactOrigin", "native")
+                    require(origin in ("native", "guardVolume"), line_no, "invalid contact origin")
+                    if origin == "guardVolume":
+                        require(target != 0 and event["defenceWeaponId"] > 0
+                                and event["region"] == 0 and event["bodyIndex"] == -1
+                                and event.get("targetState") not in (111, 309), line_no, "invalid guard volume contact")
                     counts["contacts"] += 1
                 counts["samples"] += 1
                 counts["readySamples"] += bool(row["ready"])

@@ -333,6 +333,7 @@ fn bound_contact(
         client_rid: value.client_rid,
         target_client_rid: value.target_client_rid,
         event: ContactEvent {
+            guard_volume: value.flags & 8 != 0,
             actor_id: value.actor_id,
             target_id: value.target_id,
             source_entity: value.source_entity,

@@ -107,6 +107,20 @@ void workerFailure(const fs::path& root, bool standard, bool failCleanup = false
     fixture.stop();
 }
 
+void guardDebugSamplingFailure(const fs::path& root) {
+    Fixture fixture(root);
+    auto adapter = fixture.adapter();
+    adapter.pollWorld = [](WorldSnapshot&) -> bool { throw std::runtime_error("synthetic debug sample failure"); };
+    fixture.start(std::move(adapter));
+    require(waitUntil([&] { return fixture.snapshot().state == T7RNB_STATE_RUNNING; }), "guard debug test start");
+    require(fixture.session->setGuardDebug(true) == T7RNB_OK, "guard debug enable rejected");
+    require(waitUntil([&] { return fixture.logs().find("guard debug sampling disabled:") != std::string::npos; }),
+        "guard debug sampling error not reported");
+    require(fixture.alive && fixture.stops == 0 && fixture.snapshot().state == T7RNB_STATE_RUNNING,
+        "guard debug sampling failure stopped the client");
+    fixture.stop();
+}
+
 void captureFailure(const fs::path& root, bool invalidPath) {
     const auto capture = invalidPath ? fs::path(L"relative-capture.jsonl") : root / "capture.jsonl";
     require(SetEnvironmentVariableW(L"T7R_BATTLE_CAPTURE_PATH", capture.c_str()), "capture environment setup");
@@ -150,6 +164,7 @@ bool verifySessionMonitoring() {
         SetEnvironmentVariableW(L"T7R_BATTLE_CAPTURE_PATH", nullptr);
         windowProbe(root, false); windowProbe(root, true);
         workerFailure(root, true); workerFailure(root, false); workerFailure(root, true, true);
+        guardDebugSamplingFailure(root);
         captureFailure(root, true); captureFailure(root, false);
         cleanup();
         return true;

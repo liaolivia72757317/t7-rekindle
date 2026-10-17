@@ -76,7 +76,20 @@ void Session::monitorClient() {
         cleanupError.empty() && normalExit ? DiagnosticLogLevel::Info : DiagnosticLogLevel::Error);
 }
 
+void Session::monitorGuardDebug(const WorldSnapshot* world) {
+    try { bootstrap_.updateGuardDebug(showGuardDebug_.load(), world); }
+    catch (const std::exception& error) {
+        showGuardDebug_.store(false);
+        log(std::string("guard debug drawing disabled: ") + error.what(), DiagnosticLogLevel::Warn);
+        try { bootstrap_.updateGuardDebug(false); }
+        catch (const std::exception& disableError) {
+            log(std::string("guard debug disable failed: ") + disableError.what(), DiagnosticLogLevel::Warn);
+        }
+    }
+}
+
 void Session::monitorWorld() {
+    monitorGuardDebug();
     bool battleNeedsWorld = false;
     std::array<uint8_t, MAX_WORLD_ACTORS> camps{};
     {
@@ -90,10 +103,12 @@ void Session::monitorWorld() {
             }
         }
     }
-    if (!battleNeedsWorld && (!capture_ || captureDisabled_)) return;
+    const bool debugOnly = !battleNeedsWorld && (!capture_ || captureDisabled_);
+    if (debugOnly && !showGuardDebug_.load()) return;
     try {
         WorldSnapshot world;
         if (bootstrap_.pollWorld(world, camps)) {
+            monitorGuardDebug(&world);
             if (capture_ && !captureDisabled_) {
                 try { capture_->record(world); }
                 catch (const std::exception& error) {
@@ -139,6 +154,12 @@ void Session::monitorWorld() {
             if (!clockBinding.empty()) log(clockBinding);
         }
     } catch (const std::exception& error) {
+        if (debugOnly) {
+            showGuardDebug_.store(false);
+            log(std::string("guard debug sampling disabled: ") + error.what(), DiagnosticLogLevel::Warn);
+            monitorGuardDebug();
+            return;
+        }
         try {
             if (!bootstrap_.running()) { monitorClient(); return; }
         } catch (const std::exception& statusError) {

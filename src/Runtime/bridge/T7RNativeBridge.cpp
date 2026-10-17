@@ -114,6 +114,14 @@ extern "C" int32_t T7RNB_CALL t7r_native_set_log_level(T7RNativeSessionHandle ha
     });
 }
 
+extern "C" int32_t T7RNB_CALL t7r_native_set_guard_debug(T7RNativeSessionHandle handle, uint32_t enabled) {
+    return guard([&]() -> int32_t {
+        if (enabled > 1) return T7RNB_INVALID_ARGUMENT;
+        std::shared_ptr<Session> session; auto status = checkSession(handle, session); if (status != T7RNB_OK) return status;
+        return session->setGuardDebug(enabled != 0);
+    });
+}
+
 extern "C" int32_t T7RNB_CALL t7r_native_get_graphics(T7RNativeSessionHandle handle, T7RNativeGraphicsSnapshot* output) {
     return guard([&]() -> int32_t {
         if (!output) return T7RNB_INVALID_ARGUMENT;

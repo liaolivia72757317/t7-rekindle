@@ -164,6 +164,7 @@ impl BattleContact {
             client_rid: self.client_rid,
             target_client_rid: self.target_client_rid,
             event: ContactEvent {
+                guard_volume: false,
                 actor_id: self.actor_id,
                 target_id: self.target_id,
                 source_entity: self.source_entity,
@@ -601,6 +602,13 @@ pub extern "C" fn t7r_gateway_battle_stop(handle: u64) -> i32 {
 #[cfg(test)]
 mod backpressure_tests {
     use super::*;
+    #[test]
+    fn fixed_contact_abi_rejects_v5_guard_volume_flag() {
+        // Every field is numeric; the fixed ABI has no versioned extension slot.
+        let mut event: BattleContact = unsafe { std::mem::zeroed() };
+        event.flags = 8;
+        assert!(matches!(event.parse(), Err(INVALID_ARGUMENT)));
+    }
     #[test]
     fn only_uncommitted_would_block_is_retryable() {
         use std::io::{Error, ErrorKind};

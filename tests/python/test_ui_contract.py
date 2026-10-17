@@ -507,6 +507,7 @@ def test_native_bridge_exports_are_explicit_and_versioned():
         "t7r_native_apply_audio",
         "t7r_native_set_output_device",
         "t7r_native_set_log_level",
+        "t7r_native_set_guard_debug",
         "t7r_native_publish_titles",
         "t7r_native_get_title_request",
     ]

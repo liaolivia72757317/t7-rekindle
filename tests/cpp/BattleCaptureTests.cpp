@@ -50,6 +50,7 @@ bool verifyBattleCapture() {
         t7r::BladeContactEvent contact;
         contact.actorId = 1;
         contact.hit.targetId = 20;
+        contact.hit.guardVolume = true; contact.hit.defenceWeaponId = 701;
         contact.hit.time = .25f;
         contact.hit.along = .75f;
         contact.hit.contact.material = 2;
@@ -76,13 +77,13 @@ bool verifyBattleCapture() {
         require(first != std::string::npos && second != std::string::npos && third != std::string::npos,
             "capture must contain start, samples and end");
         verifyLine(text.substr(0, first), {"\"type\":\"captureStart\"", "\"sourceId\":1",
-            "\"actorId\":1,\"clientRid\":1", "\"actorId\":20,\"clientRid\":20"});
+            "\"actorId\":1,\"clientRid\":1", "\"actorId\":20,\"clientRid\":20", "\"guardGeometry\":{\"shape\":\"frontObb\"", "\"halfExtents\":[0.15,0.6,0.9]"});
         verifyLine(text.substr(first + 1, second - first - 1), {"\"type\":\"sample\"",
             "\"epoch\":1000", "\"worldBatchId\":1", "\"contactBatchId\":7",
             "\"sampledAtUptimeMs\":2000", "\"contactThroughAtUptimeMs\":2000",
             "\"contactFrames\":3", "\"forwardAttemptAtUptimeMs\":1995,\"attemptedForward\":true,\"freshForwardAttempt\":true",
             "\"forwardAttemptAtUptimeMs\":1500,\"attemptedForward\":true,\"freshForwardAttempt\":false",
-            "\"targetId\":20", "\"targetObservedAtUptimeMs\":2001", "\"sourceObservedAtUptimeMs\":2002", "\"occurredAtUptimeMs\":1999.5", "\"sweepTime\":0.25"});
+            "\"targetId\":20", "\"contactOrigin\":\"guardVolume\"", "\"defenceWeaponId\":701", "\"targetObservedAtUptimeMs\":2001", "\"sourceObservedAtUptimeMs\":2002", "\"occurredAtUptimeMs\":1999.5", "\"sweepTime\":0.25"});
         verifyLine(text.substr(second + 1, third - second - 1), {"\"epoch\":3000",
             "\"worldBatchId\":1", "\"contactBatchId\":1", "\"attemptedForward\":false,\"freshForwardAttempt\":false"});
         verifyLine(text.substr(third + 1), {"\"type\":\"captureEnd\"", "\"complete\":true"});

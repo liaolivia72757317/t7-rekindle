@@ -121,6 +121,23 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
         c.emit({0x3D}); c.word(0x47C35000);
         missing.push_back(c.branch(0x83));
     }
+    constexpr uint32_t guard = offsetof(ActorMailbox, blade) + offsetof(BladeMailbox, guard);
+    c.emit({0xD9,0x47,20,0xD9,0xFB,0xD9,0x9F}); c.word(guard + offsetof(GuardGeometry, cosYaw));
+    c.emit({0xD9,0x9F}); c.word(guard + offsetof(GuardGeometry, sinYaw));
+    auto immediateFloat = [&](float value) {
+        uint32_t bits; std::memcpy(&bits, &value, 4); c.emit({0xB8}); c.word(bits);
+        c.emit({0x66,0x0F,0x6E,0xC8});
+    };
+    for (uint32_t axis = 0; axis < 3; ++axis) {
+        immediateFloat(axis == 2 ? GUARD_HEIGHT_OFFSET : GUARD_FORWARD_OFFSET);
+        if (axis < 2) {
+            c.emit({0xF3,0x0F,0x10,0x87}); c.word(guard + (axis == 0 ? offsetof(GuardGeometry, cosYaw) : offsetof(GuardGeometry, sinYaw)));
+            c.emit({0xF3,0x0F,0x59,0xC8});
+        }
+        c.emit({0xF3,0x0F,0x10,0x47,static_cast<unsigned char>(8 + axis * 4)});
+        c.emit({0xF3,0x0F,static_cast<unsigned char>(axis == 1 ? 0x5C : 0x58),0xC1});
+        c.emit({0xF3,0x0F,0x11,0x87}); c.word(guard + axis * 4);
+    }
     c.emit({0xC7,0x07,1,0,0,0});
     for (auto branch : missing) c.bind(branch);
     c.emit({0x81,0xC7}); c.word(ACTOR_STRIDE); c.emit({0xFF,0x05}); c.word(ridAddress);

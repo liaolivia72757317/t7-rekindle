@@ -160,6 +160,8 @@ fn history_cleanup_copies_only_changed_actor_without_public_delta() {
         weapon_id: 701,
         began_at_ms: 0,
         held_ms: 0,
+        strike_duration_ms: 600,
+        pending_breaks: BTreeMap::new(),
         start_ms: 0,
         end_ms: 10,
         closed_at_ms: Some(10),

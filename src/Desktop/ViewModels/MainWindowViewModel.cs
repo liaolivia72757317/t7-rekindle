@@ -70,6 +70,8 @@ namespace T7R.Desktop.ViewModels
             _minimizeToTray = loaded.MinimizeToTray;
             _startWithWindows = loaded.StartWithWindows;
             _skipStartupAnimation = loaded.SkipStartupAnimation;
+            _showGuardDebug = loaded.ShowGuardDebug;
+            _bridge.SetGuardDebug(_showGuardDebug);
             _previewAccess = previewAccess ?? new PreviewAccessService(settings.DirectoryPath);
             _requestPreviewAccess = requestPreviewAccess ?? DesktopInteraction.RequestPreviewAccess;
             _updateChannel = _previewAccess.InitializeChannel(settings, out var channelWarning);
@@ -323,6 +325,7 @@ namespace T7R.Desktop.ViewModels
             SkipStartupAnimation = _skipStartupAnimation,
             OutputDeviceId = SelectedOutputDeviceId,
             LogLevel = DiagnosticLogLevels.Name(_selectedLogLevel),
+            ShowGuardDebug = _showGuardDebug,
             UpdateChannel = _updateChannel == UpdateChannel.Preview ? "preview" : "stable",
             WindowWidth = _windowWidth,
             WindowHeight = _windowHeight

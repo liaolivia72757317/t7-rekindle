@@ -10,6 +10,7 @@
     <None Include="..\fixtures\protocol\room-entry-wire-v1.txt" Link="fixtures\room-entry-wire-v1.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\fixtures\protocol\titles-v1.txt" Link="fixtures\titles-v1.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\fixtures\protocol\battle-contacts-v3.txt" Link="fixtures\battle-contacts-v3.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\battle-contacts-v5.txt" Link="fixtures\battle-contacts-v5.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\fixtures\protocol\battle-contacts-v4.txt" Link="fixtures\battle-contacts-v4.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\fixtures\protocol\battle-contacts-v2.txt" Link="fixtures\battle-contacts-v2.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\fixtures\protocol\gateway-v1.txt" Link="fixtures\gateway-v1.txt" CopyToOutputDirectory="PreserveNewest" />

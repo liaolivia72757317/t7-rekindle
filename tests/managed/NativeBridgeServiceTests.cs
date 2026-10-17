@@ -53,6 +53,7 @@ namespace T7R.ManagedHarness
                     if (bridge.GetSnapshot().State != SessionState.Idle)
                         throw new InvalidOperationException("native session did not start idle");
                     bridge.SetLogLevel(DiagnosticLogLevel.Info);
+                    bridge.SetGuardDebug(true); bridge.SetGuardDebug(false);
                     bridge.SetOutputDevice(Guid.Empty);
                     bridge.GetGraphicsSettings();
                     bridge.GetAudioSettings();

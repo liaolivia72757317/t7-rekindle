@@ -105,6 +105,7 @@ mod tests {
             let row = line.split_whitespace().collect::<Vec<_>>();
             let actor_id = row[1].parse::<u32>().unwrap();
             let evidence = ContactEvent {
+                guard_volume: false,
                 actor_id,
                 target_id: 0,
                 source_entity: 100 + u64::from(actor_id),

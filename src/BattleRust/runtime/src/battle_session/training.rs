@@ -98,19 +98,18 @@ impl Training {
                     self.snapshot.hits += 1;
                 }
                 Output::Parry {
-                    target, evidence, ..
+                    target,
+                    evidence,
+                    outcome,
+                    ..
                 } if self.snapshot.map_id == 6009
                     && *target == self.player_id
                     && self.accepts_contact(evidence.occurred_at_ms) =>
                 {
-                    // A broken guard emits a parry animation too, but is not a successful defence.
-                    if events.iter().any(|event| matches!(event,
-                        Output::Damage { guard_break: true, evidence: hit, .. }
-                            if hit.actor_id == evidence.actor_id && hit.sequence == evidence.sequence
-                                && hit.target_id == evidence.target_id)) {
+                    if *outcome == ParryOutcome::Broken {
                         continue;
                     }
-                    if evidence.target_intent.is_some_and(Intent::is_attack) {
+                    if *outcome == ParryOutcome::Chambered {
                         self.snapshot.parries += 1;
                     } else {
                         self.snapshot.blocks += 1;

@@ -295,6 +295,7 @@ pub enum ActionEvent {
         weapon_id: u32,
         began_at_ms: u64,
         held_ms: u64,
+        strike_duration_ms: u16,
         contact_start_ms: u16,
         contact_end_ms: u16,
     },

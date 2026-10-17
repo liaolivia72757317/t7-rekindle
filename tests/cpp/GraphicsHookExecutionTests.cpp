@@ -2,6 +2,7 @@
 #include "../../src/Runtime/launcher/DebugClient.h"
 #include "../../src/Runtime/launcher/OutputDevice.h"
 #include "WorldHookFixture.h"
+#include "GuardDebugFixture.h"
 #include "TerrainHookFixture.h"
 #include "BladeHookFixture.h"
 #include "SprintHookFixture.h"
@@ -94,6 +95,7 @@ void fixture(const t7r::fs::path& path) {
     code.insert(code.end(), {0x89, 0x25}); word(code, STATS); // original ESP
     const auto loop = static_cast<uint32_t>(code.size());
     code.insert(code.end(), {0x6A,10,0xFF,0x15}); word(code, BASE + 0x1904);
+    imm(0xB8, guardDebugFixture::DISPATCH); code.insert(code.end(), {0xFF,0xD0});
     imm(0xB8, jumpPhysicsFixture::DISPATCH); code.insert(code.end(), {0xFF,0xD0});
     imm(0xB8, jumpControlFixture::DISPATCH); code.insert(code.end(), {0xFF,0xD0});
     code.insert(code.end(), {0x83,0x3D}); word(code, worldFixture::FRAME_GATE); code.push_back(1);
@@ -221,9 +223,9 @@ uint32_t readAudio(t7r::AudioSettings& audio, t7r::AudioValues& values, bool exp
     require(applied == expectApplied, "audio completion command mismatch"); return result;
 }
 }
-bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
+bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly, bool guardOnly) {
     const auto directory = t7r::fs::temp_directory_path() / (L"t7r-graphics-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
-    t7r::DebugClient client; t7r::ClientFrameRuntime runtime;
+    t7r::DebugClient client; t7r::ClientFrameRuntime runtime; t7r::GuardDebugDraw guardDebug;
     auto& graphics = runtime.graphics();
     try {
         require(t7r::fs::create_directory(directory), "graphics fixture directory");
@@ -231,6 +233,7 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
         const t7r::OutputDevice selected{ADAPTER_ORDINAL, ADAPTER_ID, "fixture adapter", true};
         client.start(path, t7r::fileHash(path), {}, [&](HANDLE process, HANDLE thread) {
             prepare(process); bladeFixture::prepare(process); weaponTrailFixture::prepare(process);
+            guardDebugFixture::prepare(process); guardDebug.install(process, BASE);
             t7r::installOutputDevice(process, BASE, selected);
             const auto page = t7r::buildWorldHook(0x10000000, BASE, GetThreadId(thread), sprintFixture::profile());
             const auto sweep = t7r::buildBladeSweepHook(0x10000000, BASE);
@@ -309,6 +312,14 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
             if (line.find("exception") != std::string::npos || line.find("fault") != std::string::npos
                 || line.find("violation") != std::string::npos) std::cerr << line << '\n';
         });
+        if (!combatOnly && !titlesOnly) guardDebugFixture::verify(client.process(), guardDebug);
+        if (guardOnly) {
+            client.check(); client.stop(); runtime.clear(); guardDebug.clear();
+            require(t7r::fs::canonical(directory).parent_path() == t7r::fs::canonical(t7r::fs::temp_directory_path()), "guard fixture cleanup boundary");
+            t7r::fs::remove_all(directory);
+            std::cout << "x86 guard debug camera, live toggle, state/stream restore, lost device and draw failure passed\n";
+            return true;
+        }
         t7r::GraphicsValues values;
         require(readCompleted(graphics, values, false) == 1 && values.viewDistance == 159 && values.swoosh == 0, "graphics initial snapshot/default");
         if (!combatOnly) titleFixture::verify(client.process(), runtime.titles());

@@ -1,4 +1,5 @@
 #pragma once
+#include "GuardGeometry.h"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -24,12 +25,14 @@ struct BladeContact {
     int32_t bodyIndex = -1;
     uint32_t region = 0;
     uint32_t defenceWeaponId = 0; // Zero denotes scene/body, otherwise the intercepted equipped weapon.
+    bool guardVolume = false;
 };
 struct BladeTrace {
     bool ready = false;
     uint32_t spanMs = 0;
     float length = 0;
-    std::array<float, 3> base{}, tip{};
+    std::array<float, 3> base{}, tip{}, sweepBase{}, sweepTip{};
+    uint32_t sweepSteps = 0;
     std::array<BladeContact, MAX_BLADE_CONTACTS> contacts{};
 };
 struct ActorSnapshot {
@@ -40,6 +43,8 @@ struct ActorSnapshot {
     std::array<TerrainContact, 2> terrain{};
     std::array<TerrainContact, MAX_WORLD_ACTORS> targetTerrain{}; // Indexed by target RID - 1.
     BladeTrace blade{};
+    GuardGeometry guard{};
+    uint32_t guardWeaponId = 0;
     uint32_t entity = 0, state = 0, sequence = 0;
     uint64_t phaseAt = 0;
     uint64_t forwardAttemptAt = 0; // Host monotonic uptime; zero means no observed native forward command.

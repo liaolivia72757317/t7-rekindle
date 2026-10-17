@@ -115,7 +115,7 @@ pub struct SampledContact {
     pub target_phase_at_ms: f64,
     /// Upper bound when the target state was read; absent in the v1 layout.
     pub target_observed_at_ms: Option<u64>,
-    /// Upper bound when the source state was read; present in v3 and v4.
+    /// Upper bound when the source state was read; present from v3 onward.
     pub source_observed_at_ms: Option<u64>,
     pub occurred_at_ms: f64,
     pub along: f64,
@@ -123,7 +123,7 @@ pub struct SampledContact {
     pub region: u8,
     pub body_index: i8,
     pub material: i8,
-    /// Bits: velocity ready, source airborne, target airborne.
+    /// Bits: velocity ready, source airborne, target airborne, v5 guard volume.
     pub flags: u8,
     pub source_position: [f64; 3],
     pub target_position: [f64; 3],
@@ -150,7 +150,13 @@ impl SampledContact {
             && self.sequence != 0
             && self.target_intent <= 10
             && self.target_phase <= 9
-            && self.flags & !7 == 0
+            && self.flags & !(if version >= 5 { 15 } else { 7 }) == 0
+            && (self.flags & 8 == 0
+                || (self.target_id != 0
+                    && self.defence_weapon_id != 0
+                    && self.region == 0
+                    && self.body_index == -1
+                    && self.target_intent != 9))
             && crate::damage::Region::from_contact_code(
                 self.region,
                 self.target_id,
@@ -286,7 +292,7 @@ pub struct ContactBatch {
 
 impl ContactBatch {
     pub fn encode(&self) -> Result<Vec<u8>, SemanticError> {
-        if !matches!(self.version, 1..=4)
+        if !matches!(self.version, 1..=5)
             || !self.stamp.valid()
             || self.world_batch_id == 0
             || self.dropped != 0
@@ -329,7 +335,7 @@ impl ContactBatch {
         }
         let count = usize::from(read_u16(bytes, 48));
         let version = read_u16(bytes, 0);
-        if !matches!(version, 1..=4) || read_u16(bytes, 2) != 0 {
+        if !matches!(version, 1..=5) || read_u16(bytes, 2) != 0 {
             return Err(SemanticError("invalid contact version or reserved field"));
         }
         let size = CONTACT_SIZE + usize::from(version.min(3) - 1) * 8;

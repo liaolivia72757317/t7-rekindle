@@ -102,6 +102,10 @@ int main() {
     uint8_t titleDescriptions[256]; std::memset(titleDescriptions, 'X', sizeof(titleDescriptions));
     assert(t7r_native_publish_titles(session, 1, &titleJson, 0, 1, titleDescriptions, 256) == T7RNB_INVALID_ARGUMENT);
 
+    assert(t7r_native_set_guard_debug(nullptr, 1) == T7RNB_INVALID_HANDLE);
+    assert(t7r_native_set_guard_debug(session, 2) == T7RNB_INVALID_ARGUMENT);
+    assert(t7r_native_set_guard_debug(session, 1) == T7RNB_OK);
+    assert(t7r_native_set_guard_debug(session, 0) == T7RNB_OK);
     assert(t7r_native_set_log_level(nullptr, T7RNB_LOG_INFO) == T7RNB_INVALID_HANDLE);
     assert(t7r_native_set_log_level(session, 4) == T7RNB_INVALID_ARGUMENT);
     assert(t7r_native_set_log_level(session, UINT32_MAX) == T7RNB_INVALID_ARGUMENT);

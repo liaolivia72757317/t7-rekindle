@@ -1,7 +1,18 @@
 use super::*;
 
 fn striking(attack: Intent) -> (BattleSession, u64, u16) {
-    let mut battle = session();
+    striking_at(attack, 250)
+}
+
+fn striking_at(attack: Intent, elapsed: u64) -> (BattleSession, u64, u16) {
+    strike_session(session(), attack, elapsed)
+}
+
+fn strike_session(
+    mut battle: BattleSession,
+    attack: Intent,
+    elapsed: u64,
+) -> (BattleSession, u64, u16) {
     battle
         .dispatch(7, 0, Input::World(world(0, 1)), publish)
         .unwrap();
@@ -25,12 +36,283 @@ fn striking(attack: Intent) -> (BattleSession, u64, u16) {
     battle
         .dispatch(
             7,
-            due + 250,
-            Input::World(world(due + 250, sequence)),
+            due + elapsed,
+            Input::World(world(due + elapsed, sequence)),
             publish,
         )
         .unwrap();
     (battle, due, sequence)
+}
+
+fn guard_session(strike_duration_ms: u16, grade: &str) -> BattleSession {
+    let mut raw: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../../../tests/fixtures/resources/bundle-v1.json"
+    ))
+    .unwrap();
+    raw["damageProfiles"]["1101"]["weapons"]["701"]["attackGrade"] = serde_json::json!(grade);
+    for id in ["300540", "300550", "300560", "300570"] {
+        let profile = &mut raw["combatProfiles"]["1101"]["701"]["attacks"][id];
+        profile["phases"][2] = serde_json::json!(strike_duration_ms);
+        profile["contactEndMs"] = serde_json::json!(strike_duration_ms - 50);
+    }
+    let bundle = ResourceBundle::from_slice(&serde_json::to_vec(&raw).unwrap()).unwrap();
+    BattleSession::new(
+        &bundle,
+        Arc::new(BattleResources::prepare(&bundle).unwrap()),
+        Config {
+            epoch: 7,
+            started_at_ms: 0,
+            duration_ms: 1200000,
+            kill_target: 10,
+            seed: 42,
+            members: vec![member(1), member(2)],
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn guard_volume_break_waits_for_body_across_batches_and_rolls_back() {
+    use t7r_battle_runtime::battle_session::ParryOutcome;
+    for body_later in [false, true] {
+        let battle = guard_session(600, "SS");
+        let (mut battle, due, sequence) =
+            strike_session(battle, Intent::Attack(Direction::Up), 250);
+        let at = due + 250;
+        let before = battle.actor(2).unwrap();
+        let mut volume = contact(sequence, due, at as f64);
+        volume.guard_volume = true;
+        volume.region = Region::None;
+        volume.defence_weapon_id = 701;
+        volume.target_intent = Some(Intent::Guard(Direction::Up));
+        volume.target_phase = Phase::Hold;
+        let input = Input::Contacts(ContactBatch {
+            epoch: 7,
+            batch_id: at,
+            through_at_ms: at as f64,
+            dropped: 0,
+            events: vec![volume.clone()],
+        });
+        assert!(
+            battle
+                .dispatch(7, at, input, |_| Err(io::Error::other(
+                    "publication failed"
+                )))
+                .is_err()
+        );
+        assert_eq!(battle.actor(2).unwrap(), before);
+        let output = settle(&mut battle, at, vec![volume.clone(), volume.clone()]);
+        assert_eq!(
+            output
+                .iter()
+                .filter(|e| matches!(
+                    e,
+                    Output::Parry {
+                        outcome: ParryOutcome::Broken,
+                        ..
+                    }
+                ))
+                .count(),
+            1
+        );
+        assert!(output.iter().all(|e| !matches!(e, Output::Damage { .. })));
+        assert_eq!(battle.actor(2).unwrap().health, before.health);
+        assert_eq!(battle.actor(1).unwrap().action.phase, Phase::Strike);
+        volume.occurred_at_ms += 10.;
+        assert!(
+            settle(&mut battle, at + 10, vec![volume])
+                .iter()
+                .all(|e| !matches!(e, Output::Parry { .. }))
+        );
+        let mut body = contact(sequence, due, (at + 20) as f64);
+        body.region = Region::Head;
+        if body_later {
+            let input = Input::Contacts(ContactBatch {
+                epoch: 7,
+                batch_id: at + 20,
+                through_at_ms: (at + 20) as f64,
+                dropped: 0,
+                events: vec![body.clone()],
+            });
+            assert!(
+                battle
+                    .dispatch(7, at + 20, input, |_| Err(io::Error::other("retry body")))
+                    .is_err()
+            );
+            assert_eq!(battle.actor(2).unwrap().health, before.health);
+            let output = settle(&mut battle, at + 20, vec![body.clone(), body]);
+            assert_eq!(
+                output
+                    .iter()
+                    .filter(
+                        |e| matches!(e, Output::Damage { guard_break: true, evidence, .. }
+                if evidence.region == Region::Head && !evidence.guard_volume)
+                    )
+                    .count(),
+                1,
+                "{output:#?}"
+            );
+            assert!(battle.actor(2).unwrap().health < before.health);
+        } else {
+            body.occurred_at_ms = (due + 601) as f64;
+            settle(&mut battle, due + 601, vec![body]);
+            assert_eq!(battle.actor(2).unwrap().health, before.health);
+        }
+    }
+}
+
+#[test]
+fn guard_volume_break_settles_a_later_body_in_the_same_batch() {
+    use t7r_battle_runtime::battle_session::ParryOutcome;
+    let (mut battle, due, sequence) =
+        strike_session(guard_session(600, "SS"), Intent::Attack(Direction::Up), 250);
+    let at = due + 250;
+    let mut volume = contact(sequence, due, at as f64);
+    volume.guard_volume = true;
+    volume.region = Region::None;
+    volume.defence_weapon_id = 701;
+    volume.target_intent = Some(Intent::Guard(Direction::Up));
+    volume.target_phase = Phase::Hold;
+    let mut body = contact(sequence, due, at as f64);
+    body.along = volume.along + 0.1;
+    body.region = Region::Legs;
+    let output = settle(&mut battle, at, vec![body.clone(), volume, body]);
+    assert_eq!(
+        output
+            .iter()
+            .filter(|e| matches!(
+                e,
+                Output::Parry {
+                    outcome: ParryOutcome::Broken,
+                    ..
+                }
+            ))
+            .count(),
+        1
+    );
+    assert_eq!(
+        output
+            .iter()
+            .filter(
+                |e| matches!(e, Output::Damage { guard_break: true, evidence, .. }
+        if evidence.region == Region::Legs && !evidence.guard_volume)
+            )
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn pending_guard_break_does_not_transfer_to_a_replaced_entity_or_a_stopped_swing() {
+    for replaced in [false, true] {
+        let (mut battle, due, sequence) =
+            strike_session(guard_session(600, "SS"), Intent::Attack(Direction::Up), 250);
+        let at = due + 250;
+        let before = battle.actor(2).unwrap().health;
+        let mut volume = contact(sequence, due, at as f64);
+        volume.guard_volume = true;
+        volume.region = Region::None;
+        volume.defence_weapon_id = 701;
+        volume.target_intent = Some(Intent::Guard(Direction::Up));
+        volume.target_phase = Phase::Hold;
+        settle(&mut battle, at, vec![volume]);
+        let mut body = contact(sequence, due, (at + 20) as f64);
+        if replaced {
+            let mut next = (*world(at + 10, sequence)).clone();
+            next.actors.get_mut(&2).unwrap().entity = 902;
+            battle
+                .dispatch(7, at + 10, Input::World(Arc::new(next)), publish)
+                .unwrap();
+            settle(
+                &mut battle,
+                at + 11,
+                vec![contact(sequence, due, (at + 11) as f64)],
+            );
+            assert_eq!(battle.actor(2).unwrap().health, before);
+            body.target_entity = 902;
+        } else {
+            let mut wall = contact(sequence, due, (at + 10) as f64);
+            wall.target_id = 0;
+            wall.target_entity = 0;
+            wall.region = Region::None;
+            settle(&mut battle, at + 10, vec![wall]);
+        }
+        let output = settle(&mut battle, at + 20, vec![body]);
+        assert!(output.iter().all(|e| !matches!(
+            e,
+            Output::Damage {
+                guard_break: true,
+                ..
+            }
+        )));
+        assert_eq!(battle.actor(2).unwrap().health < before, replaced);
+    }
+}
+
+#[test]
+fn chamber_window_scales_with_full_strike_duration_and_reports_rejections() {
+    use t7r_battle_runtime::battle_session::{GuardRejectReason, ParryOutcome};
+    for duration in [300, 602, 1200] {
+        for offset in [0, 1] {
+            let elapsed = u64::from(duration / 3) + offset;
+            let (mut battle, due, sequence) = strike_session(
+                guard_session(duration, "C"),
+                Intent::Attack(Direction::Down),
+                elapsed,
+            );
+            let at = due + elapsed;
+            let mut volume = contact(sequence, due, at as f64);
+            volume.guard_volume = true;
+            volume.region = Region::None;
+            volume.defence_weapon_id = 701;
+            volume.target_intent = Some(Intent::Attack(Direction::Up));
+            volume.target_phase = Phase::Prepare;
+            let output = settle(&mut battle, at, vec![volume]);
+            assert_eq!(
+                output.iter().any(|e| matches!(
+                    e,
+                    Output::Parry {
+                        outcome: ParryOutcome::Chambered,
+                        ..
+                    }
+                )),
+                offset == 0
+            );
+            assert_eq!(
+                output.iter().any(|e| matches!(e, Output::GuardRejected {
+                reason: GuardRejectReason::ChamberWindow, strike_duration_ms, evidence
+            } if *strike_duration_ms == duration && evidence.guard_volume)),
+                offset == 1
+            );
+        }
+    }
+}
+
+#[test]
+fn chamber_uses_attacker_first_third_instead_of_defender_elapsed() {
+    for elapsed in [70, 150, 200, 201, 250] {
+        for preparation_age in [0, 49, 50, 201, 400] {
+            for phase in [Phase::Prepare, Phase::Hold, Phase::Strike] {
+                let (mut battle, due, sequence) =
+                    striking_at(Intent::Attack(Direction::Down), elapsed);
+                let at = due + elapsed;
+                let mut weapon = contact(sequence, due, at as f64);
+                weapon.defence_weapon_id = 701;
+                weapon.region = Region::None;
+                weapon.target_intent = Some(Intent::Attack(Direction::Up));
+                weapon.target_phase = phase;
+                weapon.target_phase_at_ms = at as f64 - f64::from(preparation_age);
+                weapon.source_observed_at_ms = Some(at);
+                weapon.target_observed_at_ms = Some(at);
+                let output = settle(&mut battle, at, vec![weapon]);
+                assert_eq!(
+                    output.iter().any(|e| matches!(e, Output::Parry { .. })),
+                    elapsed <= 200 && phase == Phase::Prepare,
+                    "attack elapsed={elapsed}, preparation age={preparation_age}, phase={phase:?}"
+                );
+            }
+        }
+    }
 }
 
 fn settle(battle: &mut BattleSession, at: u64, events: Vec<ContactEvent>) -> Vec<Output> {
@@ -41,7 +323,7 @@ fn settle(battle: &mut BattleSession, at: u64, events: Vec<ContactEvent>) -> Vec
             at,
             Input::Contacts(ContactBatch {
                 epoch: 7,
-                batch_id: 1,
+                batch_id: at,
                 through_at_ms: at as f64,
                 dropped: 0,
                 events,
@@ -144,32 +426,6 @@ fn equal_contacts_prefer_weapon_and_invalid_weapon_keeps_body_candidate() {
 }
 
 #[test]
-fn chamber_retains_its_own_direction_and_prepare_window() {
-    // Up chamber catches a downward thrust even though ordinary Up guard does not.
-    for elapsed in [49, 50, 200, 201] {
-        let (mut battle, due, sequence) = striking(Intent::Attack(Direction::Down));
-        let at = due + 250;
-        let mut weapon = contact(sequence, due, at as f64);
-        weapon.defence_weapon_id = 701;
-        weapon.target_intent = Some(Intent::Attack(Direction::Up));
-        weapon.target_phase = Phase::Prepare;
-        weapon.target_phase_at_ms = (at - elapsed) as f64;
-        weapon.along = 0.25;
-        let mut body = weapon.clone();
-        body.defence_weapon_id = 0;
-        body.along = 0.5;
-        let before = battle.actor(2).unwrap().health;
-        let output = settle(&mut battle, at, vec![body, weapon]);
-        let allowed = (50..=200).contains(&elapsed);
-        assert_eq!(
-            output.iter().any(|e| matches!(e, Output::Parry { .. })),
-            allowed
-        );
-        assert_eq!(battle.actor(2).unwrap().health == before, allowed);
-    }
-}
-
-#[test]
 fn prestart_target_phase_preserves_idle_guard_and_chamber_outcomes() {
     for (intent, phase, parried) in [
         (None, Phase::Idle, false),
@@ -199,7 +455,7 @@ fn prestart_target_phase_preserves_idle_guard_and_chamber_outcomes() {
                         at,
                         Input::Contacts(ContactBatch {
                             epoch: 7,
-                            batch_id: 1,
+                            batch_id: at,
                             through_at_ms: at as f64,
                             dropped: 0,
                             events: vec![legacy],
@@ -262,6 +518,8 @@ fn serialized_weapon_and_body_contacts_reach_guard_settlement_without_relabeling
         (3, 0., 6, false),
         (4, -4999., 5, true),
         (4, -4999., 6, false),
+        (5, -4999., 5, true),
+        (5, -4999., 6, false),
     ] {
         let (mut battle, due, sequence) = striking(Intent::Attack(Direction::Up));
         let at = due + 250;
@@ -280,10 +538,12 @@ fn serialized_weapon_and_body_contacts_reach_guard_settlement_without_relabeling
         weapon.target_intent = guard;
         weapon.target_phase = 2;
         weapon.defence_weapon_id = 701;
+        weapon.flags = if version == 5 { 8 } else { 0 };
         weapon.region = 0;
         weapon.body_index = -1;
         weapon.along = 0.25;
         let mut body = *weapon;
+        body.flags = 0;
         body.defence_weapon_id = 0;
         body.region = 2;
         body.along = 0.5;

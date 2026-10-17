@@ -72,7 +72,7 @@ namespace T7R.BattleHarness
                 }
                 for (int length = 0; length < payload.Length; ++length)
                     Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeContactBatch(payload.Take(length).ToArray()));
-                var unknown = (byte[])payload.Clone(); unknown[1] = 5;
+                var unknown = (byte[])payload.Clone(); unknown[1] = 6;
                 Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeContactBatch(unknown));
             }
         }
@@ -107,7 +107,7 @@ namespace T7R.BattleHarness
                 }
                 for (int length = 0; length < payload.Length; ++length)
                     Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeContactBatch(payload.Take(length).ToArray()));
-                var unknown = (byte[])payload.Clone(); unknown[1] = 5;
+                var unknown = (byte[])payload.Clone(); unknown[1] = 6;
                 Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeContactBatch(unknown));
             }
         }
@@ -115,6 +115,7 @@ namespace T7R.BattleHarness
         internal static void Run()
         {
             ContactPrestartTests.Run();
+            ContactGuardVolumeTests.Run();
             HeroHealth();
             ContactRegions();
             var shields = new[] { new BattleShieldState(300, 60) };
@@ -216,7 +217,7 @@ namespace T7R.BattleHarness
                     var unknownEvent = (byte[])payload.Clone(); unknownEvent[40] = 2;
                     Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeMatchState(unknownEvent));
                 }
-                var future = (byte[])payload.Clone(); future[1] = 5;
+                var future = (byte[])payload.Clone(); future[1] = 6;
                 Program.Throws<InvalidDataException>(() => decode(future));
                 for (int length = 0; length < payload.Length; ++length)
                 {

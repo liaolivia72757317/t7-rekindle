@@ -427,6 +427,7 @@ fn bound_battle_accepts_native_motion_and_contact_watermark_without_replaying_ba
     assert!(gateway.submit_battle_motion(motion).is_err());
 
     let contact = ContactEvent {
+        guard_volume: false,
         actor_id: 1,
         target_id: 0,
         source_entity: 101,
@@ -1410,6 +1411,7 @@ fn sampled_surface_contact_reaches_original_instance_hit_point_wire(ground: bool
         .submit_battle_world(&world.encode().unwrap())
         .unwrap();
     let evidence = ContactEvent {
+        guard_volume: false,
         actor_id: 1,
         target_id: 0,
         source_entity: 101,

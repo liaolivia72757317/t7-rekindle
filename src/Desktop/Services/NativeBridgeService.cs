@@ -26,6 +26,7 @@ namespace T7R.Desktop.Services
     public interface INativeBridge
     {
         void SetLogLevel(DiagnosticLogLevel level);
+        void SetGuardDebug(bool enabled);
         void SetOutputDevice(Guid identifier);
         Task<OperationSnapshot> CheckAsync(string clientDirectory, CancellationToken cancellationToken);
         Task<OperationSnapshot> StartAsync(string clientDirectory, CancellationToken cancellationToken);
@@ -646,6 +647,7 @@ namespace T7R.Desktop.Services
             private NativeMethods(IntPtr module)
             {
                 SetLogLevel = Resolve<LogLevelDelegate>(module, "t7r_native_set_log_level");
+                SetGuardDebug = Resolve<GuardDebugDelegate>(module, "t7r_native_set_guard_debug");
                 SetOutputDevice = Resolve<OutputDeviceDelegate>(module, "t7r_native_set_output_device");
                 GetGraphics = Resolve<GraphicsDelegate>(module, "t7r_native_get_graphics");
                 ApplyGraphics = Resolve<GraphicsDelegate>(module, "t7r_native_apply_graphics");
