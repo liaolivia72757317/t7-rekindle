@@ -7,6 +7,7 @@
       <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary>
           <Visibility x:Key="LauncherArtworkVisibility">Visible</Visibility>
+          <Visibility x:Key="HomeBannerVisibility">Visible</Visibility>
           <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F4F7F8" />
           <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF" />
           <SolidColorBrush x:Key="PrimaryBrush" Color="#324F60" />

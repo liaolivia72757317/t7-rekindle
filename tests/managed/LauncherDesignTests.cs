@@ -237,15 +237,21 @@ namespace T7R.ManagedHarness
                 "hourglass animation rotates the button label with the icon");
             var trigger = (DataTrigger)icon.Style.Triggers[1];
             var storyboard = ((BeginStoryboard)trigger.EnterActions[0]).Storyboard;
+            storyboard.Pause(icon);
+            LauncherTests.Pump();
             var milliseconds = new[] { 300, 900, 1500, 2100, 2700 };
             var angles = new[] { 0.0, 90.0, 180.0, 270.0, 0.0 };
-            for (var index = 0; index < milliseconds.Length; index++)
+            try
             {
-                storyboard.SeekAlignedToLastTick(icon, TimeSpan.FromMilliseconds(milliseconds[index]), TimeSeekOrigin.BeginTime);
-                LauncherTests.Assert(Math.Abs(rotation.Angle - angles[index]) < 0.1,
-                    "starting hourglass does not alternate half turns with pauses: " + milliseconds[index]
-                        + " ms / expected " + angles[index] + " / actual " + rotation.Angle);
+                for (var index = 0; index < milliseconds.Length; index++)
+                {
+                    storyboard.SeekAlignedToLastTick(icon, TimeSpan.FromMilliseconds(milliseconds[index]), TimeSeekOrigin.BeginTime);
+                    LauncherTests.Assert(Math.Abs(rotation.Angle - angles[index]) < 0.1,
+                        "starting hourglass does not alternate half turns with pauses: " + milliseconds[index]
+                            + " ms / expected " + angles[index] + " / actual " + rotation.Angle);
+                }
             }
+            finally { storyboard.Resume(icon); }
         }
 
         private static void VerifyRunningActionIcon(Icon icon)
@@ -258,12 +264,18 @@ namespace T7R.ManagedHarness
                 "running animation rotates the button label with the icon");
             var trigger = (DataTrigger)icon.Style.Triggers[0];
             var storyboard = ((BeginStoryboard)trigger.EnterActions[0]).Storyboard;
-            foreach (var milliseconds in new[] { 250, 500, 1250 })
+            storyboard.Pause(icon);
+            LauncherTests.Pump();
+            try
             {
-                storyboard.SeekAlignedToLastTick(icon, TimeSpan.FromMilliseconds(milliseconds), TimeSeekOrigin.BeginTime);
-                LauncherTests.Assert(Math.Abs(rotation.Angle - milliseconds % 1000 * 0.36) < 0.1,
-                    "running icon rotation is not a continuous linear loop");
+                foreach (var milliseconds in new[] { 250, 500, 1250 })
+                {
+                    storyboard.SeekAlignedToLastTick(icon, TimeSpan.FromMilliseconds(milliseconds), TimeSeekOrigin.BeginTime);
+                    LauncherTests.Assert(Math.Abs(rotation.Angle - milliseconds % 1000 * 0.36) < 0.1,
+                        "running icon rotation is not a continuous linear loop");
+                }
             }
+            finally { storyboard.Resume(icon); }
         }
 
         private static void RenderArtworkWithoutUi(MainWindow window, string output)
@@ -336,7 +348,7 @@ namespace T7R.ManagedHarness
             var artwork = (Image)home.FindName("HeroArtwork");
             var source = artwork.Source as BitmapSource;
             var fallback = (StackPanel)home.FindName("HeroFallback");
-            var visibility = (Visibility)Application.Current.Resources["LauncherArtworkVisibility"];
+            var visibility = (Visibility)Application.Current.Resources["HomeBannerVisibility"];
             LauncherTests.Assert(source != null && source.PixelWidth == 1989 && source.PixelHeight == 790
                 && artwork.Stretch == Stretch.UniformToFill, "home banner resource is missing or distorted");
             LauncherTests.Assert(fallback != null && artwork.Visibility == visibility

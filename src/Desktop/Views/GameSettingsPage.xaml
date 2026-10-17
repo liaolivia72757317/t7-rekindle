@@ -1,6 +1,7 @@
 <UserControl x:Class="T7R.Desktop.Views.GameSettingsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:views="clr-namespace:T7R.Desktop.Views"
              xmlns:core="clr-namespace:T7R.Core;assembly=T7R.Core"
              xmlns:services="clr-namespace:T7R.Desktop.Services">
@@ -98,6 +99,21 @@
                       <ComboBoxItem Content="信息" Tag="{x:Static core:DiagnosticLogLevel.Info}" />
                       <ComboBoxItem Content="警告" Tag="{x:Static core:DiagnosticLogLevel.Warn}" />
                       <ComboBoxItem Content="错误" Tag="{x:Static core:DiagnosticLogLevel.Error}" />
+                    </ComboBox>
+                  </Grid>
+                </Border>
+                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                  <Grid MinHeight="116">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" Margin="0,12,20,12">
+                      <Label Content="界面主题" Target="{Binding ElementName=ThemeSelector}" FontSize="18" FontWeight="Normal" />
+                      <TextBlock Text="选择后自动保存并立即生效；系统高对比度优先。" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ComboBox x:Name="ThemeSelector" Grid.Column="1" Height="40" VerticalAlignment="Center"
+                              SelectedValue="{Binding DarkTheme}" SelectedValuePath="Tag"
+                              AutomationProperties.Name="界面主题" AutomationProperties.HelpText="选择浅色或深色，自动保存并立即生效；启用系统高对比度时优先使用高对比度主题" TabIndex="12">
+                      <ComboBoxItem Content="浅色"><ComboBoxItem.Tag><sys:Boolean>False</sys:Boolean></ComboBoxItem.Tag></ComboBoxItem>
+                      <ComboBoxItem Content="深色"><ComboBoxItem.Tag><sys:Boolean>True</sys:Boolean></ComboBoxItem.Tag></ComboBoxItem>
                     </ComboBox>
                   </Grid>
                 </Border>

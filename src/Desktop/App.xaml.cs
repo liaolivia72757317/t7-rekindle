@@ -15,6 +15,7 @@ namespace T7R.Desktop
         private Mutex _singleInstance;
         private bool _darkTheme;
         private ResourceDictionary _themeDictionary;
+        private MainWindowViewModel _themeViewModel;
         private readonly bool _startRuntime;
 
         public App() : this(true) { }
@@ -52,6 +53,7 @@ namespace T7R.Desktop
                 Shutdown(1);
                 return;
             }
+            InitializeTheme(viewModel);
             var window = new MainWindow { DataContext = viewModel };
             MainWindow = window;
             window.Show();
@@ -63,6 +65,7 @@ namespace T7R.Desktop
         protected override void OnExit(ExitEventArgs e)
         {
             SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged;
+            if (_themeViewModel != null) _themeViewModel.PropertyChanged -= OnThemePreferenceChanged;
             _bridge?.Dispose();
             _singleInstance?.Dispose();
             base.OnExit(e);
@@ -76,7 +79,25 @@ namespace T7R.Desktop
             }
         }
 
-        private void ApplyTheme()
+        internal void InitializeTheme(MainWindowViewModel viewModel)
+        {
+            if (_themeViewModel != null) _themeViewModel.PropertyChanged -= OnThemePreferenceChanged;
+            _themeViewModel = viewModel;
+            if (_themeViewModel != null) _themeViewModel.PropertyChanged += OnThemePreferenceChanged;
+            _darkTheme = _themeViewModel?.DarkTheme ?? false;
+            ApplyTheme();
+        }
+
+        private void OnThemePreferenceChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(MainWindowViewModel.DarkTheme) || _darkTheme == _themeViewModel.DarkTheme) return;
+            _darkTheme = _themeViewModel.DarkTheme;
+            ApplyTheme();
+        }
+
+        private void ApplyTheme() => ApplyTheme(SystemParameters.HighContrast);
+
+        internal void ApplyTheme(bool highContrast)
         {
             if (_themeDictionary != null)
             {
@@ -84,14 +105,14 @@ namespace T7R.Desktop
                 _themeDictionary = null;
             }
 
-            if (!SystemParameters.HighContrast && !_darkTheme)
+            if (!highContrast && !_darkTheme)
             {
                 return;
             }
 
             _themeDictionary = new ResourceDictionary
             {
-                Source = new Uri(SystemParameters.HighContrast
+                Source = new Uri(highContrast
                     ? "/T7-Rekindle;component/Resources/Theme.HighContrast.xaml"
                     : "/T7-Rekindle;component/Resources/Theme.Dark.xaml", UriKind.Relative)
             };

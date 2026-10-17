@@ -112,7 +112,13 @@ def test_home_banner_uses_embedded_artwork_without_duplicate_title():
     artwork = named["HeroArtwork"]
     assert artwork.attrib["Source"] == "/T7-Rekindle;component/Resources/Assets/art/home-banner.png"
     assert artwork.attrib["Stretch"] == "UniformToFill"
-    assert artwork.attrib["Visibility"] == "{DynamicResource LauncherArtworkVisibility}"
+    assert artwork.attrib["Visibility"] == "{DynamicResource HomeBannerVisibility}"
+    for path, expected in (("App.xaml", "Visible"), ("Resources/Theme.Dark.xaml", "Visible"),
+                           ("Resources/Theme.HighContrast.xaml", "Collapsed")):
+        resources = ET.parse(DESKTOP / path).getroot()
+        visibility = next(item for item in resources.iter()
+                          if item.attrib.get(f"{{{XAML}}}Key") == "HomeBannerVisibility")
+        assert visibility.text == expected
     assert named["HeroPanel"].attrib["AutomationProperties.Name"] == "刀锋再起：熟悉的武将，久违的交锋。"
     fallback = named["HeroFallback"]
     style = fallback.find(f"{{{WPF}}}StackPanel.Style/{{{WPF}}}Style")
