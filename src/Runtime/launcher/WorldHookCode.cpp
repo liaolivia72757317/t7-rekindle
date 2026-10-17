@@ -275,6 +275,9 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
     std::copy(movementCommand.begin(), movementCommand.end(), page.begin() + MOVEMENT_COMMAND_CODE_OFFSET);
     const auto airInput = buildAirInputHook(address, imageBase, threadId);
     std::copy(airInput.begin(), airInput.end(), page.begin() + AIR_INPUT_CODE_OFFSET);
+    const auto crouchAnimation = buildCrouchAnimationHook(address, imageBase, threadId);
+    static_assert(CROUCH_ANIMATION_CODE_OFFSET + 0x400 <= MOVEMENT_ANIMATION_CODE_OFFSET, "crouch animation code capacity");
+    std::copy(crouchAnimation.begin(), crouchAnimation.end(), page.begin() + CROUCH_ANIMATION_CODE_OFFSET);
     const auto movementAnimation = buildMovementAnimationHook(address, imageBase, threadId, animation, !profiles.empty());
     static_assert(MOVEMENT_ANIMATION_CODE_OFFSET + 0x1000 <= ROUND_END_CODE_OFFSET, "movement animation code capacity");
     std::copy(movementAnimation.begin(), movementAnimation.end(), page.begin() + MOVEMENT_ANIMATION_CODE_OFFSET);

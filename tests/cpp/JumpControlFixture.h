@@ -14,6 +14,8 @@ constexpr uint32_t HEADING_REQUEST = DATA + 16, HEADING_SENDS = DATA + 20, MOVES
 constexpr uint32_t GAME_DIRECTION = DATA + 0x500, HEADING_SENDER = DATA + 0x580, DIRECTION_INPUT = DATA + 0x600;
 constexpr uint32_t HEADING_GROUP = DATA + 0x700, HEADING_CHILD = DATA + 0x740, HEADING_SCALE = DATA + 0x744;
 constexpr uint32_t SEND_HEADING_RVA = 0x475F50;
+constexpr uint32_t ANIMATION_REQUEST = DATA + 28, ANIMATION_TARGET = DATA + 32;
+constexpr uint32_t EVENT_NAME = DATA + 0x780, EVENT_TEXT = DATA + 0x7C0, OTHER_ANIMATION = DATA + 0x800;
 inline void prepare(HANDLE process) {
     t7r::WorldHookCode c;
     c.emit({0x9C,0x60,0x83,0x3D}); c.word(REQUEST); c.emit({0}); const auto idle = c.branch(0x84);
@@ -21,7 +23,11 @@ inline void prepare(HANDLE process) {
     c.call(BASE + COMPOSITE_RVA); c.store(REQUEST, 0); c.bind(idle);
     c.emit({0x83,0x3D}); c.word(HEADING_REQUEST); c.emit({0}); const auto noHeading = c.branch(0x84);
     c.emit({0x6A,0,0xB9}); c.word(HEADING_SENDER); c.call(BASE + SEND_HEADING_RVA);
-    c.store(HEADING_REQUEST, 0); c.bind(noHeading); c.emit({0x61,0x9D,0xC3});
+    c.store(HEADING_REQUEST, 0); c.bind(noHeading);
+    c.emit({0x83,0x3D}); c.word(ANIMATION_REQUEST); c.emit({0}); const auto noAnimation = c.branch(0x84);
+    c.emit({0x68}); c.word(EVENT_NAME); c.emit({0x8B,0x0D}); c.word(ANIMATION_TARGET);
+    c.call(BASE + 0x3BEEC0); c.store(ANIMATION_REQUEST, 0);
+    c.bind(noAnimation); c.emit({0x61,0x9D,0xC3});
     t7r::writeClientMemory(process, DISPATCH, c.bytes);
     // Native composite traversal calls each child separately, including mixed corrections.
     t7r::writeClientMemory(process, BASE + COMPOSITE_RVA,
@@ -182,6 +188,38 @@ inline void verify(HANDLE process) {
             || readWord(process, JUMPS) != jumps || readWord(process, JUMP + 8) != 1)
             throw std::runtime_error("jump allowed direction changes/repeated takeoff or changed the queued input");
     };
+    for (uint32_t state : {438u,439u,440u,443u}) {
+        // Change the live action without a frame tick: input must not use a cached dash phase.
+        sprintFixture::setFightState(process, state);
+        setup(0); invoke({HEADING,MOVE,JUMP,JUMP});
+        if (readWord(process, JUMPS) || readWord(process, CONTROLLER + 8) != 1)
+            throw std::runtime_error("dash attack allowed a jump or queued a delayed takeoff");
+        expect(true, 0);
+        writeWord(process, JUMP + 8, 0); invoke({JUMP});
+        writeWord(process, JUMP + 8, 1); writeWord(process, JUMP + 0x0C, 1);
+        const auto corrected = readWord(process, CORRECTIONS);
+        invoke({POSITION,JUMP}); expect(true, 0);
+        if (readWord(process, CROUCHES) || readWord(process, JUMP + 0x0C) != 1
+            || readWord(process, CORRECTIONS) != corrected + 1)
+            throw std::runtime_error("dash attack allowed crouching, changed queued input or lost position correction");
+        for (uint32_t physicalFlags : {0u,1u,0x10001u}) {
+            setup(physicalFlags); writeWord(process, JUMP + 8, 0); writeWord(process, JUMP + 0x0C, 1);
+            invoke({JUMP});
+            if (readWord(process, CROUCHES) || readWord(process, JUMPS) || readWord(process, JUMP + 0x0C) != 1)
+                throw std::runtime_error("dash attack accepted crouch-only input on the ground or in midair");
+            writeWord(process, JUMP + 0x0C, 0); invoke({JUMP});
+            if (readWord(process, CROUCHES) != 1)
+                throw std::runtime_error("dash attack discarded the stand-up command");
+        }
+        sprintFixture::setFightState(process, 2);
+        setup(0); writeWord(process, JUMP + 0x0C, 1); invoke({HEADING,MOVE,JUMP}); expect(true, 1);
+        if (readWord(process, CROUCHES) != 1)
+            throw std::runtime_error("dash completion did not restore crouching");
+    }
+    for (uint32_t state : {241u,243u,244u,245u,2u}) {
+        sprintFixture::setFightState(process, state);
+        setup(0); invoke({HEADING,MOVE,JUMP}); expect(true, 1);
+    }
     setup(0x10001); invoke({HEADING,MOVE,JUMP}); expect(false, 0);
     for (uint32_t state : {241u,243u,244u,245u,2u}) {
         sprintFixture::setFightState(process, state);
@@ -203,12 +241,55 @@ inline void verify(HANDLE process) {
     if (readWord(process, MOVABLE + 0x2C) != 9 || readWord(process, CONTROLLER + 0x24) != 0x40800000)
         throw std::runtime_error("jump restriction discarded state-directed movement");
     writeWord(process, MOVE + 0x34, 0);
+    sprintFixture::setFightState(process, 439);
     setup(0x10001); writeWord(process, worldFixture::STATE + 0x38, 2);
     invoke({HEADING,MOVE,JUMP}); expect(true, 1); writeWord(process, worldFixture::STATE + 0x38, 4);
     setup(0x10001); writeWord(process, MOVABLE + 8, worldFixture::ENTITY + 0x100);
     invoke({HEADING,MOVE,JUMP}); expect(true, 1);
     setup(0); writeWord(process, MOVABLE + 8, owner); writeWord(process, CONTROLLER + 8, flags);
+    sprintFixture::setFightState(process, 2);
     writeWord(process, CONTROLLER + 0xAC, heading);
+    writeWord(process, worldFixture::FRAME_GATE, 0);
+}
+inline void verifyCrouchAnimation(HANDLE process) {
+    writeWord(process, worldFixture::FRAME_GATE, 1); Sleep(30);
+    writeWord(process, ANIMATION_TARGET, sprintFixture::ANIMATION);
+    writeWord(process, OTHER_ANIMATION, BASE + 0x177722C);
+    auto invoke = [&](const char* event, bool allowed, bool heap = false) {
+        const auto length = static_cast<uint32_t>(std::strlen(event));
+        t7r::Bytes name(24, 0);
+        if (heap) {
+            std::memcpy(name.data(), &EVENT_TEXT, 4);
+            t7r::writeClientMemory(process, EVENT_TEXT, t7r::Bytes(event, event + length + 1));
+        } else std::memcpy(name.data(), event, length + 1);
+        const uint32_t capacity = heap ? 31u : 15u;
+        std::memcpy(name.data() + 16, &length, 4); std::memcpy(name.data() + 20, &capacity, 4);
+        t7r::writeClientMemory(process, EVENT_NAME, name);
+        const auto before = readWord(process, sprintFixture::ANIMATION_EVENTS);
+        writeWord(process, ANIMATION_REQUEST, 1);
+        const auto deadline = GetTickCount64() + 3000;
+        while (readWord(process, ANIMATION_REQUEST)) {
+            if (GetTickCount64() >= deadline) throw std::runtime_error("crouch animation command timeout");
+            Sleep(1);
+        }
+        if (readWord(process, sprintFixture::ANIMATION_EVENTS) != before + (allowed ? 1u : 0u)
+            || t7r::readClientMemory(process, EVENT_NAME, name.size()) != name)
+            throw std::runtime_error("dash crouch animation gate dispatched the wrong event or changed its name");
+    };
+    for (uint32_t state : {438u,439u,440u,443u}) {
+        sprintFixture::setFightState(process, state);
+        invoke("Crouch", false); invoke("Crouch", false, true);
+        invoke("EndCrouch", true); invoke("Jump", true); invoke("CrouchOther", true);
+        sprintFixture::setFightState(process, 2); invoke("Crouch", true);
+    }
+    for (uint32_t state : {241u,243u,244u,245u}) {
+        sprintFixture::setFightState(process, state); invoke("Crouch", true);
+    }
+    sprintFixture::setFightState(process, 439);
+    writeWord(process, ANIMATION_TARGET, OTHER_ANIMATION); invoke("Crouch", true);
+    writeWord(process, ANIMATION_TARGET, sprintFixture::ANIMATION);
+    writeWord(process, worldFixture::STATE + 0x38, 2); invoke("Crouch", true);
+    writeWord(process, worldFixture::STATE + 0x38, 4); sprintFixture::setFightState(process, 2);
     writeWord(process, worldFixture::FRAME_GATE, 0);
 }
 }

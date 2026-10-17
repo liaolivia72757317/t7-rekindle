@@ -50,6 +50,7 @@ void ClientFrameRuntime::install(HANDLE process, uint32_t imageBase, DWORD threa
     bool jumpPhysicsPatched = false;
     bool movementCommandPatched = false;
     bool airInputPatched = false;
+    bool crouchAnimationPatched = false;
     try {
         if (pointer > UINT32_MAX - size) throw std::runtime_error("settings mailbox outside x86 range");
         const auto base = static_cast<uint32_t>(pointer);
@@ -92,6 +93,8 @@ void ClientFrameRuntime::install(HANDLE process, uint32_t imageBase, DWORD threa
         writeClientMemory(process, imageBase + MOVEMENT_COMMAND_RVA, movementCommandJump(base + worldOffset, imageBase));
         airInputPatched = true;
         writeClientMemory(process, imageBase + AIR_INPUT_RVA, airInputJump(base + worldOffset, imageBase));
+        crouchAnimationPatched = true;
+        writeClientMemory(process, imageBase + CROUCH_ANIMATION_RVA, crouchAnimationJump(base + worldOffset, imageBase));
         applyRemotePatches(process, imageBase, {{GRAPHICS_TICK_RVA, GRAPHICS_TICK_ORIGINAL, jump}}); patched = true;
         graphics_.attach(process, base, imageBase);
         audio_.attach(process, base + GRAPHICS_PAGE_SIZE, imageBase);
@@ -109,6 +112,7 @@ void ClientFrameRuntime::install(HANDLE process, uint32_t imageBase, DWORD threa
         if (jumpPhysicsPatched) writeClientMemory(process, imageBase + JUMP_PHYSICS_RVA, JUMP_PHYSICS_ORIGINAL);
         if (movementCommandPatched) writeClientMemory(process, imageBase + MOVEMENT_COMMAND_RVA, MOVEMENT_COMMAND_ORIGINAL);
         if (airInputPatched) writeClientMemory(process, imageBase + AIR_INPUT_RVA, AIR_INPUT_ORIGINAL);
+        if (crouchAnimationPatched) writeClientMemory(process, imageBase + CROUCH_ANIMATION_RVA, CROUCH_ANIMATION_ORIGINAL);
         if (roundEndPatched)
             for (const auto& entry : roundEndOriginals(imageBase))
                 writeClientMemory(process, imageBase + entry.first, entry.second);

@@ -393,6 +393,8 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly, bool guardOnl
         const auto worldMailbox = readWord(client.process(), graphicsEntry + 10) - t7r::WORLD_CODE_OFFSET;
         jumpControlFixture::verify(client.process());
         std::cout << "x86 jump locks heading/movement and rejects repeated takeoff until landing passed\n";
+        jumpControlFixture::verifyCrouchAnimation(client.process());
+        std::cout << "x86 dash attacks reject jump/crouch input and crouch animation while preserving stand-up passed\n";
         jumpControlFixture::verifyLandingHeading(client.process());
         std::cout << "x86 landing resyncs a stationary camera once before restoring held or released movement passed\n";
         jumpPhysicsFixture::verify(client.process());
