@@ -19,18 +19,24 @@ namespace T7R.Desktop.Services
         {
             if (channel != UpdateChannel.Stable && channel != UpdateChannel.Preview)
                 throw new ArgumentOutOfRangeException(nameof(channel));
-            var settings = Load();
-            settings.UpdateChannel = channel == UpdateChannel.Preview ? "preview" : "stable";
-            if (channel == UpdateChannel.Preview) settings.LogLevel = DiagnosticLogLevels.Name(DiagnosticLogLevel.Debug);
-            Save(settings);
+            lock (PersistenceGate)
+            {
+                var settings = Load();
+                settings.UpdateChannel = channel == UpdateChannel.Preview ? "preview" : "stable";
+                if (channel == UpdateChannel.Preview) settings.LogLevel = DiagnosticLogLevels.Name(DiagnosticLogLevel.Debug);
+                Save(settings);
+            }
         }
 
         internal void ResetUpdateChannelToStable()
         {
-            var settings = Load();
-            if (!CanPersistLoadedSettings) throw new InvalidDataException("设置和备份均无效，保留原文件。");
-            settings.UpdateChannel = "stable";
-            Save(settings);
+            lock (PersistenceGate)
+            {
+                var settings = Load();
+                if (!CanPersistLoadedSettings) throw new InvalidDataException("设置和备份均无效，保留原文件。");
+                settings.UpdateChannel = "stable";
+                Save(settings);
+            }
         }
 
         private void MigrateUpdateChannel(UserSettings settings, bool canSave)

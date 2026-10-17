@@ -52,7 +52,7 @@ namespace T7R.Battle
                     }
                     var body = new byte[BattleFrameCodec.DecodeLength(prefix)];
                     await ReadExactlyAsync(body, false, cancellationToken).ConfigureAwait(false);
-                    return BattleFrameCodec.Decode(body);
+                    return BattleFrameCodec.DecodeBody(body);
                 }
             }
             catch { Dispose(); cancellationToken.ThrowIfCancellationRequested(); throw; }

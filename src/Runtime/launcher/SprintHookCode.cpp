@@ -173,8 +173,10 @@ Bytes buildSprintHook(uint32_t address, uint32_t imageBase, const DashAttackProf
     c.bind(noRestore);
     std::vector<size_t> reset;
     c.emit({0x83,0x3D}); c.word(game); c.emit({4}); reset.push_back(c.branch(0x85));
-    // Ordinary attacks and parries retain JOG_SPEED and clear the run timer until idle.
+    // Weapon changes preserve locomotion and its timer; attacks and parries still reset both.
+    c.emit({0x83,0xFE,1}); const auto weaponChange = c.branch(0x84);
     c.emit({0x83,0xFE,2}); reset.push_back(c.branch(0x85));
+    c.bind(weaponChange);
     c.emit({0x8B,0xC7,0x83,0xE0,0x13,0x83,0xF8,1}); reset.push_back(c.branch(0x85));
     // Carry an established run through jump input/takeoff/landing while still moving forward.
     c.emit({0x83,0x3D}); c.word(tracking); c.emit({2}); const auto keepRunning = c.branch(0x84);

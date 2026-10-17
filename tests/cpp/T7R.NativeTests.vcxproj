@@ -39,6 +39,7 @@
     <ClCompile Include="../../src/Runtime/launcher/TerrainHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/BladePoseHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/BladeSweepHookCode.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/WeaponGuardHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/ContactFrameHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/WeaponTrailHookCode.cpp" />
     <ClCompile Include="ModuleLookupTests.cpp" />

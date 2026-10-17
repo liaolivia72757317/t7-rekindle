@@ -23,8 +23,7 @@ void nextNode(WorldHookCode& c) {
     c.bind(leaf); c.bind(done);
 }
 
-// GeWeapon activation and GeHavokPhysicable + 0x34 expose equipped weapon boxes.
-// Read their original roots; do not approximate defence with body or distance geometry.
+// Retain native equipped boxes when present, especially the offhand shield.
 void defenceRoots(WorldHookCode& c, uint32_t imageBase) {
     c.emit({0x60,0x8B,0xF0}); // ESI fightable; EBP blade mailbox.
     std::vector<size_t> done;
@@ -97,8 +96,10 @@ Bytes buildBladePoseHook(uint32_t address, uint32_t imageBase) {
     store(offsetof(BladeMailbox, bodyCount), 0);
     store(offsetof(BladeMailbox, bodyWorld), 0);
     store(offsetof(BladeMailbox, defenceCount), 0);
+    store(offsetof(BladeMailbox, guardWeaponId), 0);
     store(offsetof(BladeMailbox, state), 0);
     c.emit({0x8B,0x46,8}); save(offsetof(BladeMailbox, actorEntity));
+    c.emit({0x89,0xB5}); c.word(offsetof(BladeMailbox, actorPointer));
     auto component = [&](uint32_t name) {
         c.emit({0x8B,0xCE,0x68}); c.word(imageBase + name); c.call(imageBase + 0x26A1C0);
     };
@@ -153,6 +154,9 @@ Bytes buildBladePoseHook(uint32_t address, uint32_t imageBase) {
     c.emit({0x49}); c.bind(c.branch(0x85), weaponLoop); noBlade.push_back(c.jump());
     c.bind(found); c.emit({0x8B,0x40,0x14}); nonzero(0xC0, noBlade);
     c.emit({0x81,0x38}); c.word(imageBase + 0x179E16C); noBlade.push_back(c.branch(0x85));
+    c.emit({0x80,0x78,0x20,1}); const auto inactive = c.branch(0x85);
+    c.emit({0x89,0x95}); c.word(offsetof(BladeMailbox, guardWeaponId));
+    c.bind(inactive);
     c.emit({0x8B,0x70,8}); nonzero(0xF6, noBlade);
     c.emit({0x8B,0x46,8}); save(offsetof(BladeMailbox, weaponEntity));
     c.emit({0x83,0x7E,0x7C,0}); noBlade.push_back(c.branch(0x84));

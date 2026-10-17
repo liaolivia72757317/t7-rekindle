@@ -13,7 +13,8 @@
 namespace {
 constexpr uint32_t BASE = 0x400000, IMAGE_SIZE = 0x6B8000, HEADER_SIZE = 0x200;
 struct CollisionCase { unsigned short actorId; bool selector38; };
-constexpr CollisionCase COLLISION_CASES[]{{0, true}, {1, true}, {2, true}, {12, true}, {20, true}, {21, true}, {65535, true}, {2, false}};
+constexpr CollisionCase COLLISION_CASES[]{{0, true}, {1, true}, {2, true}, {12, true}, {20, true}, {21, true},
+    {32, true}, {33, true}, {60, true}, {61, true}, {65535, true}, {2, false}, {60, false}};
 void require(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
@@ -165,7 +166,7 @@ struct Fixture {
             const auto composite = BASE + 0x2600 + static_cast<uint32_t>(i) * 32;
             const auto position = BASE + 0x2800 + static_cast<uint32_t>(i) * 32;
             const auto result = BASE + 0x2A00 + static_cast<uint32_t>(i) * 32;
-            const auto omitted = item.selector38 && item.actorId >= 2 && item.actorId <= 20;
+            const auto omitted = item.selector38 && item.actorId >= 2 && item.actorId <= 60;
             require(readWord(process, composite + 0x14) == (omitted ? 1u : 2u), "wrong native position command ownership");
             require(readWord(process, composite + 0x18) == 0x12345678, "native MoveCommand was not retained");
             require(readWord(process, position + 4) == (omitted ? 1u : 0u), "omitted position command was not released exactly once");

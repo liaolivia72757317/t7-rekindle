@@ -13,7 +13,7 @@ struct TerrainContact {
     int32_t material = -1;
     std::array<float, 3> position{}, normal{}, direction{};
 };
-constexpr size_t MAX_WORLD_ACTORS = 20;
+constexpr size_t MAX_WORLD_ACTORS = 60;
 constexpr size_t GROUND_CONTACT_SLOT = MAX_WORLD_ACTORS + 1;
 constexpr size_t DEFENCE_CONTACT_OFFSET = MAX_WORLD_ACTORS + 1;
 constexpr size_t MAX_BLADE_CONTACTS = MAX_WORLD_ACTORS * 2 + 2;
@@ -42,19 +42,22 @@ struct ActorSnapshot {
     BladeTrace blade{};
     uint32_t entity = 0, state = 0, sequence = 0;
     uint64_t phaseAt = 0;
+    uint64_t forwardAttemptAt = 0; // Host monotonic uptime; zero means no observed native forward command.
 };
 struct BladeContactEvent {
     BladeContact hit{};
     uint32_t actorId = 0, entity = 0, targetEntity = 0, state = 0, sequence = 0;
     uint32_t targetState = 0, targetSequence = 0;
     uint64_t instanceStartedAt = 0, phaseAt = 0, targetPhaseAt = 0;
+    uint64_t sourceObservedAt = 0; // Source state from the same frozen contact buffer.
+    uint64_t targetObservedAt = 0; // Uptime upper bound at frozen target-state read completion.
     double occurredAt = 0;
     std::array<float, 3> sourcePosition{}, targetPosition{};
     float sourceHeading = 0, targetHeading = 0;
     std::array<float, 3> sourceVelocity{}, targetVelocity{}, weaponVelocity{};
     bool velocityReady = false, airborne = false, targetAirborne = false;
 };
-// Internal Runtime -> Business data, not part of the launcher C ABI.
+// Internal native sampling data, not part of the launcher C ABI.
 struct WorldSnapshot {
     bool ready = false;
     uint64_t sampledAt = 0, instanceStartedAt = 0;
@@ -62,7 +65,7 @@ struct WorldSnapshot {
     float playerHeading = 0, botHeading = 0; // Degrees, normalized to [-180, 180].
     // Per actor: forward reach, then the segment ending at the opponent (not beyond it).
     std::array<std::array<TerrainContact, 2>, 2> terrain{};
-    std::array<ActorSnapshot, MAX_WORLD_ACTORS> actors{};
+    std::vector<ActorSnapshot> actors = std::vector<ActorSnapshot>(MAX_WORLD_ACTORS);
     bool contactsReady = false;
     uint32_t contactFrames = 0, droppedContacts = 0, contactBatchId = 0;
     std::vector<BladeContactEvent> contacts{};

@@ -1,11 +1,8 @@
 import importlib.util
 import json
 from pathlib import Path
-import zipfile
 import sys
 import pytest
-from python_runtime_fixture import python_archive, python_dll
-
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -18,190 +15,106 @@ def load_package_module():
     return module
 
 
-@pytest.mark.parametrize("business_directory", ["Business", "BUSINESS"])
-def test_package_manifest_excludes_client(tmp_path, business_directory):
+@pytest.fixture
+def package_source(tmp_path):
     module = load_package_module()
     source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business/scripts").mkdir(parents=True)
-    (source / "src/Business/scripts/__init__.py").write_text("API_VERSION=1\nSTATE_VERSION=1\n", encoding="utf-8")
-    (source / "src/Business/news").mkdir()
-    (source / "src/Business/news/index.html").write_text("<title>战场快讯</title>", encoding="utf-8")
-    stale = source / "artifacts/bin/T7R.Desktop/x64/Release/net48" / business_directory
-    (stale / "scripts/__pycache__").mkdir(parents=True)
-    (stale / "scripts/__init__.py").write_text("stale = True\n", encoding="utf-8")
-    (stale / "scripts/removed.py").write_text("stale = True\n", encoding="utf-8")
-    (stale / "scripts/__pycache__/removed.pyc").write_bytes(b"stale bytecode")
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7R.Core.dll").write_bytes(b"core")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    harness = source / "artifacts/bin/T7R.ManagedHarness/x64/Release/net48"
-    harness.mkdir(parents=True)
-    (harness / "T7R.ManagedHarness.exe").write_bytes(b"test-only")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/runtimes").mkdir()
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/runtimes/managed.dll").write_bytes(b"managed")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    for relative in ("src/Runtime", "scripts", "tests", ".local", "client", "work"):
-        directory = source / relative
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / "fixture.txt").write_text("not a product file", encoding="utf-8")
+    native = source / "artifacts/native/bin/x64/Release"
+    rust = source / "artifacts/rust/x86_64-pc-windows-msvc/release"
+    desktop = source / "artifacts/bin/T7R.Desktop/x64/Release/net48"
+    news = source / "src/Desktop/Resources/News"
+    for directory in (native, rust, desktop, news):
+        directory.mkdir(parents=True)
+    (native / "T7R.NativeBridge.dll").write_bytes(b"bridge")
+    (rust / "t7r_battle_ffi.dll").write_bytes(b"rust")
+    for name in module.REQUIRED_RELEASE_FILES - {"THIRD-PARTY.txt", "news/index.html"}:
+        value = b"bridge" if name == "T7R.NativeBridge.dll" else b"rust" if name == "t7r_battle_ffi.dll" else name.encode()
+        (desktop / name).write_bytes(value)
+    (news / "index.html").write_text("<title>战场快讯</title>", encoding="utf-8")
+    (source / "THIRD-PARTY.txt").write_text("notice", encoding="utf-8")
+    (source / "LICENSE").write_text("license", encoding="utf-8")
     module.ROOT = source
-    output = module.package(tmp_path / "output")
-    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["schemaVersion"] == 1
-    assert manifest["product"] == "T7-Rekindle"
-    assert manifest["architecture"] == "x64"
+    return module, source, desktop
+
+
+def test_package_manifest_excludes_python_and_client(package_source, tmp_path):
+    module, source, _ = package_source
+    for name in ("tests/reference/Business/runtime/host_runtime.py", "src/Runtime/private.cpp"):
+        path = source / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("not shipped", encoding="utf-8")
+    output = module.package(tmp_path / "product", release=True)
+    manifest = module.verify_package(output, require_runtime=True, require_license=True)
+    assert manifest["battleRuntime"] == "rust"
+    assert "python" not in manifest and "pythonArchiveSha256" not in manifest
+    assert not manifest["clientIncluded"] and not manifest["serverProductIncluded"]
     assert manifest["minimumWindowsBuild"] == "10.0.19041"
     assert manifest["rawWireCaptureDefault"] is False
-    assert manifest["clientIncluded"] is False
-    assert "T7R.NativeBridge.dll" in manifest["files"]
-    assert "T7R.Core.dll" in manifest["files"]
-    assert "T7R.ManagedHarness.exe" not in manifest["files"]
-    assert "runtimes/managed.dll" in manifest["files"]
-    assert "Business/scripts/__init__.py" in manifest["files"]
-    assert (output / "Business/scripts/__init__.py").read_bytes() == (source / "src/Business/scripts/__init__.py").read_bytes()
-    assert (output / "Business/news/index.html").read_bytes() == (source / "src/Business/news/index.html").read_bytes()
-    assert "Business/news/index.html" in manifest["files"]
-    assert not (output / "Business/scripts/removed.py").exists()
-    assert not (output / "Business/scripts/__pycache__").exists()
-    for name in ("src", "scripts", "tests", ".local", "client", "work"):
-        assert not (output / name).exists()
+    assert "t7r_battle_ffi.dll" in manifest["files"]
+    assert "T7R.Battle.dll" in manifest["files"]
+    assert (output / "news/index.html").is_file()
+    assert not (output / "Business").exists() and not (output / "tests").exists()
 
 
-def test_archive_escape_is_rejected(tmp_path):
-    module = load_package_module()
-    archive = tmp_path / "bad.zip"
-    with zipfile.ZipFile(archive, "w") as value:
-        value.writestr("../outside.txt", "bad")
-    destination = tmp_path / "python"
-    destination.mkdir()
-    with zipfile.ZipFile(archive) as value:
-        try:
-            module.safe_archive_members(value, destination)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("archive traversal was accepted")
-
-    absolute = tmp_path / "absolute.zip"
-    with zipfile.ZipFile(absolute, "w") as value:
-        value.writestr("C:/outside.txt", "bad")
-    with zipfile.ZipFile(absolute) as value:
-        try:
-            module.safe_archive_members(value, destination)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("absolute archive member was accepted")
+@pytest.mark.parametrize("name", ["python314.dll", "PyThOn3.DLL", "python/python314.zip",
+    "Business/scripts/old.py", "BUSINESS/scripts/old.py", "__pycache__/old.pyc", "module.pyd",
+    "SeRvEr.ExE", "T7.CoRe.DlL", "t7.NATIVEbridge.dll"])
+def test_forbidden_product_files_are_rejected(package_source, tmp_path, name):
+    module, _, desktop = package_source
+    path = desktop / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"old runtime")
+    output = tmp_path / "product"
+    with pytest.raises(ValueError):
+        module.package(output)
+    assert not output.exists()
 
 
-def test_python_runtime_dlls_move_to_package_root(tmp_path):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    archive = tmp_path / "python.zip"
-    python_archive(archive, module)
-    module.ROOT = source
-    output = module.package(tmp_path / "output", archive)
-    assert (output / "python314.dll").read_bytes() == python_dll()
-    assert not (output / "python/python314.dll").exists()
+def test_manifest_hashes_are_verified(package_source, tmp_path):
+    module, _, _ = package_source
+    output = module.package(tmp_path / "product")
+    (output / "T7-Rekindle.exe").write_bytes(b"changed")
+    with pytest.raises(ValueError, match="hashes"):
+        module.verify_package(output)
 
 
-def test_archive_member_limit_is_enforced(tmp_path):
-    module = load_package_module()
-    archive = tmp_path / "many.zip"
-    with zipfile.ZipFile(archive, "w") as value:
-        for index in range(module.MAX_ARCHIVE_MEMBERS + 1):
-            value.writestr(f"item-{index}.txt", b"x")
-    destination = tmp_path / "python"
-    destination.mkdir()
-    with zipfile.ZipFile(archive) as value:
-        try:
-            module.safe_archive_members(value, destination)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("archive member limit was not enforced")
+def test_rehashed_python_is_still_rejected(package_source, tmp_path):
+    module, _, _ = package_source
+    output = module.package(tmp_path / "product")
+    extra = output / "python314.dll"
+    extra.write_bytes(b"python")
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    manifest["files"][extra.name] = module.sha256_file(extra)
+    (output / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="Python runtime"):
+        module.verify_package(output)
 
 
-def test_windows_archive_name_collisions_are_rejected(tmp_path):
-    module = load_package_module()
-    destination = tmp_path / "python"
-    destination.mkdir()
-    for entries in (("Lib/module.py", "lib/MODULE.py"), ("safe.txt", "folder/NUL.txt"),
-                    ("safe.txt", "folder/value:stream")):
-        archive = tmp_path / (entries[1].replace("/", "-").replace(":", "-") + ".zip")
-        with zipfile.ZipFile(archive, "w") as value:
-            for entry in entries:
-                value.writestr(entry, b"x")
-        with zipfile.ZipFile(archive) as value:
-            try:
-                module.safe_archive_members(value, destination)
-            except ValueError:
-                pass
-            else:
-                raise AssertionError(f"unsafe Windows archive name was accepted: {entries[1]}")
+def test_release_verification_requires_release_manifest(package_source, tmp_path):
+    module, _, _ = package_source
+    output = module.package(tmp_path / "product")
+    with pytest.raises(ValueError, match="release manifest"):
+        module.verify_package(output, require_runtime=True, require_license=True)
 
 
-@pytest.mark.parametrize("name", ["T7-Rekindle.exe", "T7R.Core.dll", "T7R.NativeBridge.dll",
-                                  "T7.Core.dll", "T7.NativeBridge.dll"])
-def test_archive_cannot_embed_product_control_files(tmp_path, name):
-    module = load_package_module()
-    destination = tmp_path / "python"
-    destination.mkdir()
-    archive = tmp_path / "product-files.zip"
-    with zipfile.ZipFile(archive, "w") as value:
-        value.writestr(name, b"not python")
-    with zipfile.ZipFile(archive) as value:
-        try:
-            module.safe_archive_members(value, destination)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("archive product control file was accepted")
+@pytest.mark.parametrize("missing", ["LICENSE", "artifacts/rust/x86_64-pc-windows-msvc/release/t7r_battle_ffi.dll",
+    "artifacts/bin/T7R.Desktop/x64/Release/net48/T7R.Battle.dll"])
+def test_release_requires_runtime_and_license(package_source, tmp_path, missing):
+    module, source, _ = package_source
+    (source / missing).unlink()
+    output = tmp_path / "product"
+    with pytest.raises(FileNotFoundError):
+        module.package(output, release=True)
+    assert not output.exists()
 
 
-def test_archive_file_directory_collisions_are_rejected(tmp_path):
-    module = load_package_module()
-    destination = tmp_path / "python"
-    destination.mkdir()
-    for entries in (("item", "item/child.py"), ("item/child.py", "item")):
-        archive = tmp_path / ("collision-" + str(len(entries[0])) + ".zip")
-        with zipfile.ZipFile(archive, "w") as value:
-            for entry in entries:
-                value.writestr(entry, b"x")
-        with zipfile.ZipFile(archive) as value:
-            try:
-                module.safe_archive_members(value, destination)
-            except ValueError:
-                pass
-            else:
-                raise AssertionError("file/directory archive collision was accepted")
-
-
-def test_archive_case_variant_hierarchy_collisions_are_rejected(tmp_path):
-    module = load_package_module()
-    destination = tmp_path / "python"
-    destination.mkdir()
-    for entries in (("Lib", "lib/module.py"), ("LIB/module.py", "lib")):
-        archive = tmp_path / ("case-hierarchy-" + str(len(entries[0])) + ".zip")
-        with zipfile.ZipFile(archive, "w") as value:
-            value.writestr(entries[0], b"")
-            value.writestr(entries[1], b"")
-        with zipfile.ZipFile(archive) as value:
-            try:
-                module.safe_archive_members(value, destination)
-            except ValueError:
-                pass
-            else:
-                raise AssertionError("case-variant hierarchy collision was accepted")
+def test_existing_output_is_preserved(package_source, tmp_path):
+    module, _, _ = package_source
+    output = module.package(tmp_path / "product")
+    original = (output / "manifest.json").read_bytes()
+    with pytest.raises(FileExistsError):
+        module.package(output)
+    assert (output / "manifest.json").read_bytes() == original
 
 
 def test_managed_output_cannot_replace_native_bridge(tmp_path):
@@ -230,168 +143,3 @@ def test_identical_native_bridge_copy_is_not_a_collision(tmp_path):
     (destination / "T7R.NativeBridge.dll").write_bytes(b"native")
     module.copy_product_output(source, destination)
     assert (destination / "T7R.NativeBridge.dll").read_bytes() == b"native"
-
-
-def test_failed_package_does_not_leave_partial_output(tmp_path):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    archive = tmp_path / "incomplete.zip"
-    with zipfile.ZipFile(archive, "w") as value:
-        value.writestr("python314.zip", b"stdlib")
-    module.ROOT = source
-    output = tmp_path / "output"
-    try:
-        module.package(output, archive)
-    except FileNotFoundError:
-        pass
-    else:
-        raise AssertionError("incomplete Python archive was accepted")
-    assert not output.exists()
-
-
-@pytest.mark.parametrize("name", ["SeRvEr.ExE", "T7.CoRe.DlL", "t7.NATIVEbridge.dll"])
-def test_forbidden_product_names_are_case_insensitive(tmp_path, name):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48" / name).write_bytes(b"forbidden")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    module.ROOT = source
-    try:
-        module.package(tmp_path / "output")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("case-variant forbidden product name was accepted")
-
-
-@pytest.mark.parametrize("name", ["T7.Core.dll", "T7.NativeBridge.dll"])
-def test_managed_output_rejects_old_library_names(tmp_path, name):
-    module = load_package_module()
-    source, destination = tmp_path / "managed", tmp_path / "package"
-    source.mkdir()
-    destination.mkdir()
-    (source / name).write_bytes(b"old library")
-    with pytest.raises(ValueError, match="forbidden product file"):
-        module.copy_product_output(source, destination)
-    assert not list(destination.iterdir())
-
-
-def test_manifest_hashes_are_verified(tmp_path):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    module.ROOT = source
-    output = module.package(tmp_path / "output")
-    assert module.verify_package(output)["product"] == "T7-Rekindle"
-    (output / "T7-Rekindle.exe").write_bytes(b"modified")
-    try:
-        module.verify_package(output)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("modified package file was not detected")
-
-
-def test_release_verification_requires_release_manifest(tmp_path):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    module.ROOT = source
-    output = module.package(tmp_path / "output")
-    try:
-        module.verify_package(output, require_runtime=True, require_license=True)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("development manifest passed release verification")
-
-
-def test_release_packaging_requires_runtime_and_license(tmp_path):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48/T7-Rekindle.exe").write_bytes(b"desktop")
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    module.ROOT = source
-    try:
-        module.package(tmp_path / "output", release=True)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("release package without Python archive was accepted")
-    assert not (tmp_path / "output").exists()
-
-    archive = tmp_path / "python.zip"
-    python_archive(archive, module)
-    try:
-        module.package(tmp_path / "output-with-runtime", archive, release=True)
-    except FileNotFoundError:
-        pass
-    else:
-        raise AssertionError("release package without LICENSE was accepted")
-    assert not (tmp_path / "output-with-runtime").exists()
-
-
-def test_release_packaging_accepts_complete_fixture(tmp_path):
-    module = load_package_module()
-    source = tmp_path / "source"
-    (source / "artifacts/native/bin/x64/Release").mkdir(parents=True)
-    (source / "artifacts/bin/T7R.Desktop/x64/Release/net48").mkdir(parents=True)
-    (source / "src/Business").mkdir(parents=True)
-    (source / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll").write_bytes(b"bridge")
-    for name in module.REQUIRED_RELEASE_FILES:
-        if name in {"T7R.NativeBridge.dll", "THIRD-PARTY.txt"}:
-            continue
-        (source / "artifacts/bin/T7R.Desktop/x64/Release/net48" / name).write_bytes(name.encode("utf-8"))
-    (source / "THIRD-PARTY.txt").write_text("notice\n", encoding="utf-8")
-    (source / "LICENSE").write_text("license\n", encoding="utf-8")
-    archive = tmp_path / "python.zip"
-    python_archive(archive, module)
-    module.ROOT = source
-    output = module.package(tmp_path / "output", archive, release=True)
-    manifest = module.verify_package(output, require_runtime=True, require_license=True)
-    assert manifest["minimumWindowsBuild"] == "10.0.19041"
-    assert manifest["release"] is True
-    assert manifest["licenseIncluded"] is True
-
-
-@pytest.mark.parametrize("content", [b"python", python_dll(0x14C), python_dll(version=(3, 14, 5150, 1013)), python_dll()[:700]])
-def test_python_runtime_rejects_invalid_pe_architecture_or_version(tmp_path, content):
-    module = load_package_module()
-    dll = tmp_path / "python314.dll"
-    dll.write_bytes(content)
-    with pytest.raises(ValueError):
-        module.validate_python_dll(dll)
-
-
-def test_python_runtime_rejects_other_standard_library(tmp_path):
-    module = load_package_module()
-    (tmp_path / "python").mkdir()
-    (tmp_path / "python314.dll").write_bytes(python_dll())
-    (tmp_path / "python/python314.zip").write_bytes(b"wrong patch release")
-    with pytest.raises(ValueError, match="standard library"):
-        module.validate_python_runtime(tmp_path)

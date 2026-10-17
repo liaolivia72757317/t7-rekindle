@@ -10,7 +10,7 @@ GENERATED_DIRECTORIES = {
     ".git", ".pytest_cache", ".vs", ".idea", "__pycache__", "artifacts", "dist",
     "packages", "local", ".local", ".claude", "client", "work", "extracted",
 }
-RUNTIME_DIRECTORIES = {"src/Business/data", "src/Business/cache", "src/Runtime/data"}
+RUNTIME_DIRECTORIES = {"tests/reference/Business/data", "tests/reference/Business/cache", "src/Runtime/data"}
 TEXT_SUFFIXES = {
     ".cs", ".csproj", ".cpp", ".h", ".vcxproj", ".props", ".sln",
     ".xaml", ".config", ".manifest", ".iss", ".py", ".json",
@@ -42,7 +42,8 @@ def test_launcher_and_installer_share_the_product_name():
     assert project.findtext("PropertyGroup/AssemblyName") == "T7-Rekindle"
     assert project.findtext("PropertyGroup/RootNamespace") == "T7R.Desktop"
     lock = json.loads((ROOT / "tests/managed/packages.lock.json").read_text(encoding="utf-8"))
-    assert lock["dependencies"][".NETFramework,Version=v4.8"]["t7-rekindle"]["type"] == "Project"
+    dependencies = {name.casefold(): value for name, value in lock["dependencies"][".NETFramework,Version=v4.8"].items()}
+    assert dependencies["t7-rekindle"]["type"] == "Project"
     assert (ROOT / "T7-Rekindle.sln").is_file()
     installer = (ROOT / "installer/T7-Rekindle.iss").read_text(encoding="utf-8")
     assert '#define MyAppName "T7-Rekindle"' in installer
@@ -57,7 +58,7 @@ def test_ui_and_user_data_paths_share_the_product_name():
     assert window.attrib["AutomationProperties.Name"] == "T7-Rekindle 本地客户端启动器"
     assert '"T7-Rekindle"' in (ROOT / "src/Desktop/Services/SettingsService.cs").read_text(encoding="utf-8")
     assert "/T7-Rekindle/logs/desktop.log" in (ROOT / "src/Desktop/NLog.config").read_text(encoding="utf-8")
-    for relative in ("src/Runtime/bridge/Session.cpp", "src/Runtime/server/Server.cpp"):
+    for relative in ("src/Runtime/bridge/Session.cpp", "tests/reference/native-server/Server.cpp"):
         assert 'L"T7-Rekindle"' in (ROOT / relative).read_text(encoding="utf-8")
 
 

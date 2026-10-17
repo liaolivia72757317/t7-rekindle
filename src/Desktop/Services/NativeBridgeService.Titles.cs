@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Linq;
@@ -22,17 +23,67 @@ namespace T7R.Desktop.Services
     }
     public sealed partial class NativeBridgeService : INativeTitles
     {
+        internal sealed class TitlePublication
+        {
+            internal TitlePublication(ulong publicationId, ulong epoch, string json, ulong requestId, bool success)
+            {
+                PublicationId = publicationId; Epoch = epoch; Json = json; RequestId = requestId; Success = success;
+            }
+            internal ulong PublicationId { get; }
+            internal ulong Epoch { get; }
+            internal string Json { get; }
+            internal ulong RequestId { get; }
+            internal bool Success { get; }
+        }
+
+        internal sealed class TitlePublicationQueue
+        {
+            private readonly Queue<TitlePublication> _pending = new Queue<TitlePublication>();
+            private ulong _nextPublicationId, _epoch;
+
+            internal void Publish(ulong epoch, string json, ulong requestId, bool success, Action<TitlePublication> publishNative)
+            {
+                if (epoch < _epoch) return;
+                var publication = new TitlePublication(checked(++_nextPublicationId), epoch, json, requestId, success);
+                publishNative(publication);
+                if (epoch != _epoch) _pending.Clear();
+                _epoch = epoch;
+                _pending.Enqueue(publication);
+            }
+
+            internal void Forward(NativeTitleRequest acknowledgement, Action<TitlePublication> publishGateway)
+            {
+                if (acknowledgement.Epoch != _epoch || !_pending.Any(value => value.PublicationId == acknowledgement.RequestId)) return;
+                // Native applies an epoch's publications in FIFO order and exposes only the last acknowledgement.
+                while (_pending.Count != 0 && _pending.Peek().PublicationId <= acknowledgement.RequestId)
+                {
+                    publishGateway(_pending.Peek());
+                    _pending.Dequeue();
+                }
+            }
+
+            internal void Clear() { _pending.Clear(); _epoch = 0; }
+        }
+
+        private readonly TitlePublicationQueue _pendingTitles = new TitlePublicationQueue();
         public void PublishTitles(ulong epoch, string json, ulong requestId = 0, bool success = true)
         {
-            var bytes = Encoding.UTF8.GetBytes(json);
             var descriptions = TitleCatalogue(json);
+            lock (_sync) _pendingTitles.Publish(epoch, json, requestId, success, publication => PublishNativeTitles(publication, descriptions));
+        }
+
+        private void PublishNativeTitles(TitlePublication publication, byte[] descriptions)
+        {
+            var bytes = Encoding.UTF8.GetBytes(publication.Json);
             var pointer = Marshal.AllocHGlobal(bytes.Length);
             try
             {
                 Marshal.Copy(bytes, 0, pointer, bytes.Length);
                 var path = new NativePath { AbiVersion = NativeBridgeContract.AbiVersion,
                     StructSize = (uint)Marshal.SizeOf(typeof(NativePath)), Data = pointer, Length = (uint)bytes.Length };
-                var status = InvokeNative(handle => _native.PublishTitles(handle, epoch, ref path, requestId, success ? 1u : 0u,
+                // Snapshot acknowledgements also need a unique ID; Rust retains the original request ID separately.
+                var status = InvokeNative(handle => _native.PublishTitles(handle, publication.Epoch, ref path,
+                    publication.PublicationId, publication.Success ? 1u : 0u,
                     descriptions, (uint)descriptions.Length));
                 if (status != NativeStatus.Ok) throw new InvalidOperationException("称号同步失败：" + status);
             }
@@ -79,11 +130,16 @@ namespace T7R.Desktop.Services
         }
         public NativeTitleRequest ReadTitleRequest()
         {
-            var request = new NativeTitleRequest { AbiVersion = NativeBridgeContract.AbiVersion,
-                StructSize = (uint)Marshal.SizeOf(typeof(NativeTitleRequest)) };
-            var status = InvokeNative(handle => _native.GetTitleRequest(handle, ref request));
-            if (status != NativeStatus.Ok) throw new InvalidOperationException("读取称号请求失败：" + status);
-            return request;
+            lock (_sync)
+            {
+                var request = new NativeTitleRequest { AbiVersion = NativeBridgeContract.AbiVersion,
+                    StructSize = (uint)Marshal.SizeOf(typeof(NativeTitleRequest)) };
+                var status = InvokeNative(handle => _native.GetTitleRequest(handle, ref request));
+                if (status != NativeStatus.Ok) throw new InvalidOperationException("读取称号请求失败：" + status);
+                if (_offlineBattle != null)
+                    _pendingTitles.Forward(request, pending => _offlineBattle.PublishTitles(pending.Epoch, pending.Json, pending.RequestId, pending.Success));
+                return _offlineBattle?.ReadTitleRequest() ?? new NativeTitleRequest { AbiVersion = 1, StructSize = 32 };
+            }
         }
         private sealed partial class NativeMethods
         {

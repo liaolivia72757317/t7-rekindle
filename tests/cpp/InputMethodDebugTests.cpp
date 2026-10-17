@@ -65,12 +65,12 @@ int runInputMethodDebugFixture() {
     }
     if (name == L"T7R.ImeHelper.exe") {
         marker(directory / "helper-started.txt");
-        if (mode == "fault" || mode == "verified-fault") {
+        if (mode == "fault" || mode == "verified-fault" || mode == "optional-fault") {
             RaiseException(0xE0007108, EXCEPTION_NONCONTINUABLE, 0, nullptr); return 1;
         }
         if (mode == "nonzero") return 7;
         if (mode == "forbidden") loadModule(directory, L"tenslx.dll");
-        if (mode == "skip-adaptation" || mode == "verified-adaptation") loadModule(directory, L"T7R.HelperLibrary.dll");
+        if (mode == "skip-adaptation" || mode == "verified-adaptation" || mode == "optional-adaptation") loadModule(directory, L"T7R.HelperLibrary.dll");
         if (mode == "verified-load") loadModule(directory, L"T7R.RegisteredIme.dll");
         awaitExit(launch(directory / "T7R.ImeLeaf.exe"));
         return 42;
@@ -105,7 +105,7 @@ bool verifyInputMethodDebugClient() {
         const auto original = executable();
         for (const std::string mode : {"allow", "unload", "not-loaded", "before-load", "unregistered", "module-path", "case-path",
                                       "registry-error", "fault", "nonzero", "known-hash", "known-path", "forbidden", "skip-adaptation",
-                                      "verified-load", "verified-fault", "verified-adaptation", "stop", "parent-exit"}) {
+                                      "verified-load", "verified-fault", "verified-adaptation", "optional-fault", "optional-adaptation", "stop", "parent-exit"}) {
             const auto directory = root / mode;
             require(t7r::fs::create_directory(directory), "fresh IME case directory");
             for (const auto* name : {"T7R.ImeParent.exe", "T7R.ImeHelper.exe", "T7R.ImeLeaf.exe", "T7R.ImeUnowned.exe"})
@@ -115,11 +115,11 @@ bool verifyInputMethodDebugClient() {
             std::ofstream(directory / "mode.txt") << mode;
             const auto hash = t7r::fileHash(directory / "T7R.ImeParent.exe");
             std::vector<t7r::ChildImageRule> children;
-            if (mode == "known-hash" || mode == "known-path" || mode.rfind("verified-", 0) == 0)
+            if (mode == "known-hash" || mode == "known-path" || mode.rfind("verified-", 0) == 0 || mode.rfind("optional-", 0) == 0)
                 children.push_back({mode == "known-path" ? root / "T7R.ImeHelper.exe" : directory / "T7R.ImeHelper.exe",
-                                    mode == "known-hash" ? std::string(64, '0') : hash});
+                                    mode == "known-hash" ? std::string(64, '0') : hash, {}, mode.rfind("optional-", 0) == 0});
             std::vector<t7r::DllEntryRule> rules;
-            if (mode == "skip-adaptation" || mode == "verified-adaptation")
+            if (mode == "skip-adaptation" || mode == "verified-adaptation" || mode == "optional-adaptation")
                 rules.push_back({L"T7R.HelperLibrary.dll", std::string(64, '0'), 0x1000, {0x90},
                                  [](uint32_t) { return std::vector<t7r::MemoryPatch>{}; }});
             t7r::DebugClient client([directory, mode]() -> std::vector<t7r::InputMethodRegistration> {
@@ -171,12 +171,12 @@ bool verifyInputMethodDebugClient() {
             }
             const bool rejected = mode == "not-loaded" || mode == "before-load" || mode == "unregistered"
                 || mode == "registry-error" || mode == "known-hash" || mode == "known-path" || mode == "forbidden"
-                || mode == "module-path" || mode == "verified-fault" || mode == "verified-adaptation";
+                || mode == "module-path" || mode == "verified-fault" || mode == "verified-adaptation" || mode == "optional-adaptation";
             if (error.empty() == rejected) throw std::runtime_error("IME case " + mode + ": " + (error.empty() ? "unexpected acceptance" : error));
             if (rejected) {
                 const auto reason = mode == "forbidden" ? "TP module reached loader"
                     : mode == "verified-fault" ? "unhandled client exception"
-                    : mode == "verified-adaptation" ? "required DLL identity/address mismatch" : "unverified client child process";
+                    : mode == "verified-adaptation" || mode == "optional-adaptation" ? "required DLL identity/address mismatch" : "unverified client child process";
                 require(error.find(reason) != std::string::npos, "wrong IME case rejection reason");
             }
             require(childrenStopped, "compatible process left running");
@@ -190,8 +190,9 @@ bool verifyInputMethodDebugClient() {
             require(activations == (mode != "not-loaded" && mode != "before-load" && mode != "unregistered"
                                    && mode != "module-path" && mode != "registry-error" ? 1 : 0),
                     "registration observation/activation mismatch");
-            if (mode == "fault" || mode == "nonzero" || mode == "registry-error") {
+            if (mode == "fault" || mode == "nonzero" || mode == "registry-error" || mode == "optional-fault") {
                 const auto reason = mode == "fault" ? "terminating only compatible child"
+                    : mode == "optional-fault" ? "terminating only optional game child"
                     : mode == "nonzero" ? "code=7; role=CompatibleChild" : "Input method registry unavailable";
                 require(std::any_of(warnings.begin(), warnings.end(), [&](const auto& line) {
                     return line.find(reason) != std::string::npos;

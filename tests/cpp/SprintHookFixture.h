@@ -344,6 +344,44 @@ inline void verifyAirMovement(HANDLE process) {
     }
     writeWord(process, KEYS, 0); pump(process);
 }
+inline void verifyWeaponChange(HANDLE process) {
+    uint32_t tick = readWord(process, CLOCK);
+    auto time = [&](uint32_t delta) { tick += delta; writeWord(process, CLOCK, tick); pump(process); };
+    for (uint32_t keys : {1u, 5u, 9u}) {
+        writeWord(process, KEYS, 0); setFightState(process, 2); pump(process);
+        writeWord(process, KEYS, keys); pump(process); time(400);
+        setFightState(process, 1); expect(process, 3, false, "weapon change interrupted run warmup");
+        time(599); expect(process, 3, false, "weapon change armed running before the original deadline");
+        time(1); expect(process, 5, true, "weapon change reset or paused run warmup");
+        const auto events = readWord(process, EVENTS);
+        for (uint32_t state : {2u, 1u, 2u, 1u, 2u}) {
+            setFightState(process, state); time(200);
+            expect(process, 5, true, "weapon change interrupted an established run");
+            expectDirection(process, keys == 1 ? 1 : keys == 5 ? 8 : 2, true);
+            if (readWord(process, EVENTS) != events)
+                throw std::runtime_error("weapon change toggled the running flag");
+        }
+    }
+    // Starting movement while equipping uses the same uninterrupted warmup.
+    writeWord(process, KEYS, 0); setFightState(process, 1); pump(process); time(1000);
+    expect(process, 0, false, "stationary weapon change armed running");
+    writeWord(process, KEYS, 1); pump(process); time(500);
+    setFightState(process, 2); pump(process); time(499);
+    expect(process, 3, false, "weapon change completion shortened run warmup");
+    time(1); expect(process, 5, true, "weapon change completion restarted run warmup");
+    for (uint32_t keys : {0u, 2u, 4u, 17u}) {
+        setFightState(process, 1); writeWord(process, KEYS, keys);
+        expect(process, keys ? 3.f : 0.f, false, "weapon change ignored a movement interruption");
+        writeWord(process, KEYS, 1); pump(process); time(999);
+        expect(process, 3, false, "weapon change reused canceled run warmup");
+        time(1); expect(process, 5, true, "weapon change did not allow running to restart");
+    }
+    setFightState(process, 35); expect(process, 3, false, "hit during weapon change retained running");
+    setFightState(process, 2); pump(process); time(999);
+    expect(process, 3, false, "hit during weapon change kept elapsed run time");
+    time(1); expect(process, 5, true, "hit recovery did not rearm running");
+    writeWord(process, KEYS, 0); pump(process);
+}
 inline void verify(HANDLE process) {
     const auto config = profile();
     const float initialSpeed = static_cast<float>(config.speedMilli) / 1000.f;
@@ -364,6 +402,7 @@ inline void verify(HANDLE process) {
     verifyJump(process);
     verifyJumpAttack(process);
     verifyAirMovement(process);
+    verifyWeaponChange(process);
     tick = readWord(process, CLOCK);
     writeWord(process, KEYS, 1); expect(process, 3, false, "jog speed");
     time(999); expect(process, 3, false, "sprint armed too early");

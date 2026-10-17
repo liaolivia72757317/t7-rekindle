@@ -1,3 +1,5 @@
+#include "../../src/Runtime/launcher/ClientWorld.h"
+#include "../../src/Runtime/launcher/AudioSettings.h"
 #include "../../src/Runtime/launcher/GraphicsSettings.h"
 #include "../../src/Runtime/bridge/T7RNativeBridge.h"
 #include "../../src/Runtime/launcher/ChatInputHookCode.h"

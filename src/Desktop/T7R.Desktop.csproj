@@ -57,18 +57,12 @@
     <Page Update="Resources\Theme.Dark.xaml" />
     <Page Update="Resources\Theme.HighContrast.xaml" />
     <ProjectReference Include="..\Core\T7R.Core.csproj" />
+    <ProjectReference Include="..\Battle\T7R.Battle.csproj" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="[8.4.2]" ExcludeAssets="analyzers" />
     <PackageReference Include="Newtonsoft.Json" Version="[13.0.4]" />
     <PackageReference Include="NLog" Version="[6.2.1]" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="[1.0.4258.31]" />
   </ItemGroup>
-  <Target Name="CopyNativeBridge" AfterTargets="Build">
-    <Copy SourceFiles="$(RepositoryRoot)artifacts\native\bin\$(PlatformTarget)\$(Configuration)\T7R.NativeBridge.dll"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(RepositoryRoot)artifacts\native\bin\$(PlatformTarget)\$(Configuration)\T7R.NativeBridge.dll')" />
-  </Target>
-  <Import Project="DebugRuntime.targets" />
-  <Import Project="BusinessScripts.targets" />
+  <Import Project="RuntimeAssets.targets" />
   <Import Project="..\..\Managed.Common.targets" />
 </Project>

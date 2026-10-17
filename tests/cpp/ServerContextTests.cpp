@@ -1,5 +1,5 @@
-#include "../../src/Runtime/server/PythonHost.h"
-#include "../../src/Runtime/server/PythonContext.h"
+#include "../../tests/reference/native-server/PythonHost.h"
+#include "../../tests/reference/native-server/PythonContext.h"
 #include <iostream>
 #include <limits>
 

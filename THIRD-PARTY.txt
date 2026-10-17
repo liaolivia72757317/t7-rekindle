@@ -2,14 +2,10 @@
 
 随完整产品包分发的主要组件：
 
-- CPython 3.14.4 AMD64 — Python Software Foundation License 2.0
 - CommunityToolkit.Mvvm 8.4.2 — MIT
 - Newtonsoft.Json 13.0.4 — MIT
 - NLog 6.2.1 — BSD-3-Clause
 - Microsoft.Web.WebView2 1.0.4258.31 — BSD-3-Clause（SDK；Evergreen Runtime 由 Microsoft 单独分发）
-- py_trees 2.6.0 — BSD-3-Clause（电脑玩家行为树）
-- pydot 4.0.1 — MIT，含 Python-2.0 授权代码（py_trees 依赖）
-- pyparsing 3.3.3 — MIT（pydot 依赖）
 - Lucide Icons 1.8.0（版本胶囊与登录界面的矢量图标）— ISC
   项目：https://lucide.dev/；上游：https://github.com/lucide-icons/lucide
   路径保存在 src/Desktop/Resources/VersionCapsule.xaml，不引入图标运行时依赖。
@@ -21,10 +17,37 @@ System.Runtime.CompilerServices.Unsafe 6.1.2、System.Threading.Tasks.Extensions
 运行时组件许可及上游声明随启动器嵌入，可在“关于 → 开源软件说明”中离线阅读。
 源码位置为 src/Desktop/Resources/THIRD-PARTY-NOTICES.txt。
 托管依赖版本记录在 src/Desktop/packages.lock.json；更新依赖时同步核对许可声明。
-Python 业务依赖以原始 wheel 内容保存在 src/Business/vendor/，版本固定在该目录的
-requirements.txt，原始许可保存在各包的 .dist-info/licenses/ 中；构建和运行不在线安装依赖。
+产品不包含 Python 解释器及 Python 业务依赖。测试对照依赖保存在
+tests/reference/Business/vendor/，原许可随测试源码保留，不进入产品包。
 
-构建工具：
+Rust 运行时组件：
+
+- 导航距离与浮点求和兼容算法参考 CPython 3.14.4 的 Modules/mathmodule.c、
+  Python/bltinmodule.c，移植为 Rust 以保持候选排序与伤害计算行为；采用 PSF License 2.0。
+  原版权及完整许可保存在 src/Desktop/Resources/THIRD-PARTY-NOTICES.txt 的 CPython 章节。
+- Tokio 1.53.3 — MIT
+- serde_json 1.0.154、serde_core 1.0.229、itoa 1.0.18 — MIT OR Apache-2.0
+- serde 1.0.229、serde_derive 1.0.229 — MIT OR Apache-2.0
+- flate2 1.1.10、crc32fast 1.5.2、cfg-if 1.0.5 — MIT OR Apache-2.0
+- miniz_oxide 0.9.1 — MIT OR Zlib OR Apache-2.0；adler2 2.0.1 — 0BSD OR MIT OR Apache-2.0；simd-adler32 0.3.10 — MIT
+- encoding_rs 0.8.42 — (Apache-2.0 OR MIT) AND BSD-3-Clause；
+  core_detect 1.0.0、multiversion_no_op 1.0.0、rustversion 1.0.23、scopeguard 1.2.0、simdutf8 0.1.5 — MIT OR Apache-2.0
+- quick-xml 0.42.0 — MIT；sha2 0.11.1 — MIT OR Apache-2.0
+- block-buffer 0.12.1、cpufeatures 0.3.1、crypto-common 0.2.2、digest 0.11.3、
+  hybrid-array 0.4.15、typenum 1.20.1 — MIT OR Apache-2.0（原资源解析／校验依赖）。
+- memchr 2.8.3 — Unlicense OR MIT；zmij 1.0.23 — MIT（资源数据包工具依赖）
+- windows-sys 0.61.2、windows-link 0.2.1 — MIT OR Apache-2.0
+- Windows x64 传递依赖：bytes 1.12.1、mio 1.2.4（MIT），
+  pin-project-lite 0.2.17、socket2 0.6.5（MIT OR Apache-2.0）。
+- 宏构建依赖：proc-macro2 1.0.107、quote 1.0.47、syn 3.0.9 — MIT OR Apache-2.0；
+  unicode-ident 1.0.27 — (MIT OR Apache-2.0) AND Unicode-3.0。
+
+版本及依赖关系记录在 src/BattleRust/Cargo.lock；更新组件时同步维护此清单和
+启动器嵌入的完整许可声明。
+
+构建与测试工具：
+
+- CPython 3.14.4 AMD64、py_trees、pydot、pyparsing 仅用于开发脚本和测试对照，不分发。
 
 - Inno Setup 7.1.0（安装器构建）— Inno Setup License
   项目与许可证：https://jrsoftware.org/isinfo.php

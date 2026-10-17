@@ -194,6 +194,7 @@ Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase) {
     c.emit({0xFF,0x05}); c.word(rayCount);
     c.emit({0x68}); c.word(collector); c.emit({0x68}); c.word(input);
     c.emit({0x8B,0x0D}); c.word(world); c.call(imageBase + 0x10FA3B0);
+    c.call(address + WEAPON_GUARD_CODE_OFFSET);
     c.bind(degenerate); c.bind(notFinite); c.emit({0x61,0xC3});
     if (c.bytes.size() > COLLECTOR_OFFSET) throw std::runtime_error("blade ray hook overflow");
 
@@ -229,7 +230,7 @@ Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase) {
     c.emit({0x3B,0x11}); const auto actorRoot = c.branch(0x84);
     c.emit({0x83,0xC1,4,0x4B}); c.bind(c.branch(0x85), rootLoop);
     for (auto branch : skipTarget) c.bind(branch);
-    c.emit({0x40,0x81,0xC7}); c.word(STRIDE); c.emit({0x83,0xF8,21}); c.bind(c.branch(0x82), targetLoop);
+    c.emit({0x40,0x81,0xC7}); c.word(STRIDE); c.emit({0x83,0xF8,static_cast<uint8_t>(MAX_WORLD_ACTORS + 1)}); c.bind(c.branch(0x82), targetLoop);
     ignored.push_back(c.jump());
     c.bind(actorRoot);
     c.emit({0x8B,0x99}); c.word(offsetof(BladeMailbox, bodyIndices) - offsetof(BladeMailbox, roots));

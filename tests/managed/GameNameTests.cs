@@ -138,9 +138,13 @@ namespace T7R.ManagedHarness
                 var api = new FakeApi(); var time = new ManualDelay();
                 var account = Model(api, new MemoryStore(), time);
                 var bridge = new FakeLauncherBridge(); var settings = new SettingsService(directory);
-                using (var model = new MainWindowViewModel(bridge, settings,
-                    new UserSettings { ClientDirectory = @"C:\Games\Sample" }, null,
-                    path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(), account: account))
+                using (var model = new MainWindowViewModel(bridge,
+                settings,
+                new UserSettings { ClientDirectory = @"C:\Games\Sample" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction(),
+                account: account))
                 {
                     RunTask(model.ValidationTask);
                     Assert(model.PlayerName == "新玩家" && model.CanEditPlayerName, "guest default or editing changed");

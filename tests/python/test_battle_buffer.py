@@ -366,7 +366,7 @@ def test_host_reload_preserves_the_buffer_and_other_sessions(tmp_path, intent, r
     flow.state["sessions"]["2"] = deepcopy(flow.session)
     before = deepcopy(flow.state)
     deadline = flow.session["pending"][ACTION_TIMER]
-    runtime = host_runtime.Runtime(ROOT / "src/Business/scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(ROOT / "tests/reference/Business/scripts", tmp_path / "revisions")
     try:
         runtime.prepare()
         encoded = runtime.switch(host_runtime.encode(flow.state))

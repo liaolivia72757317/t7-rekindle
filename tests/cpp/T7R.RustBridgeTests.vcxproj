@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{ADBD9255-648D-437C-886E-7BB37AA22AF1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\..\Native.Common.props" />
+  <PropertyGroup>
+    <TargetName>T7R.RustBridgeTests</TargetName>
+    <RustProfile Condition="'$(Configuration)'=='Debug'">debug</RustProfile>
+    <RustProfile Condition="'$(Configuration)'=='Release'">release</RustProfile>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalLibraryDirectories>$(T7RArtifactsRoot)rust\x86_64-pc-windows-msvc\$(RustProfile);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>t7r_battle_ffi.lib;ntdll.lib;userenv.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="RustBridgeTests.cpp" />
+    <ClCompile Include="ContactClockTests.cpp" />
+    <ClCompile Include="..\..\src\Runtime\core\Protocol.cpp" />
+    <ClCompile Include="..\..\src\Runtime\bridge\BattleSnapshotIngress.cpp" />
+    <ClCompile Include="..\..\src\Runtime\bridge\BattleGatewaySink.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

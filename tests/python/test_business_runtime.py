@@ -10,7 +10,7 @@ from Business.scripts import app, contracts as wire, scene
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src/Business" / "runtime"))
+sys.path.insert(0, str(ROOT / "tests/reference/Business" / "runtime"))
 import host_runtime  # noqa: E402
 
 
@@ -33,7 +33,7 @@ def test_initial_prepare_uses_preparation_duration():
 
 
 def test_business_self_test_and_context(tmp_path):
-    runtime = host_runtime.Runtime(ROOT / "src/Business" / "scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(ROOT / "tests/reference/Business" / "scripts", tmp_path / "revisions")
     try:
         context = host_runtime.encode({
             "nowMs": 0,
@@ -52,7 +52,7 @@ def test_revisions_use_isolated_t7r_package_names(tmp_path):
     revisions = []
     try:
         for _ in range(2):
-            revision = host_runtime.Revision(ROOT / "src/Business/scripts", tmp_path)
+            revision = host_runtime.Revision(ROOT / "tests/reference/Business/scripts", tmp_path)
             revisions.append(revision)
             assert revision.name.startswith("t7r_rev_")
             assert revision.path == tmp_path / revision.name
@@ -88,7 +88,7 @@ def test_state_encoding_rejects_non_finite_numbers():
 
 
 def test_connected_event_round_trip(tmp_path):
-    runtime = host_runtime.Runtime(ROOT / "src/Business" / "scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(ROOT / "tests/reference/Business" / "scripts", tmp_path / "revisions")
     try:
         context = host_runtime.encode({
             "nowMs": 1,

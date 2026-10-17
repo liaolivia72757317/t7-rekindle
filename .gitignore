@@ -2,6 +2,7 @@
 /artifacts/
 /dist/
 /packages/
+/src/BattleRust/target/
 *.user
 *.suo
 *.userprefs
@@ -20,8 +21,8 @@ __pycache__/
 local/
 
 # Runtime state and diagnostics
-src/Business/data/
-src/Business/cache/
+tests/reference/Business/data/
+tests/reference/Business/cache/
 src/Runtime/data/
 *.dmp
 

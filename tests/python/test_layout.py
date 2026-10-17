@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MSBUILD = {"ms": "http://schemas.microsoft.com/developer/msbuild/2003"}
 
 
-@pytest.mark.parametrize("module", ["Core", "Desktop", "Runtime", "Business"])
+@pytest.mark.parametrize("module", ["Core", "Desktop", "Runtime", "Battle", "BattleRust"])
 def test_product_sources_live_under_src(module):
     assert (ROOT / "src" / module).is_dir()
     assert not (ROOT / module).exists()
@@ -31,8 +31,8 @@ def test_native_outputs_are_configuration_scoped_and_not_overridden():
     root = ET.parse(ROOT / "Native.Common.props").getroot()
     output = root.findtext("ms:PropertyGroup/ms:OutDir", namespaces=MSBUILD)
     intermediate = root.findtext("ms:PropertyGroup/ms:IntDir", namespaces=MSBUILD)
-    assert output == "$(MSBuildThisFileDirectory)artifacts\\native\\bin\\$(Platform)\\$(Configuration)\\"
-    assert intermediate == "$(MSBuildThisFileDirectory)artifacts\\native\\obj\\$(ProjectName)\\$(Platform)\\$(Configuration)\\"
+    assert output == "$(T7RArtifactsRoot)native\\bin\\$(Platform)\\$(Configuration)\\"
+    assert intermediate == "$(T7RArtifactsRoot)native\\obj\\$(ProjectName)\\$(Platform)\\$(Configuration)\\"
     projects = [ROOT / "src/Runtime/T7R.NativeBridge.vcxproj"]
     projects.extend((ROOT / "tests/cpp").glob("*.vcxproj"))
     for project in projects:
@@ -44,4 +44,4 @@ def test_native_outputs_are_configuration_scoped_and_not_overridden():
 def test_local_material_is_excluded_from_source_control():
     rules = set((ROOT / ".gitignore").read_text(encoding="utf-8").splitlines())
     assert {"/.local/", "/.claude/", "/artifacts/", "/dist/", "work/"} <= rules
-    assert {"src/Business/data/", "src/Business/cache/", "src/Runtime/data/"} <= rules
+    assert {"tests/reference/Business/data/", "tests/reference/Business/cache/", "src/Runtime/data/"} <= rules

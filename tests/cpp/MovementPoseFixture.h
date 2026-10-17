@@ -92,7 +92,7 @@ inline void verify(HANDLE process) {
         if (worker) {
             movementAnimationFixture::runWorker(process, DISPATCH);
         } else {
-            writeWord(process, worldFixture::FRAME_GATE, 2);
+            worldFixture::requestFrame(process);
         }
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
@@ -195,7 +195,7 @@ inline void verify(HANDLE process) {
         t7r::writeClientMemory(process, name.size() > 15 ? NAME : MODIFIER + 8, text);
         writeWord(process, DATA + 8, 99);
         if (worker) movementAnimationFixture::runWorker(process, DISPATCH);
-        else writeWord(process, worldFixture::FRAME_GATE, 2);
+        else worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             if (GetTickCount64() >= deadline) throw std::runtime_error("movement pose sample timeout");

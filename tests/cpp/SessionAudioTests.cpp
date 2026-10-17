@@ -50,7 +50,7 @@ bool verifyAudioSession(const t7r::fs::path& packageRoot) {
         session->audio(audio);
         require(audio.state == T7RNB_AUDIO_UNAVAILABLE, "idle audio state");
         uint64_t operation = 0;
-        require(session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operation) == T7RNB_OK, "audio test start");
+        require(session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operation, u8"新玩家", false, {1, 2, 3}) == T7RNB_OK, "audio test start");
         waitFor([&] { session->audio(audio); return audio.state == T7RNB_AUDIO_READY; });
         waitFor([&] { return logs(session).find("Audio settings snapshot; state=ready;") != std::string::npos; });
         require(logs(session).find("musicMuted=0; musicVolume=1; effectsMuted=0; effectsVolume=1") != std::string::npos,
@@ -99,7 +99,7 @@ bool verifyAudioSession(const t7r::fs::path& packageRoot) {
         require(session->audio(audio) == T7RNB_INVALID_HANDLE, "released audio session");
         session = t7r::bridge::Session::createForTest(t7r::utf8(packageRoot.wstring()), adapter);
         require(session->setLogLevel(T7RNB_LOG_DEBUG) == T7RNB_OK, "audio diagnostics level");
-        require(session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operation) == T7RNB_OK,
+        require(session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operation, u8"新玩家", false, {1, 2, 3}) == T7RNB_OK,
             "initial audio failure test start");
         waitFor([&] { return logs(session).find("Audio synchronization stopped:") != std::string::npos; });
         const auto initialFailure = logs(session);

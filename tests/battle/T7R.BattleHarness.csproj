@@ -2,5 +2,20 @@
   <Import Project="..\..\Managed.Common.props" />
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><Platforms>x64</Platforms></PropertyGroup>
   <ItemGroup><ProjectReference Include="..\..\src\Battle\T7R.Battle.csproj" /></ItemGroup>
+  <ItemGroup><None Include="..\fixtures\protocol\battle-v1.txt" Link="fixtures\battle-v1.txt" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><None Include="..\fixtures\protocol\battle-semantic-v1.txt" Link="fixtures\battle-semantic-v1.txt" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup>
+    <None Include="..\fixtures\protocol\match-maps-v1.txt" Link="fixtures\match-maps-v1.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\room-entry-uplink-v1.txt" Link="fixtures\room-entry-uplink-v1.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\room-entry-wire-v1.txt" Link="fixtures\room-entry-wire-v1.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\titles-v1.txt" Link="fixtures\titles-v1.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\battle-contacts-v3.txt" Link="fixtures\battle-contacts-v3.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\battle-contacts-v4.txt" Link="fixtures\battle-contacts-v4.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\battle-contacts-v2.txt" Link="fixtures\battle-contacts-v2.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\gateway-v1.txt" Link="fixtures\gateway-v1.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\protocol\loadout-v1.txt" Link="fixtures\loadout-v1.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\resources\bundle-v1.json" Link="fixtures\bundle-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\resources\client-cache-v1.vfs" Link="fixtures\client-cache-v1.vfs" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
   <Import Project="..\..\Managed.Common.targets" />
 </Project>

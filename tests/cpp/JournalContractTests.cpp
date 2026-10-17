@@ -1,5 +1,5 @@
-#include "../../src/Runtime/server/Journal.h"
-#include "../../src/Runtime/server/RunDirectory.h"
+#include "../../tests/reference/native-server/Journal.h"
+#include "../../tests/reference/native-server/RunDirectory.h"
 #include <algorithm>
 #include <chrono>
 #include <thread>

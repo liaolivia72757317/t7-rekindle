@@ -8,20 +8,23 @@ from pathlib import Path
 import subprocess
 
 
-def run(root: Path) -> dict:
+def run(root: Path, *, artifacts: Path | None = None, configuration: str = "Release") -> dict:
     root = root.resolve()
+    artifacts = artifacts.resolve() if artifacts is not None else root / "artifacts"
     # The host is a separate process so this driver never initializes the
     # embedded CPython owner that it is testing.
     import build
 
-    host = root / "artifacts/native/bin/x64/Release/T7R.RuntimeTests.exe"
+    host = artifacts / "native/bin/x64" / configuration / "T7R.RuntimeTests.exe"
     if not host.is_file():
         raise FileNotFoundError(
-            "native integration host is missing; run `python scripts/build.py --project native-tests` first"
+            f"native integration host is missing: {host}; build native-tests with the same artifacts and configuration"
         )
 
     original_build_root = build.ROOT
+    original_artifacts = build.ARTIFACTS
     build.ROOT = root
+    build.ARTIFACTS = artifacts
     fixture = None
     try:
         python_home = build.check_python()
@@ -44,19 +47,22 @@ def run(root: Path) -> dict:
                 f"{completed.returncode}: {details}"
             )
     finally:
-        if fixture is not None:
-            build.remove_tree(fixture)
-        build.ROOT = original_build_root
+        try:
+            if fixture is not None:
+                build.remove_tree(fixture)
+        finally:
+            build.ROOT = original_build_root
+            build.ARTIFACTS = original_artifacts
 
     # Keep the pure business transition check in this driver.  It loads only
     # the public Business package; the native host above owns the embedded
     # interpreter and has already run in a different process.
-    business = root / "src/Business"
+    business = root / "tests/reference/Business"
     import sys
     sys.path.insert(0, str(business / "runtime"))
     import host_runtime
 
-    cache = root / "artifacts/tmp/integration-cache"
+    cache = artifacts / "tmp/integration-cache"
     cache.mkdir(parents=True, exist_ok=True)
     runtime = host_runtime.Runtime(business / "scripts", cache)
     try:
@@ -93,7 +99,7 @@ def run(root: Path) -> dict:
     return {
         "result": "passed",
         "realClient": False,
-        "host": host.relative_to(root).as_posix(),
+        "host": Path(os.path.relpath(host, root)).as_posix(),
         "checks": [
             "bridge-owned CPython initializes in a separate host process",
             "three dynamic loopback listeners reach readiness",
@@ -111,9 +117,11 @@ def run(root: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--artifacts", type=Path, help="independent build output root")
+    parser.add_argument("--configuration", choices=("Debug", "Release"), default="Release")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
-    report = run(args.root.resolve())
+    report = run(args.root, artifacts=args.artifacts, configuration=args.configuration)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

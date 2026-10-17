@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -141,9 +142,11 @@ namespace T7R.ManagedHarness
             root.SetValue(System.Windows.Documents.TextElement.ForegroundProperty, Application.Current.Resources["TextBrush"]);
         }
         private static MainWindowViewModel CreateModel(FakeLauncherBridge bridge, string directory) =>
-            new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "graphics")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
-                readGraphicsResolutions: () => new[] { "1280x720", "1600x900", "1920x1080" });
+            new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "graphics")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))) { Resolutions = _ => ((Func<IReadOnlyList<string>>)(() => new[] { "1280x720", "1600x900", "1920x1080" }))() },
+                new FakeDesktopInteraction());
     }
 }

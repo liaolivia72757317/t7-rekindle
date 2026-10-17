@@ -11,11 +11,13 @@
   <Import Project="..\..\Native.Common.props" />
   <PropertyGroup><TargetName>T7R.RuntimeTests</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
-    <ClCompile><PreprocessorDefinitions>T7R_NATIVE_BRIDGE_TESTING;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
-    <Link><SubSystem>Console</SubSystem><AdditionalDependencies>python314.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+    <ClCompile><AdditionalIncludeDirectories>$(PythonHome)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions>T7R_NATIVE_BRIDGE_TESTING;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+    <Link><AdditionalLibraryDirectories>$(PythonHome)\libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories><SubSystem>Console</SubSystem><AdditionalDependencies>python314.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ServerLifecycleSmoke.cpp" />
+    <ClCompile Include="SessionBattleAttachmentTests.cpp" />
+    <ClCompile Include="BattleCaptureTests.cpp" />
     <ClCompile Include="LobbyNewsTests.cpp" />
     <ClCompile Include="ServerEventOrderTests.cpp" />
     <ClCompile Include="ServerContextTests.cpp" />
@@ -24,6 +26,7 @@
     <ClCompile Include="JournalContractTests.cpp" />
     <ClCompile Include="DiagnosticLogTests.cpp" />
     <ClCompile Include="SessionCleanupTests.cpp" />
+    <ClCompile Include="SessionMonitoringTests.cpp" />
     <ClCompile Include="SessionOperationTests.cpp" />
     <ClCompile Include="SessionResourceTests.cpp" />
     <ClCompile Include="SessionGraphicsTests.cpp" />
@@ -32,6 +35,10 @@
     <ClCompile Include="MovementHookExecutionTests.cpp" />
     <ClCompile Include="GraphicsHookExecutionTests.cpp" />
     <ClCompile Include="../../src/Runtime/bridge/Session.cpp" />
+    <ClCompile Include="../../src/Runtime/bridge/SessionMonitoring.cpp" />
+    <ClCompile Include="../../src/Runtime/bridge/BattleCapture.cpp" />
+    <ClCompile Include="../../src/Runtime/bridge/BattleGatewaySink.cpp" />
+    <ClCompile Include="../../src/Runtime/bridge/BattleSnapshotIngress.cpp" />
     <ClCompile Include="../../src/Runtime/core/Common.cpp" />
     <ClCompile Include="../../src/Runtime/core/DiagnosticLog.cpp" />
     <ClCompile Include="../../src/Runtime/core/Protocol.cpp" />
@@ -40,6 +47,7 @@
     <ClCompile Include="../../src/Runtime/launcher/LobbyNewsHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/OutputDevice.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/GraphicsSettings.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/ClientFrameRuntime.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/GraphicsValues.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/GraphicsHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/AudioSettings.cpp" />
@@ -60,6 +68,7 @@
     <ClCompile Include="../../src/Runtime/launcher/TerrainHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/BladePoseHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/BladeSweepHookCode.cpp" />
+    <ClCompile Include="../../src/Runtime/launcher/WeaponGuardHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/ContactFrameHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/WeaponTrailHookCode.cpp" />
     <ClCompile Include="../../src/Runtime/bridge/SessionGraphics.cpp" />
@@ -79,11 +88,11 @@
     <ClCompile Include="../../src/Runtime/launcher/MovementResources.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/StartupAnimation.cpp" />
     <ClCompile Include="../../src/Runtime/launcher/MovementHookCode.cpp" />
-    <ClCompile Include="../../src/Runtime/server/Journal.cpp" />
-    <ClCompile Include="../../src/Runtime/server/RunDirectory.cpp" />
-    <ClCompile Include="../../src/Runtime/server/PythonHost.cpp" />
-    <ClCompile Include="../../src/Runtime/server/PythonContext.cpp" />
-    <ClCompile Include="../../src/Runtime/server/Server.cpp" />
+    <ClCompile Include="../../tests/reference/native-server/Journal.cpp" />
+    <ClCompile Include="../../tests/reference/native-server/RunDirectory.cpp" />
+    <ClCompile Include="../../tests/reference/native-server/PythonHost.cpp" />
+    <ClCompile Include="../../tests/reference/native-server/PythonContext.cpp" />
+    <ClCompile Include="../../tests/reference/native-server/Server.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

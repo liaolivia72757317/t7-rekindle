@@ -144,7 +144,8 @@ namespace T7R.BattleHarness
                 }
                 foreach (var role in Roles())
                     await pair.Client.WriteAsync(Frame(BattleMessageKind.CloseChannel, role, ++sequence), pair.Timeout.Token);
-                pair.Client.Dispose();
+                // Preserve in-flight Rust replies while completing the relay's input stream.
+                pair.CompleteWrites();
                 await pair.Running;
             }
         }
@@ -213,6 +214,8 @@ namespace T7R.BattleHarness
                 catch { pair.Dispose(); throw; }
                 finally { listener.Stop(); }
             }
+            internal void CompleteWrites() { _client.Client.Shutdown(SocketShutdown.Send); }
+
             public void Dispose()
             {
                 _relay?.Dispose(); Client?.Dispose(); _peer?.Dispose(); _client?.Dispose(); Timeout.Dispose();

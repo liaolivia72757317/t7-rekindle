@@ -32,9 +32,13 @@ namespace T7R.ManagedHarness
                 string.Concat(Enumerable.Repeat("开发进展公告", 20)),
                 string.Concat(Enumerable.Repeat("本次更新完善本地对战体验。启动器获取最新公告，离线仍可阅读内置说明。", 10)),
                 "## 开发进展\n\n- 本地对战体验\n- 启动器公告\n\n**感谢参与测试。**", DateTimeOffset.UtcNow);
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "announcement")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction, fetchAnnouncement: token => Task.FromResult(remote)))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "announcement")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction,
+                announcements: new AnnouncementViewModel(token => Task.FromResult(remote), null)))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };

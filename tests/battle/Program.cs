@@ -12,14 +12,37 @@ namespace T7R.BattleHarness
         {
             try
             {
+                if (args.Length == 1 && args[0] == "--bot-selection-tests")
+                {
+                    BotSelectionTests.Run();
+                    return 0;
+                }
+                if (args.Length == 2 && args[0] == "--gateway-backpressure")
+                {
+                    GatewayBackpressureTests.Run(Path.GetFullPath(args[1]));
+                    return 0;
+                }
+                if (args.Length == 2 && args[0] == "--host-stop-tests")
+                {
+                    NativeBattleHostTests.Run(Path.GetFullPath(args[1])).GetAwaiter().GetResult();
+                    return 0;
+                }
                 Check(Marshal.SizeOf<NativeBattleHostCreateArgs>() == 80, "create ABI");
                 Check(Marshal.SizeOf<NativeBattleHostSnapshot>() == 104, "snapshot ABI");
                 Check(Marshal.OffsetOf<NativeBattleHostCreateArgs>("WritableRoot").ToInt32() == 56, "path ABI");
                 Check(Marshal.OffsetOf<NativeBattleHostSnapshot>("Phase").ToInt32() == 40, "phase ABI");
                 ActorMapTests.Run();
+                AdmissionTests.Run();
+                SemanticTests.Run();
                 FrameTests.Run().GetAwaiter().GetResult();
                 RelayTests.Run().GetAwaiter().GetResult();
-                if (args.Length == 4 && args[0] == "--host")
+                PlatformBackendTests.Run().GetAwaiter().GetResult();
+                BattleRearmCoordinatorTests.Run().GetAwaiter().GetResult();
+                LocalProfileTests.Run().GetAwaiter().GetResult();
+                BotSelectionTests.Run();
+                if (args.Length == 2 && args[0] == "--rust-gateway")
+                    ClientGatewayTests.Run(Path.GetFullPath(args[1])).GetAwaiter().GetResult();
+                else if (args.Length == 4 && args[0] == "--host")
                     NativeHost(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]), Path.GetFullPath(args[3]));
                 else if (args.Length == 1) NativeHost(Path.GetFullPath(args[0]));
                 else if (args.Length != 0) throw new ArgumentException("Expected optional runtime fixture path.");

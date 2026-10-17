@@ -131,8 +131,12 @@ namespace T7R.ManagedHarness
 
         private static MainWindowViewModel Create(string directory, FakeDesktopInteraction interaction,
             Func<CancellationToken, Task<LauncherAnnouncement>> fetch, Func<DateTime> now) =>
-            new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(Path.Combine(directory, "remote-announcement-" + Guid.NewGuid().ToString("N"))),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction, fetchAnnouncement: fetch, announcementUtcNow: now);
+            new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(Path.Combine(directory, "remote-announcement-" + Guid.NewGuid().ToString("N"))),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction,
+                announcements: new AnnouncementViewModel(fetch, now));
     }
 }

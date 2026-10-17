@@ -1,0 +1,14 @@
+<Project>
+  <Import Project="..\..\RustRuntime.targets" />
+  <ItemGroup>
+    <None Include="Resources\News\**\*" Link="news\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CopyNativeBridge" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_NativeBridge>$(T7RArtifactsRoot)native\bin\$(PlatformTarget)\$(Configuration)\T7R.NativeBridge.dll</_NativeBridge>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_NativeBridge)')" Text="Build T7R.NativeBridge before the desktop application." />
+    <Copy SourceFiles="$(_NativeBridge)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

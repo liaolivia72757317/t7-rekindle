@@ -32,10 +32,12 @@ namespace T7R.ManagedHarness
 
         private static MainWindowViewModel Model(SettingsService service, UserSettings initial, FakeLauncherBridge bridge,
             Func<IReadOnlyList<OutputDeviceOption>> devices = null, Func<Guid, IReadOnlyList<string>> resolutions = null) =>
-            new MainWindowViewModel(bridge, service, initial, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
-                isClientRunning: _ => false, readOutputDevices: devices ?? (() => Devices),
-                readOutputDeviceResolutions: resolutions ?? (_ => new[] { "1280x720", "1920x1080" }));
+            new MainWindowViewModel(bridge,
+                service,
+                initial,
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))) { Running = _ => false, Devices = devices ?? (() => Devices), Resolutions = resolutions ?? (_ => new[] { "1280x720", "1920x1080" }) },
+                new FakeDesktopInteraction());
 
         private static void TestPersistence(string root)
         {

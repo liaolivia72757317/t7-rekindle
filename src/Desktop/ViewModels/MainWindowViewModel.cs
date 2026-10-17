@@ -13,12 +13,12 @@ namespace T7R.Desktop.ViewModels
 {
     public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
-        private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromMinutes(30);
         private readonly INativeBridge _bridge;
         private readonly SettingsService _settings;
         private readonly IDesktopInteraction _interaction;
-        private readonly Func<string, Task<ClientDirectoryResult>> _inspectDirectory;
-        private readonly Func<string, CancellationToken, Task<ClientDirectoryResult>> _locateDirectory;
+        private readonly IClientEnvironment _clientEnvironment;
+        private readonly AnnouncementViewModel _announcements;
+        private readonly AutomaticUpdateChecks _updateChecks;
         private readonly LogService _log = new LogService();
         private readonly DispatcherTimer _poller;
         private readonly bool _darkTheme;
@@ -36,9 +36,6 @@ namespace T7R.Desktop.ViewModels
         private int _selectedPage;
         private bool _disposed;
         private bool _logsExpanded;
-        private DateTime? _nextUpdateCheckUtc;
-        private bool _automaticUpdateCheck;
-        private readonly HashSet<string> _announcedUpdateVersions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private SessionSnapshot _snapshot = new SessionSnapshot { State = SessionState.Idle };
 
         public MainWindowViewModel(NativeBridgeService bridge, SettingsService settings, UserSettings initial, string settingsWarning = null)
@@ -46,37 +43,22 @@ namespace T7R.Desktop.ViewModels
 
         public MainWindowViewModel(INativeBridge bridge, SettingsService settings, UserSettings initial, string settingsWarning = null)
             : this(bridge, settings, initial, settingsWarning,
-                path => Task.Run(() => ClientDirectoryService.Inspect(path)), new DesktopInteraction()) { }
+                new ClientEnvironment(), new DesktopInteraction()) { }
 
         internal MainWindowViewModel(INativeBridge bridge, SettingsService settings, UserSettings initial,
-            string settingsWarning, Func<string, Task<ClientDirectoryResult>> inspectDirectory, IDesktopInteraction interaction,
-            Func<string, CancellationToken, Task<ClientDirectoryResult>> locateDirectory = null,
-            Func<Task<LauncherUpdateInfo>> checkUpdate = null,
-            Func<LauncherUpdateInfo, UpdateDownloadViewModel> createUpdateDownload = null,
-            Func<UpdateChannel, Task<LauncherUpdateInfo>> checkChannelUpdate = null,
-            Func<string, bool> isClientRunning = null,
-            Func<IReadOnlyList<string>> readGraphicsResolutions = null,
-            Func<IReadOnlyList<OutputDeviceOption>> readOutputDevices = null,
-            Func<Guid, IReadOnlyList<string>> readOutputDeviceResolutions = null,
-            Func<string, Task<ClientVersionResult>> readClientVersion = null,
-            Func<CancellationToken, Task<LauncherAnnouncement>> fetchAnnouncement = null,
-            Func<DateTime> announcementUtcNow = null,
-            PreviewAccessService previewAccess = null,
-            Func<PreviewAccessViewModel, bool> requestPreviewAccess = null,
-            Func<UpdateChannel, CancellationToken, Task<IReadOnlyList<LauncherHistoryEntry>>> loadUpdateHistory = null,
+            string settingsWarning, IClientEnvironment clientEnvironment, IDesktopInteraction interaction,
+            AnnouncementViewModel announcements = null, LauncherUpdateFactory updates = null,
+            PreviewAccessService previewAccess = null, Func<PreviewAccessViewModel, bool> requestPreviewAccess = null,
             AccountViewModel account = null)
         {
             _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
             Account = account ?? AccountViewModel.CreateDefault();
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            _inspectDirectory = inspectDirectory;
-            _readClientVersion = readClientVersion ?? (path => Task.Run(() => ClientVersionService.Read(path)));
-            _locateDirectory = locateDirectory ?? ((path, token) => Task.Run(() => ClientDirectoryService.Locate(path, token), token));
-            _interaction = interaction;
-            InitializeAnnouncements(fetchAnnouncement, announcementUtcNow);
-            _isClientRunning = isClientRunning ?? GameSettingsFileService.IsClientRunning;
-            _readGraphicsResolutions = readOutputDeviceResolutions ?? (readGraphicsResolutions == null
-                ? new Func<Guid, IReadOnlyList<string>>(Direct3DEnvironment.ReadResolutions) : _ => readGraphicsResolutions());
+            _clientEnvironment = clientEnvironment ?? throw new ArgumentNullException(nameof(clientEnvironment));
+            _interaction = interaction ?? throw new ArgumentNullException(nameof(interaction));
+            _announcements = announcements ?? new AnnouncementViewModel();
+            _announcements.PropertyChanged += OnAnnouncementChanged;
+            _announcements.LoadFailed += OnAnnouncementFailed;
             var loaded = initial ?? new UserSettings();
             _clientDirectory = loaded.ClientDirectory;
             _playerName = loaded.PlayerName;
@@ -88,8 +70,6 @@ namespace T7R.Desktop.ViewModels
             _minimizeToTray = loaded.MinimizeToTray;
             _startWithWindows = loaded.StartWithWindows;
             _skipStartupAnimation = loaded.SkipStartupAnimation;
-            var outputDevice = ParseOutputDevice(loaded.OutputDeviceId);
-            _selectedOutputDeviceId = outputDevice == Guid.Empty ? string.Empty : outputDevice.ToString("D");
             _previewAccess = previewAccess ?? new PreviewAccessService(settings.DirectoryPath);
             _requestPreviewAccess = requestPreviewAccess ?? DesktopInteraction.RequestPreviewAccess;
             _updateChannel = _previewAccess.InitializeChannel(settings, out var channelWarning);
@@ -116,9 +96,9 @@ namespace T7R.Desktop.ViewModels
             ToggleLogsCommand = new RelayCommand(() => LogsExpanded = !LogsExpanded);
             OpenLogsCommand = new RelayCommand(OpenLogs);
             CopyLogsCommand = new RelayCommand(CopyLogs);
-            var channelCheck = checkChannelUpdate ?? new Func<UpdateChannel, Task<LauncherUpdateInfo>>(LauncherInformation.CheckUpdateAsync);
-            About = new AboutViewModel(interaction, checkUpdate ?? (() => channelCheck(_updateChannel)), createUpdateDownload,
-                loadUpdateHistory, canStartUpdateOperation: () => _updateChannel != UpdateChannel.Preview || CanStartPreviewOperation);
+            About = (updates ?? new LauncherUpdateFactory()).Create(interaction, () => _updateChannel,
+                () => _updateChannel != UpdateChannel.Preview || CanStartPreviewOperation);
+            _updateChecks = new AutomaticUpdateChecks(About);
             About.ResetUpdateChannel(_updateChannel);
             About.PropertyChanged += OnUpdateActivityChanged;
             About.NoticeRaised += (message, severity, actionText, action) => Notices.Publish(message, message, severity, actionText, action, severity == NoticeSeverity.Warning);
@@ -127,9 +107,15 @@ namespace T7R.Desktop.ViewModels
             ShowDiagnosticsCommand = new RelayCommand(ShowDiagnostics);
             ShowAnnouncementCommand = new RelayCommand(ShowAnnouncement);
             CopyDirectoryCommand = new RelayCommand(CopyDirectory);
-            InitializeGraphics();
-            InitializeOutputDevices(readOutputDevices ?? Direct3DEnvironment.ReadOutputDevices);
-            InitializeAudio();
+            GameSettings = new GameSettingsViewModel(_bridge, _clientEnvironment, _log, loaded.OutputDeviceId,
+                () => new GameSettingsContext(_snapshot, _directoryResult, _disposed, _operationActive, _isValidating, _directoryHasDraft),
+                id =>
+                {
+                    var saved = CreateSettings(_savedDirectory, _savedName);
+                    saved.OutputDeviceId = id;
+                    _settings.SaveLauncherSettings(saved);
+                });
+            GameSettings.PropertyChanged += OnGameSettingsChanged;
             var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
             _poller = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background,
                 (_, __) => Poll(), dispatcher);
@@ -196,7 +182,7 @@ namespace T7R.Desktop.ViewModels
                 OnPropertyChanged(nameof(IsAboutSelected));
                 OnPropertyChanged(nameof(IsMultiplayerSelected));
                 OnPropertyChanged(nameof(IsUpdateSelected));
-                if (IsHomeSelected && _announcementChecksStarted) _ = RefreshAnnouncementAsync();
+                if (IsHomeSelected && _announcements.ChecksStarted) _ = RefreshAnnouncementAsync();
             }
         }
         public bool IsHomeSelected { get => SelectedPage == 0; set { if (value) SelectedPage = 0; } }
@@ -208,7 +194,9 @@ namespace T7R.Desktop.ViewModels
             set { if (SetProperty(ref _logsExpanded, value)) OnPropertyChanged(nameof(LogToggleText)); }
         }
         public string LogToggleText => LogsExpanded ? "收起本次记录" : "查看本次记录";
-        public bool IsBusy => _operationActive || (_snapshot.State != SessionState.Idle && _snapshot.State != SessionState.Failed);
+        public bool IsBusy => _operationActive || _bridge.GetRuntimeStatus().HasSession
+            || (_offlineCleanupTask != null && !_offlineCleanupTask.IsCompleted)
+            || (_snapshot.State != SessionState.Idle && _snapshot.State != SessionState.Failed);
         public bool AreSessionFieldsLocked => _operationActive ? _activeKind != OperationKind.Check
             : IsBusy && _snapshot.State != SessionState.Checking;
         public bool CanClose => !IsBusy;
@@ -217,7 +205,8 @@ namespace T7R.Desktop.ViewModels
             && (_snapshot.State == SessionState.StartingRuntime || _snapshot.State == SessionState.Checking
                 || ((_activeKind == OperationKind.Check || _activeKind == OperationKind.Start)
                     && (_snapshot.State == SessionState.Idle || _snapshot.State == SessionState.Failed)));
-        public bool CanStop => !_operationActive && (_snapshot.State == SessionState.Running || _snapshot.State == SessionState.FailedCleaning);
+        public bool CanStop => !_operationActive && (_bridge.GetRuntimeStatus().HasSession
+            || _snapshot.State == SessionState.Running || _snapshot.State == SessionState.FailedCleaning);
         public string StopButtonText => _snapshot.State == SessionState.FailedCleaning ? "重试清理" : "结束游戏";
         public string CancelButtonText => _activeKind == OperationKind.Check ? "取消检查" : "取消启动";
         public AboutViewModel About { get; }
@@ -239,36 +228,30 @@ namespace T7R.Desktop.ViewModels
 
         internal void StartUpdateChecks(DateTime utcNow)
         {
-            if (_disposed || _nextUpdateCheckUtc.HasValue) return;
-            _nextUpdateCheckUtc = utcNow + UpdateCheckInterval;
+            if (_disposed || !_updateChecks.Start(utcNow)) return;
             GameSessionEnded += TriggerUpdateCheck;
             TriggerUpdateCheck();
         }
 
         internal void CheckScheduledUpdate(DateTime utcNow)
         {
-            if (_disposed || !_nextUpdateCheckUtc.HasValue || utcNow < _nextUpdateCheckUtc.Value) return;
-            _nextUpdateCheckUtc = utcNow + UpdateCheckInterval;
-            TriggerUpdateCheck();
+            if (!_disposed) _updateChecks.Tick(utcNow);
         }
 
         private void TriggerUpdateCheck()
         {
-            if (_disposed || !About.CheckUpdateCommand.CanExecute(null)) return;
-            _automaticUpdateCheck = true;
-            About.CheckUpdateCommand.Execute(null);
+            if (!_disposed) _updateChecks.Trigger();
         }
 
         private void OnUpdateFinished()
         {
-            var automatic = _automaticUpdateCheck;
-            _automaticUpdateCheck = false;
+            var announce = _updateChecks.Complete(_updateChannel != UpdateChannel.Preview || CanStartPreviewOperation);
             if (_updateChannel == UpdateChannel.Preview && !CanStartPreviewOperation)
             { QueuePreviewAccessCheck(); return; }
             if (!IsUpdateSelected && About.UpdateFailed)
                 Notices.Publish("update.failed", "检查更新失败，不影响本地启动", NoticeSeverity.Warning, "重试",
                     () => { IsUpdateSelected = true; About.CheckUpdateCommand.Execute(null); });
-            if (!automatic || !About.HasNewUpdate || !_announcedUpdateVersions.Add(About.UpdateReminderIdentity)) return;
+            if (!announce) return;
             Notices.Publish("update.available." + About.UpdateReminderIdentity,
                 "发现启动器新版本 " + About.UpdateReminderVersion, NoticeSeverity.Info,
                 "查看", () => ShowUpdatePageCommand.Execute(null), duration: TimeSpan.FromSeconds(6));
@@ -327,7 +310,7 @@ namespace T7R.Desktop.ViewModels
                 _windowWidth = Math.Max(480, Math.Min(4096, windowWidth));
             if (!double.IsNaN(windowHeight) && !double.IsInfinity(windowHeight) && windowHeight > 0)
                 _windowHeight = Math.Max(320, Math.Min(4096, windowHeight));
-            _settings.Save(CreateSettings(_savedDirectory, _savedName));
+            _settings.SaveLauncherSettings(CreateSettings(_savedDirectory, _savedName));
         }
 
         private UserSettings CreateSettings(string directory, string name) => new UserSettings
@@ -338,7 +321,7 @@ namespace T7R.Desktop.ViewModels
             MinimizeToTray = _minimizeToTray,
             StartWithWindows = _startWithWindows,
             SkipStartupAnimation = _skipStartupAnimation,
-            OutputDeviceId = _selectedOutputDeviceId,
+            OutputDeviceId = SelectedOutputDeviceId,
             LogLevel = DiagnosticLogLevels.Name(_selectedLogLevel),
             UpdateChannel = _updateChannel == UpdateChannel.Preview ? "preview" : "stable",
             WindowWidth = _windowWidth,
@@ -349,10 +332,11 @@ namespace T7R.Desktop.ViewModels
         {
             if (_disposed) return;
             _disposed = true;
-            _announcementCancellation.Cancel();
-            _announcementApi?.Dispose();
-            _announcementCancellation.Dispose();
+            _announcements.PropertyChanged -= OnAnnouncementChanged;
+            _announcements.LoadFailed -= OnAnnouncementFailed;
+            _announcements.Dispose();
             _poller.Stop();
+            GameSettings.PropertyChanged -= OnGameSettingsChanged;
             About.PropertyChanged -= OnUpdateActivityChanged;
             About.Dispose();
             Account.PropertyChanged -= OnAccountChanged;
@@ -360,6 +344,11 @@ namespace T7R.Desktop.ViewModels
             GameSessionEnded -= TriggerUpdateCheck;
             _validationCancellation?.Cancel();
             _operationCancellation?.Cancel();
+            if (_bridge.GetRuntimeStatus().HasSession)
+            {
+                try { _bridge.StopAsync(CancellationToken.None).GetAwaiter().GetResult(); }
+                catch (Exception error) { _log.Error("结束 Rust 战局失败", error); }
+            }
         }
     }
 }

@@ -75,7 +75,7 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
     auto step = [&] {
         Sleep(16);
         require(!reader.poll(last), "native fixture expected a fresh consumer request");
-        writeWord(process, worldFixture::FRAME_GATE, 2);
+        worldFixture::requestFrame(process);
         last = worldFixture::read(reader);
         return last;
     };
@@ -143,6 +143,81 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
     writeWord(process, defender + 0x920, 1); writeWord(process, guard + 0x508, terrainFixture::WORLD + 0x100);
     require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "foreign-world guard root admitted");
     writeWord(process, guard + 0x508, terrainFixture::WORLD);
+    // Ordinary equipped weapons can have an empty native physics collection.
+    // Their live blade, not a resource named "defence", must provide the contact.
+    writeWord(process, guard + 0x34, 0);
+    vector(process, defender + 0xC88, {270.4f,149.5f,1});
+    vector(process, defender + 0xD88, {270.4f,150.5f,1});
+    value = sample().actors[0].blade;
+    require(value.contacts[defenceSlot].contact.hit && value.contacts[2].contact.hit
+        && value.contacts[defenceSlot].defenceWeaponId == 1030411
+        && value.contacts[defenceSlot].along < value.contacts[2].along,
+        "empty native physics collection lost live weapon interception");
+    require(std::abs(value.contacts[defenceSlot].contact.position[0] - 270.38f) < .001f,
+        "weapon contact did not use the first capsule entry");
+    for (uint32_t state : {223u,224u,225u,226u,231u,232u,233u,234u,235u,241u,247u,253u}) {
+        writeWord(process, defender + 0x738, state);
+        require(sample().actors[0].blade.contacts[defenceSlot].contact.hit,
+            "live weapon guard or chamber geometry missing");
+    }
+    for (uint32_t state : {35u,237u,238u,305u,309u,111u}) {
+        writeWord(process, defender + 0x738, state);
+        require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
+            "inactive guard or shield substituted a live main-hand segment");
+    }
+    writeWord(process, defender + 0x738, 223);
+    vector(process, defender + 0xC88, {270.4f,149.5f,1.1f});
+    vector(process, defender + 0xD88, {270.4f,150.5f,1.1f});
+    value = sample().actors[0].blade;
+    require(!value.contacts[defenceSlot].contact.hit && value.contacts[2].contact.hit,
+        "guard pose or nearby weapon substituted for an actual intersection");
+    vector(process, defender + 0xC88, {270.4f,149.5f,1});
+    vector(process, defender + 0xD88, {270.4f,150.5f,1});
+    writeWord(process, defender + 0x920, 0);
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
+        "inactive live weapon admitted as defence");
+    writeWord(process, defender + 0x920, 1);
+    writeWord(process, defender + 0xBB0, 0);
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
+        "missing live weapon pose reused a previous contact");
+    writeWord(process, defender + 0xBB0, defender + 0xD00);
+    for (const auto& ends : std::array<std::array<float,2>,2>{{{270.3f,270.6f},{270.6f,270.3f}}}) {
+        vector(process, defender + 0xC88, {ends[0],150,1});
+        vector(process, defender + 0xD88, {ends[1],150,1});
+        value = sample().actors[0].blade;
+        require(value.contacts[defenceSlot].contact.hit
+            && std::abs(value.contacts[defenceSlot].along - .28f) < .001f,
+            "parallel blade missed the first end-cap contact");
+    }
+    vector(process, defender + 0xC88, {269.5f,150,1});
+    vector(process, defender + 0xD88, {270.5f,150,1});
+    value = sample().actors[0].blade;
+    require(value.contacts[defenceSlot].contact.hit && value.contacts[defenceSlot].along == 0
+        && value.contacts[defenceSlot].contact.normal == std::array<float,3>{-1,0,0},
+        "initial blade overlap produced a late contact or degenerate normal");
+    vector(process, defender + 0xC88, {270.4f,149.5f,1});
+    vector(process, defender + 0xD88, {270.4f,150.5f,1});
+    writeWord(process, defender + 0x798, 1030622); writeWord(process, defender + 0x810, 1030622);
+    require(sample().actors[0].blade.contacts[defenceSlot].defenceWeaponId == 1030622,
+        "changing equipped weapon retained the old defence ID or substituted a proxy");
+    writeWord(process, defender + 0x798, 1030411); writeWord(process, defender + 0x810, 1030411);
+    vector(process, defender + 0xD88, {270.4f,149.5f,1});
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "zero-length guard blade accepted");
+    vector(process, defender + 0xD88, {270.4f,150.5f,1});
+    number(process, defender + 0xD88, std::numeric_limits<float>::quiet_NaN());
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "non-finite guard blade accepted");
+    vector(process, defender + 0xD88, {270.4f,150.5f,1});
+    // Both endpoint frames miss; only a strand moving across the guard can hit.
+    blade({270,150,1}, {270,151,1}); sample();
+    value = blade({271,150,1}, {271,151,1});
+    require(value.contacts[defenceSlot].contact.hit && value.spanMs > 0
+        && value.contacts[defenceSlot].time > .37f && value.contacts[defenceSlot].time < .39f
+        && value.contacts[2].contact.hit && value.contacts[defenceSlot].time < value.contacts[2].time,
+        "cross-frame weapon interception lost its first-entry time or body candidate");
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
+        "stationary blade replayed a previous guard contact");
+    blade({270,150,1}, {271,150,1}); sample();
+    writeWord(process, guard + 0x34, guard + 0x100);
     writeWord(process, defender + 0x738, 309); writeWord(process, defender + 0x810, 1090311);
     value = sample().actors[0].blade;
     require(value.contacts[defenceSlot].defenceWeaponId == 1090311 && value.contacts[defenceSlot].contact.hit,
@@ -175,7 +250,7 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
     const auto frozen = t7r::readClientMemory(process, mailbox + t7r::ACTORS_DATA_OFFSET, sizeof(t7r::ActorMailbox));
     const auto publishedBatch = last.contactBatchId;
     auto frameOnly = [&] {
-        Sleep(16); writeWord(process, worldFixture::FRAME_GATE, 2);
+        Sleep(16); worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (t7r::readClientMemory(process, worldFixture::FRAME_GATE, 4) != t7r::Bytes{1,0,0,0}) {
             require(GetTickCount64() < deadline, "unrequested native frame timeout"); Sleep(1);
@@ -197,6 +272,9 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
             && std::any_of(retained.contacts.begin(), retained.contacts.end(), [&](const auto& event) {
                 return event.actorId == 1 && event.hit.targetId == 2 && event.entity == 100 && event.targetEntity == 101
                     && event.state == 238 && event.sequence == 17 && event.occurredAt < retained.sampledAt - 100
+                    && event.targetObservedAt >= event.occurredAt && event.targetObservedAt >= event.targetPhaseAt
+                    && event.sourceObservedAt >= event.occurredAt && event.sourceObservedAt >= event.phaseAt
+                    && event.sourceObservedAt == event.targetObservedAt
                     && event.hit.bodyIndex == 5 && event.hit.region == 1 && event.velocityReady && event.airborne && event.targetAirborne
                     && event.weaponVelocity[0] > 0 && event.sourceVelocity == std::array<float,3>{}
                     && event.targetVelocity == std::array<float,3>{}

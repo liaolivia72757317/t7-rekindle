@@ -81,6 +81,18 @@ jobs:
       - name: Build and test native projects
         run: python scripts/build.py --project native-tests
 
+      - name: Install pinned Rust toolchain
+        working-directory: src/BattleRust
+        run: rustup show
+
+      - name: Test Rust runtime and gateway
+        run: |
+          python scripts/build.py --project rust-tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/build.py --project rust-bridge-tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/build.py --project rust-gateway-tests
+
       - name: Build managed projects
         run: python scripts/build.py --project managed
 
@@ -98,16 +110,9 @@ jobs:
       - name: Run synthetic integration tests
         run: python scripts/integration_test.py --report artifacts/test-results/integration.json
 
-      - name: Download embeddable CPython
-        run: >-
-          Invoke-WebRequest
-          -Uri "https://www.python.org/ftp/python/3.14.4/python-3.14.4-embed-amd64.zip"
-          -OutFile "$env:RUNNER_TEMP/python-3.14.4-embed-amd64.zip"
-
       - name: Package application
         run: >-
           python scripts/package.py --output artifacts/package
-          --python-archive "$env:RUNNER_TEMP/python-3.14.4-embed-amd64.zip"
           --release
 
       - name: Verify package
@@ -117,6 +122,8 @@ jobs:
         run: |
           $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP "t7r-native-contract-state"
           .\artifacts\bin\T7R.ManagedHarness\x64\Release\net48\T7R.ManagedHarness.exe --native-contract-tests artifacts/package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\artifacts\bin\T7R.ManagedHarness\x64\Release\net48\T7R.ManagedHarness.exe --offline-battle-contract-tests artifacts/package/T7R.NativeBridge.dll artifacts/package/t7r_battle_ffi.dll
 
       - name: Create portable release archive
         run: |

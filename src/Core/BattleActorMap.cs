@@ -19,11 +19,10 @@ namespace T7R.Core
         }
     }
 
-    // Each original game client sees its own human as RID 1. The existing
-    // sampling hooks reserve 2..11 for opponents and 12..20 for teammates.
+    // Each client sees its own human as RID 1, followed by opponents and teammates.
     public sealed class BattleActorMap
     {
-        public const int MaxActors = 20;
+        public const int MaxActors = 60;
         private readonly int[] _toLocal = new int[MaxActors + 1];
         private readonly int[] _toGlobal = new int[MaxActors + 1];
         public ulong MatchId { get; }
@@ -37,9 +36,8 @@ namespace T7R.Core
             if (actors == null) throw new ArgumentNullException(nameof(actors));
             var roster = actors.Take(MaxActors + 1).ToArray();
             if (roster.Length == 0 || roster.Length > MaxActors || roster.Any(actor => actor == null)
-                || roster.Select(actor => actor.ActorId).Distinct().Count() != roster.Length
-                || roster.GroupBy(actor => actor.Camp).Any(camp => camp.Count() > 10))
-                throw new ArgumentException("Expected at most ten unique actors in each camp.", nameof(actors));
+                || roster.Select(actor => actor.ActorId).Distinct().Count() != roster.Length)
+                throw new ArgumentException("Expected a unique roster within the actor capacity.", nameof(actors));
             var players = roster.Where(actor => !actor.IsBot).ToArray();
             if (players.Select(actor => actor.PlayerId).Distinct().Count() != players.Length)
                 throw new ArgumentException("A player owns one human actor.", nameof(actors));
@@ -47,7 +45,7 @@ namespace T7R.Core
             if (own == null) throw new ArgumentException("The local player is not in this match.", nameof(playerId));
             MatchId = matchId; PlayerId = playerId; OwnActorId = own.ActorId;
             Add(own.ActorId, 1);
-            int opponent = 2, teammate = 12;
+            int opponent = 2, teammate = 2 + roster.Count(actor => actor.Camp != own.Camp);
             foreach (var actor in roster.OrderBy(actor => actor.ActorId))
             {
                 if (actor.ActorId == own.ActorId) continue;

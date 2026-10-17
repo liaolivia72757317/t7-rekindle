@@ -24,7 +24,7 @@ namespace T7R.Battle
         }
 
         // Decode only a body whose bounded length prefix has already been read.
-        public static BattleFrame Decode(byte[] body)
+        public static BattleFrame DecodeBody(byte[] body)
         {
             if (body == null) throw new ArgumentNullException(nameof(body));
             if (body.Length < BattleFrame.HeaderSize || body.Length > BattleFrame.MaxFrameSize)

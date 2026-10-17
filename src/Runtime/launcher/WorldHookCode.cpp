@@ -124,24 +124,36 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
     c.emit({0xC7,0x07,1,0,0,0});
     for (auto branch : missing) c.bind(branch);
     c.emit({0x81,0xC7}); c.word(ACTOR_STRIDE); c.emit({0xFF,0x05}); c.word(ridAddress);
-    c.emit({0x83,0x3D}); c.word(ridAddress); c.emit({21});
+    c.emit({0x83,0x3D}); c.word(ridAddress); c.emit({static_cast<unsigned char>(MAX_WORLD_ACTORS + 1)});
     c.bind(c.branch(0x82), poseLoop);
     c.call(address + BLADE_SWEEP_CODE_OFFSET);
     c.call(address + CONTACT_CODE_OFFSET);
     c.emit({0x83,0x3D}); c.word(address); c.emit({1}); const auto unrequested = c.branch(0x85);
     c.store(address, 2); c.store(address + 4, 0);
     // Preserve host-selected terrain targets; freeze poses/contacts only when a response is requested.
-    for (uint32_t i = 0; i < MAX_WORLD_ACTORS; ++i) {
-        for (uint32_t offset : std::array<uint32_t, 2>{offsetof(ActorMailbox, targetId), offsetof(ActorMailbox, targetMask)}) {
-            c.emit({0xA1}); c.word(batch + i * ACTOR_STRIDE + offset);
-            c.emit({0xA3}); c.word(live + i * ACTOR_STRIDE + offset);
-        }
+    c.emit({0xBB}); c.word(live); c.emit({0xBA}); c.word(batch);
+    c.emit({0xB9}); c.word(MAX_WORLD_ACTORS);
+    const auto targetsLoop = c.bytes.size();
+    for (uint32_t offset : {static_cast<uint32_t>(offsetof(ActorMailbox, targetId)),
+            static_cast<uint32_t>(offsetof(ActorMailbox, targetMask)),
+            static_cast<uint32_t>(offsetof(ActorMailbox, targetMask) + 4)}) {
+        c.emit({0x8B,0x82}); c.word(offset); c.emit({0x89,0x83}); c.word(offset);
     }
+    c.emit({0x81,0xC3}); c.word(ACTOR_STRIDE); c.emit({0x81,0xC2}); c.word(ACTOR_STRIDE);
+    c.emit({0x49}); c.bind(c.branch(0x85), targetsLoop);
     auto freeze = [&](uint32_t from, uint32_t to, uint32_t words) {
         c.emit({0x56,0xBE}); c.word(from); c.emit({0xBF}); c.word(to);
         c.emit({0xB9}); c.word(words); c.emit({0xF3,0xA5,0x5E});
     };
+    auto resetAttempts = [&] {
+        c.emit({0xBF}); c.word(live + offsetof(ActorMailbox, forwardAttemptTick));
+        c.emit({0xB9}); c.word(MAX_WORLD_ACTORS);
+        const auto loop = c.bytes.size();
+        c.emit({0xC7,0x07,0,0,0,0,0x81,0xC7}); c.word(ACTOR_STRIDE);
+        c.emit({0x49}); c.bind(c.branch(0x85), loop);
+    };
     freeze(live, batch, static_cast<uint32_t>(MAX_WORLD_ACTORS) * ACTOR_STRIDE / 4);
+    resetAttempts();
     c.emit({0xFF,0x05}); c.word(frame + offsetof(ContactFrameMailbox, batchId));
     freeze(frame, response, sizeof(ContactFrameMailbox) / 4);
     freeze(frame + 16, address + 8, 2);
@@ -189,7 +201,7 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
         c.emit({0x8B,0x43,i,0x89,0x47,static_cast<unsigned char>(72 + i)});
     }
     c.bind(notNearest); c.bind(missingTarget); c.bind(notRequested);
-    c.emit({0x83,0xC3,48,0x42,0x83,0xFA,20}); c.bind(c.branch(0x82), targetLoop);
+    c.emit({0x83,0xC3,48,0x42,0x83,0xFA,static_cast<unsigned char>(MAX_WORLD_ACTORS)}); c.bind(c.branch(0x82), targetLoop);
     c.bind(noSource);
     c.emit({0x81,0xC7}); c.word(ACTOR_STRIDE); c.emit({0x81,0xFF}); c.word(ridAddress);
     c.bind(c.branch(0x82), queryLoop);
@@ -202,10 +214,14 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
     const auto complete = c.jump();
     for (auto branch : invalid) c.bind(branch);
     // An invalid game frame breaks sweep continuity but does not replay the last response.
-    for (uint32_t i = 0; i < MAX_WORLD_ACTORS; ++i) {
-        c.store(live + i * ACTOR_STRIDE + offsetof(ActorMailbox, blade) + offsetof(BladeMailbox, previousWeapon), 0);
-        c.store(live + i * ACTOR_STRIDE + offsetof(ActorMailbox, blade) + offsetof(BladeMailbox, previousMotionEntity), 0);
+    c.emit({0xBF}); c.word(live); c.emit({0xB9}); c.word(MAX_WORLD_ACTORS);
+    const auto resetLoop = c.bytes.size();
+    for (uint32_t offset : {static_cast<uint32_t>(offsetof(ActorMailbox, blade) + offsetof(BladeMailbox, previousWeapon)),
+            static_cast<uint32_t>(offsetof(ActorMailbox, blade) + offsetof(BladeMailbox, previousMotionEntity))}) {
+        c.emit({0xC7,0x87}); c.word(offset); c.word(0);
     }
+    c.emit({0x81,0xC7}); c.word(ACTOR_STRIDE); c.emit({0x49}); c.bind(c.branch(0x85), resetLoop);
+    resetAttempts();
     c.emit({0x83,0x3D}); c.word(address); c.emit({0}); const auto invalidUnrequested = c.branch(0x84);
     c.store(address + 4, 0); c.store(response + 4, 0); c.store(response + 8, 0);
     c.bind(complete);
@@ -230,9 +246,13 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
     const auto bladeSweep = buildBladeSweepHook(address, imageBase);
     std::memcpy(page.data() + BLADE_SWEEP_CODE_OFFSET, bladeSweep.data(), bladeSweep.size());
     const auto contactFrame = buildContactFrameHook(address);
-    if (contactFrame.size() > MOVEMENT_COMMAND_CODE_OFFSET - CONTACT_CODE_OFFSET)
-        throw std::runtime_error("contact journal overlaps movement command hook");
+    if (contactFrame.size() > WEAPON_GUARD_CODE_OFFSET - CONTACT_CODE_OFFSET)
+        throw std::runtime_error("contact journal overlaps weapon guard hook");
     std::memcpy(page.data() + CONTACT_CODE_OFFSET, contactFrame.data(), contactFrame.size());
+    const auto weaponGuard = buildWeaponGuardHook(address);
+    if (weaponGuard.size() > MOVEMENT_COMMAND_CODE_OFFSET - WEAPON_GUARD_CODE_OFFSET)
+        throw std::runtime_error("weapon guard overlaps movement command hook");
+    std::copy(weaponGuard.begin(), weaponGuard.end(), page.begin() + WEAPON_GUARD_CODE_OFFSET);
     const auto movementCommand = buildMovementCommandHook(address, imageBase, threadId);
     static_assert(MOVEMENT_COMMAND_CODE_OFFSET + 0x1000 <= MOVEMENT_ANIMATION_CODE_OFFSET, "movement command code capacity");
     std::copy(movementCommand.begin(), movementCommand.end(), page.begin() + MOVEMENT_COMMAND_CODE_OFFSET);

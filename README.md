@@ -68,9 +68,9 @@
 
 ### 本地构建与测试
 
-请先准备 Windows x64、VS 2022 C++ v143 / Windows SDK、CPython 3.14.4 AMD64、.NET SDK 和 net48 Targeting Pack。环境准备步骤见 [开发与交付](docs/development.md)；构建脚本只检查所需组件，不会自动安装。
+请先准备 Windows x64、VS 2022 C++ v143 / Windows SDK、Rust 固定工具链、Python 开发工具、.NET SDK 和 net48 Targeting Pack。环境准备步骤见 [开发与交付](docs/development.md)；构建脚本只检查所需组件，不会自动安装。
 
-在仓库根目录打开 PowerShell。如果使用便携托管工具链，请先按[便携工具链说明](docs/development.md#附可选的便携托管工具链)准备 `.local/toolchains/`。项目配置和构建脚本会自动使用该目录，不必每次加载环境脚本。直接在 VS 中构建时，按 [Visual Studio 配置](docs/development.md#在-visual-studio-中构建)一次性设置 Python 开发安装路径。
+在仓库根目录打开 PowerShell。如果使用便携托管工具链，请先按[便携工具链说明](docs/development.md#附可选的便携托管工具链)准备 `.local/toolchains/`。项目配置和构建脚本会自动使用该目录，不必每次加载环境脚本。直接在 VS 中构建时，按 [Visual Studio 配置](docs/development.md#在-visual-studio-中构建)构建同配置的 NativeBridge 和 Rust DLL。
 
 在同一个 PowerShell 会话中依次执行以下命令。每条命令成功后，再执行下一条。
 
@@ -86,15 +86,12 @@ python scripts/integration_test.py --report artifacts/test-results/integration.j
 
 ### 本地构建后运行
 
-`build.py` 只生成编译产物，`T7R.ManagedHarness.exe` 是测试程序，不是启动器。运行前需打包，将启动器、NativeBridge、嵌入式 Python 和 Business 业务脚本组装到同一产品目录。不要直接运行 `artifacts/bin/` 中的启动器，也不要单独复制 EXE，否则可能因缺少依赖而出现“加载 NativeBridge 失败”。
+`build.py` 只生成编译产物，`T7R.ManagedHarness.exe` 是测试程序，不是启动器。运行前需打包，将启动器、NativeBridge、Rust 战斗 DLL 与静态新闻组装到同一产品目录。不要直接运行 `artifacts/bin/` 中的启动器，也不要单独复制 EXE，否则可能因缺少依赖而出现“加载 NativeBridge 失败”。
 
-完成上述构建与测试后，下载官方 [CPython 3.14.4 AMD64 embeddable ZIP](https://www.python.org/ftp/python/3.14.4/python-3.14.4-embed-amd64.zip)，保持 ZIP 格式；它与构建时使用的 Python 开发安装不同。
-
-在仓库根目录的 PowerShell 中依次执行，每条命令成功后再执行下一条：
+完成上述构建与验证后，在新的目录生成完整 Rust 产品包；不需要 Python embeddable ZIP。
 
 ```powershell
-$pythonArchive = Read-Host '请输入 CPython 3.14.4 AMD64 embeddable ZIP 的完整路径'
-python scripts/package.py --output artifacts/package --python-archive "$pythonArchive" --release
+python scripts/package.py --output artifacts/package --release
 python scripts/package.py --output artifacts/package --verify --release
 & .\artifacts\package\T7-Rekindle.exe
 ```

@@ -30,10 +30,13 @@ namespace T7R.ManagedHarness
 
         private static MainWindowViewModel CreateModel(string directory, FakeLauncherBridge bridge,
             Func<Task<LauncherUpdateInfo>> checkUpdate, FakeDesktopInteraction interaction = null) =>
-            new MainWindowViewModel(bridge, new SettingsService(directory),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction ?? new FakeDesktopInteraction(),
-                checkUpdate: checkUpdate);
+            new MainWindowViewModel(bridge,
+                new SettingsService(directory),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction ?? new FakeDesktopInteraction(),
+                updates: new LauncherUpdateFactory(check: _ => ((Func<Task<LauncherUpdateInfo>>)(checkUpdate))()));
 
         private static void TestStartupAndSchedule(string directory)
         {

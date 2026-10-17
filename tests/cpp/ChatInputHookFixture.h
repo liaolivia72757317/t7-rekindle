@@ -90,7 +90,7 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader) {
         require(readWord(process, ERRORS) == 0, "wrong IME/cursor API arguments");
     };
     auto updateInput = [&](auto update) {
-        writeWord(process, worldFixture::FRAME_GATE, 2);
+        worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             require(GetTickCount64() < deadline, "input event frame timeout"); Sleep(1);

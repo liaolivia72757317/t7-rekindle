@@ -7,7 +7,6 @@ namespace T7R.Desktop.ViewModels
 {
     public sealed partial class MainWindowViewModel
     {
-        private readonly Func<string, Task<ClientVersionResult>> _readClientVersion;
         private string _clientVersion = "";
         private string _resourceCheckText = "未检查";
 
@@ -34,7 +33,7 @@ namespace T7R.Desktop.ViewModels
         {
             if (!directory.IsValid) return;
             ClientVersionResult result;
-            try { result = await _readClientVersion(directory.Root); }
+            try { result = await _clientEnvironment.ReadVersionAsync(directory.Root); }
             catch (Exception error)
             {
                 result = new ClientVersionResult("", "update.lst: " + error.GetType().Name + ": " + error.Message);

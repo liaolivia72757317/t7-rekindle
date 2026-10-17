@@ -21,9 +21,12 @@ namespace T7R.ManagedHarness
             VerifyWorkAreas();
             var bridge = new FakeLauncherBridge();
             var interaction = new FakeDesktopInteraction();
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(directory),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "重燃玩家" }, null,
-                path => Task.FromResult(path.Length == 0 ? new ClientDirectoryResult("", "", "请先设置游戏目录") : LauncherTests.ValidDirectory(path)), interaction))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(directory),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "重燃玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(path.Length == 0 ? new ClientDirectoryResult("", "", "请先设置游戏目录") : LauncherTests.ValidDirectory(path))),
+                interaction))
             {
                 LauncherTests.RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };

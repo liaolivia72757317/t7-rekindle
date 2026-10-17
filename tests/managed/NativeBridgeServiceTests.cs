@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using T7R.Battle;
 using T7R.Core;
 using T7R.Desktop.Services;
 
@@ -13,12 +14,16 @@ namespace T7R.ManagedHarness
     {
         internal static void Run()
         {
+            NativeBridgeService.ValidateGatewayStartLayout();
+            NativeBridgeService.ValidateBattleAttachmentLayout();
             CheckCancellationAsync().GetAwaiter().GetResult();
             CheckLogGrowth();
         }
 
         internal static void RunNativeContract(string packageRoot)
         {
+            NativeBridgeService.ValidateGatewayStartLayout();
+            NativeBridgeService.ValidateBattleAttachmentLayout();
             packageRoot = Path.GetFullPath(packageRoot);
             var legacy = Path.Combine(Path.GetTempPath(), "T7R-native-contract-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(legacy);
@@ -56,6 +61,26 @@ namespace T7R.ManagedHarness
                     var operation = bridge.StopAsync(timeout.Token).GetAwaiter().GetResult();
                     if (operation.Status != OperationStatus.Succeeded || !bridge.GetSnapshot().CleanupComplete)
                         throw new InvalidOperationException("native session cleanup did not complete");
+                    var failedStart = bridge.StartWithGatewayAsync(
+                        Path.Combine(packageRoot, "missing-client"), "Player", false,
+                        21001, 21002, 21003, timeout.Token).GetAwaiter().GetResult();
+                    var failedSnapshot = bridge.GetSnapshot();
+                    if (failedStart.Status != OperationStatus.Failed || failedSnapshot.State != SessionState.Failed
+                        || failedSnapshot.LoginPort != 0 || failedSnapshot.LogicPort != 0
+                        || failedSnapshot.InstancePort != 0)
+                        throw new InvalidOperationException("gateway start failure did not release native endpoints");
+                    var movement = new[] { new NativeCombatProfile
+                    {
+                        HeroId = 1101, WeaponId = 701, ForwardSlow = 2.5f,
+                        LateralSlow = 1.8f, BackwardSlow = 1f, ForwardSprint = 3.6f,
+                        DashDurationMs = 1333, DashMoveMs = 967, DashSpeedMilli = 2585
+                    } };
+                    var profiledStart = bridge.StartWithGatewayProfilesAsync(
+                        Path.Combine(packageRoot, "missing-client"), "Player", false,
+                        21001, 21002, 21003, movement, timeout.Token).GetAwaiter().GetResult();
+                    if (profiledStart.Status != OperationStatus.Failed
+                        || bridge.GetSnapshot().State != SessionState.Failed)
+                        throw new InvalidOperationException("profiled gateway start did not reach native client preflight");
                 }
             }
             finally { bridge.Dispose(); }

@@ -16,9 +16,9 @@
 | 工程、库与测试程序 | `T7R.Core`、`T7R.Desktop`、`T7R.NativeBridge`、`T7R.*Tests`、`T7R.ManagedHarness` | `T7.*` |
 | WPF 资源标识 | `T7R.Icon.*`、`T7R.Documents.*` | `T7.Icon.*`、`T7.Rekindle.Documents.*` |
 | 跨语言资源错误标记 | `[T7R_RESOURCE:code]` | `[T7_RESOURCE:code]` |
-| Python 动态业务包 | `t7r_rev_<随机标识>` | `t7rev_<随机标识>` |
+| Python 测试对照动态包 | `t7r_rev_<随机标识>` | `t7rev_<随机标识>` |
 | 自建移动资源 | `t7r_runtime_movement.btree` | `t7_runtime_movement.btree` |
-| 构建变量与辅助标识 | `T7R_*`、`_T7R*`、`T7RPrepareBusinessScripts`；小写辅助名称使用 `t7r_`／`t7r-` | 对应的 `T7`／`t7` 技术前缀 |
+| 构建变量与辅助标识 | `T7R_*`、`_T7R*`；小写辅助名称使用 `t7r_`／`t7r-` | 对应的 `T7`／`t7` 技术前缀 |
 
 以下是明确保留项，不属于待替换的旧简称：
 
@@ -29,7 +29,7 @@
 
 名称变更须同时更新定义与引用，包括原生导出与 C# 绑定、Python 错误与 UI 识别、XAML、程序集资源、项目引用、构建脚本、CI、测试和当前文档。按语义处理，不替换哈希、凭据、二进制数据或真实历史发布内容。保留项变更、新增例外及旧接口兼容层须先说明影响并取得确认；完成后检查命名和跨层引用的一致性。
 
-NativeBridge 提供 `T7R.NativeBridge.dll`，会话导出为 `t7r_native_*`，独立战斗宿主导出为 `t7r_battle_host_*`；结构布局仍为 ABI 1，但不兼容旧 DLL／导出名称；Desktop、Core、Runtime 与 Business 必须整包升级。主程序仍为 `T7-Rekindle.exe`。新包拒绝混入旧库；安装及既有设置处理成功后，仅清理安装根目录中的上述两个旧 DLL，失败返回 `20` 并停止自动启动，详见[运行契约](runtime-contracts.md#回退设置契约)。
+NativeBridge 提供 `T7R.NativeBridge.dll`，会话导出为 `t7r_native_*`；战斗宿主使用 `t7r_battle_ffi.dll` 的 `t7r_gateway_*` 接口，旧 C++／Python `t7r_battle_host_*` 导出已移除。结构布局仍为 ABI 1；Desktop、Core、Battle、NativeBridge 与 Rust DLL 必须整包升级，不兼容旧开发 DLL。主程序仍为 `T7-Rekindle.exe`。新包拒绝混入旧库；安装及既有设置处理成功后，仅清理安装根目录中的上述两个旧 DLL，失败返回 `20` 并停止自动启动，详见[运行契约](runtime-contracts.md#回退设置契约)。
 
 旧构建环境迁移时，将变量名改为 `T7R_*`；已存在的 `T7R_SERVER_BASE_URL` 保持。首次使用新 CI 前，由维护者在 Actions 配置 `T7R_PREVIEW_ACCESS_PUBLIC_KEY`，沿用原公钥值；旧 `T7_*` 构建变量不再读取，不因此变更远端发布对象或凭据格式。
 
@@ -39,7 +39,8 @@ NativeBridge 提供 `T7R.NativeBridge.dll`，会话导出为 `t7r_native_*`，�
 | --- | --- |
 | 系统 | Windows 10 2004（build 19041）及以上版本 / Windows 11 x64 |
 | 原生工具 | [VS 2022 Build Tools](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history)，安装“使用 C++ 的桌面开发”、v143 工具集和 Windows SDK |
-| Python | [CPython 3.14.4](https://www.python.org/downloads/release/python-3144/) 的 Windows installer (64-bit)，包含头文件、导入库、运行时 DLL 和标准库 |
+| Python（开发工具） | CPython 3.14.4 AMD64，用于构建脚本、导出与测试；仅历史原生对照测试需要头文件和导入库 |
+| Rust | `src/BattleRust/rust-toolchain.toml` 固定工具链，目标 `x86_64-pc-windows-msvc` |
 | 托管工具 | [.NET SDK 8.0.425](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)，以及 [.NET Framework 4.8 Developer Pack](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48) |
 | 测试工具 | `pytest==9.1.1`，安装命令见下方 |
 | 安装器工具 | [Inno Setup 7.1.0](https://jrsoftware.org/isdl.php)，仅制作安装器时需要 |
@@ -47,8 +48,7 @@ NativeBridge 提供 `T7R.NativeBridge.dll`，会话导出为 `t7r_native_*`，�
 注意区分以下组件：
 
 - 构建脚本查找 **VS 2022 的 MSBuild**。只安装 .NET SDK 或其他代际的 Visual Studio，不满足该入口要求。
-- 原生构建严格要求当前 `python` 为 CPython **3.14.4 AMD64**；不会自动切换解释器。开发安装中需有 `Include/Python.h`、`libs/python314.lib` 和 `python314.dll`。
-- Python 的 embeddable ZIP 用于打包，不替代开发安装。
+- 产品原生桥不链接 CPython；Python 只用于开发工具和 `tests/reference/` 对照测试。产品打包不需要 embeddable ZIP。
 - .NET Framework Runtime 用于运行程序，Developer/Targeting Pack 用于编译；.NET SDK 是另一个独立前置。
 - 只构建 managed 时仍需 VS 2022 MSBuild、.NET SDK 和 net48 Targeting Pack，但不要求 C++ workload 或 Python 开发头文件。
 
@@ -81,11 +81,11 @@ python scripts/integration_test.py --report artifacts/test-results/integration.j
 | `build.py --project native-tests` | NativeBridge、三组原生测试，并自动运行原生测试 |
 | `build.py --project managed` | Core、WPF、战斗宿主与托管 harness，不自动运行 harness |
 | `build.py --project battle` | NativeBridge、BattleServer 与 BattleHarness，不构建 WPF、不运行测试 |
-| `build.py --project battle-tests` | 战斗宿主 C++/托管模块测试，使用独立合成资源，不启动游戏 |
-| `python -m pytest -q` | Python 业务、构建、打包和静态界面契约测试 |
+| `build.py --project battle-tests` | Rust 战斗宿主与托管模块测试，使用独立合成资源，不启动游戏 |
+| `python -m pytest -q` | Python 对照、构建、打包和静态界面契约测试 |
 | `T7R.ManagedHarness.exe` | 设置、ViewModel、目录选择、主题、布局及生命周期契约 |
 | `T7R.ManagedHarness.exe --native-contract-tests PACKAGE_ROOT` | 对完整包验证 C# 原生绑定、会话清理及仅有旧 DLL 时的加载失败，不启动游戏 |
-| `integration_test.py` | 使用独立原生宿主验证嵌入式 Python、三通道及模拟客户端生命周期 |
+| `integration_test.py` | 验证测试侧嵌入式 Python 参考实现、三通道及模拟客户端生命周期，不作为 Rust 产品验收 |
 
 托管默认套件覆盖 Light、Dark、HighContrast 三种主题的完整尺寸／DPI 矩阵，并按测试组、主题输出开始状态、结果及毫秒耗时。命令执行器应为整个托管测试进程预留至少 **300 秒**；CI 对该步骤设置 5 分钟预算。整体执行预算与单用例的等待上限独立。
 
@@ -96,9 +96,19 @@ python scripts/build.py --project all --configuration Debug
 python scripts/build.py --project managed --configuration Debug
 ```
 
-第二条命令仅构建托管项目，不生成 NativeBridge。配置 `PythonHome` 后，Desktop 的 Debug 构建会同步 Python 运行时；启动前仍需生成相同配置的 NativeBridge。正式打包和 `integration_test.py` 仍使用 Release 产物，Debug 构建不替代发行前的 Release 构建与验证。
+第二条命令构建托管项目及 Rust DLL，不生成 NativeBridge；需先生成相同配置的 NativeBridge。两种配置都复制 Rust DLL 和静态新闻，不复制 Python。可传 `--artifacts artifacts/runtime-check` 隔离本次产物；正式打包使用 Release。
+
+合成集成测试也支持 `--artifacts` 和 `--configuration`，须与构建命令一致，避免测试旧产物：
+
+```powershell
+python scripts/integration_test.py --artifacts artifacts/runtime-check --configuration Debug --report artifacts/runtime-check/test-results/integration.json
+```
 
 ### 服务端上下文定向验证
+
+Rust 迁移的独立构建、回放基线及当前完成边界见 [Rust 战斗运行时迁移](planning/rust-runtime-migration.md)。当前产品默认且唯一使用 Rust，Python 只保留开发对照。共享战局和性能专项仍按迁移文档验收。
+
+`build.py --project rust-gateway-tests --configuration Debug` 构建测试专用原生 DLL，并运行 C# 平台后端、Rust 网关与原协议 socket 的跨语言验证；不启动原游戏。此入口需要 Rust、VS 2022 C++ 与现有 .NET 工具链，不需要嵌入式 Python 开发头文件。
 
 模块回归覆盖 `test_native_dispatch.py`、`test_defence_diagnostics.py`、`test_business_runtime.py`、`test_battle_actions.py`、`test_battle_buffer.py`、`test_battle_recovery.py`、`test_contact_journal.py` 和近战／电脑动作测试。原生宿主提供 `T7R.RuntimeTests.exe --server-context PACKAGE_ROOT`，使用构建脚本生成的合成运行目录，验证缓存身份、接触隔离、版本失效、异常提交、热更新／回滚、引用释放及事件顺序，不启动游戏客户端。
 
@@ -134,6 +144,8 @@ SDK、WPF 程序集和 x64 `WebView2Loader.dll` 随产品目录分发，打包�
 
 日志定向测试：`T7R.ManagedHarness.exe --log-tests artifacts/ui-log-levels`，覆盖等级过滤、中文显示、配置兼容、保存失败回滚及三种主题；省略输出目录时仅执行断言。
 
+主题定向测试：`T7R.ManagedHarness.exe --theme-tests artifacts/ui-theme-switch`，覆盖浅色／深色即时切换、偏好持久化、保存失败恢复选择和系统高对比度优先；省略输出目录时仅执行断言。
+
 合成集成测试依赖 `native-tests` 的输出，并生成 JSON 报告。`realClient=false` 表示未启动真实客户端；它验证所覆盖的合成流程，不代替进图、移动、AI 或完整对局验收。真实客户端与界面验收项目见[实施计划](planning/implementation-plan.md)。
 
 界面截图可通过 `T7R.ManagedHarness.exe --render-ui artifacts/ui-v11-final` 生成；`--native-ui artifacts/ui-v11-final` 另行检查当前显示器的真实窗口边界、弹窗位置与托盘恢复。两者均使用测试数据，不启动真实游戏或修改自启动项。覆盖范围、截图索引及待实机验收项见 [UI 1.1 实施与验收](planning/ui-handoff-v1.1.md)。
@@ -152,38 +164,13 @@ SDK、WPF 程序集和 x64 `WebView2Loader.dll` 随产品目录分发，打包�
 
 ### 在 Visual Studio 中构建
 
-使用 VS 2022 IDE 时，先准备上述工具链。Python 开发安装路径只需配置一次：
+打开解决方案，使用 x64 的 Debug 或 Release 配置。先构建 `T7R.NativeBridge`，再构建 Desktop；Desktop／BattleServer 通过 `RustRuntime.targets` 调用锁定的 Cargo 构建并复制 Rust DLL。产品不使用 `PythonHome`。
 
-1. 执行 `python -c "import sys; print(sys.base_prefix)"`，确认该目录属于 CPython 3.14.4 AMD64，包含 `Include/Python.h` 和 `libs/python314.lib`。
-2. 创建仓库根目录下的 `.local/Build.props`，将下面的 `PYTHON_HOME` 替换为该目录；已有文件时只补充属性，不覆盖其他设置。
+### 开发对照与运行资产
 
-```xml
-<Project>
-  <PropertyGroup>
-    <PythonHome Condition="'$(PythonHome)' == ''">PYTHON_HOME</PythonHome>
-  </PropertyGroup>
-</Project>
-```
+Python 历史对照代码位于 `tests/reference/Business`，仅用于回放、资源导出和黄金样本测试；原生 Python 对照宿主位于 `tests/reference/native-server`。修改这些文件不会改变产品运行逻辑。
 
-`Directory.Build.props` 自动加载此本机配置，原生项目通过 `Native.Common.props` 使用头文件和导入库路径。环境变量 `PythonHome` 和 MSBuild `/p:PythonHome=...` 仍可覆盖示例中的默认值。`.local/` 已被 Git 忽略，不要将个人绝对路径写入共享项目文件。
-
-托管项目通过 `Managed.Common.props` / `Managed.Common.targets` 成对导入 SDK：优先使用下方约定的便携 SDK，目录不存在时使用系统 SDK。便携 net48 引用程序集也会自动检测；显式设置的 `TargetFrameworkRootPath` 和 NuGet 缓存路径保持优先。WPF 支持仍由 Desktop 项目的 `UseWPF` 启用。
-
-配置完成后直接打开 `T7-Rekindle.sln`，选择 Debug/x64，将 `T7R.Desktop` 设为启动项目并生成解决方案，即可按 F5 调试；已经打开的解决方案需重新加载，无需从环境脚本启动 VS。
-
-Debug 构建从 `PythonHome` 同步运行时 DLL、标准库及扩展模块到当前输出目录，不依赖旧项目名的输出目录，也不复制 `site-packages`、标准库测试或字节码缓存。VS 会跟踪这些复制项，缺失输出会在构建时补齐；已配置但不完整的 Python 安装会使构建失败。未配置 `PythonHome` 时仍可仅编译托管代码，但运行前需补齐该配置和原生构建。Release 构建保持原有行为，完整运行目录按下一节打包。
-
-### Python 脚本同步与生效
-
-`src/Business` 是 Python 代码的唯一维护位置。Desktop 构建会将其中的 `.py` 文件复制到当前配置输出目录的 `Business`，包括 `runtime` 和 `scripts`，并保留相对目录。VS 与命令行共用这套规则；只修改 Python 也会触发输出更新，无需改动 C# 或手工复制。
-
-VS 快速最新检查和 C# 增量编译保持启用；仅关闭 Desktop 的复制加速，确保同步时执行校验与清理。设计时构建不修改输出目录。
-
-输出副本是构建产物：同名脚本会被源码覆盖，源中已删除或重命名的旧 `.py` 和遗留 `.pyc` 会被清理，其他文件不受此规则影响。同步失败会使构建失败；不要继续启动旧产物。首次采用自动同步前，应备份输出目录中尚未合入源码的手工改动。
-
-运行时从启动器所在目录读取 `Business`，并在启动游戏会话时建立固定脚本快照。正确流程是：修改源码 → 保存 → 构建当前配置 → 结束旧游戏会话 → 重新启动游戏。仅重新匹配、只改输出副本或构建另一个配置，都不保证当前会话使用新代码。直接双击已有 EXE 不会触发构建同步。
-
-排查时核对正在运行的 EXE 路径、其旁边的 `Business` 文件和现有诊断记录中的 `scriptVersion`。验证脚本行为应从实际输出目录加载，而不只运行源码测试。这里的同步不安装 Python，也不替代完整产品包的运行环境准备。
+生产逻辑修改位置为 `src/BattleRust`。静态新闻位于 `src/Desktop/Resources/News`，通过 `RuntimeAssets.targets` 复制到产品 `news/`。旧构建目录可能有遗留 Python 文件；打包会拒绝这些文件，请使用新的独立产物目录构建，不复用旧产品包。
 
 ### 依赖锁定
 
@@ -195,18 +182,18 @@ VS 快速最新检查和 C# 增量编译保持启用；仅关闭 Desktop 的复�
 
 ## 3. 生成并运行完整产品包
 
-先完成原生、托管 Release 构建及测试。另行下载官方 [CPython 3.14.4 AMD64 embeddable ZIP](https://www.python.org/ftp/python/3.14.4/python-3.14.4-embed-amd64.zip)，保持 ZIP 格式。
+先完成原生、Rust 和托管 Release 构建及相应验证：
 
 ```powershell
-$pythonArchive = Read-Host '请输入 CPython 3.14.4 AMD64 embeddable ZIP 的完整路径'
-python scripts/package.py --output artifacts/package --python-archive "$pythonArchive" --release
-python scripts/package.py --output artifacts/package --verify --release
-& .\artifacts\package\T7-Rekindle.exe
+python scripts/build.py --project native --artifacts artifacts/runtime-check
+python scripts/build.py --project managed --artifacts artifacts/runtime-check
+python scripts/package.py --artifacts artifacts/runtime-check --output artifacts/runtime-check/package --release
+python scripts/package.py --output artifacts/runtime-check/package --verify --release
 ```
 
-`--release` 要求包内包含完整运行时、托管依赖和许可证，**不表示程序已签名或正式发行验收已完成**。产品目录包含启动器、NativeBridge、Python、Business、依赖 DLL 和许可文件；完整布局见[目录说明](source-layout.md#产品包布局)。
+`--release` 要求完整 Rust 产品文件与许可证，不表示实机验收或正式发行已完成。产品包括启动器、NativeBridge、`T7R.Battle.dll`、`t7r_battle_ffi.dll`、静态新闻、托管依赖与许可；没有 Python／Business 运行目录。
 
-打包只读取 Desktop 的托管输出和原生 Release 输出，不读取测试工程。校验包含 NativeBridge 副本一致性、binding redirects、CPython 架构和版本、固定标准库内容、manifest 及逐文件哈希；校验过程不加载或执行输入 DLL。
+打包检查 DLL 副本一致性、必需文件、manifest 和逐文件哈希，拒绝混入 Python DLL、扩展、脚本、字节码及旧 Business 目录。`--python-archive` 已删除，无旧运行时回退路径。
 
 已有输出目录会使打包停止。重建前先确认并自行保留旧产物；也可指定新的输出目录，但下面的安装器定义固定读取 `artifacts/package/`。
 
@@ -257,11 +244,11 @@ GitHub Release 的文件名为 `T7-Rekindle-{tag}-Setup.exe` 和 `T7-Rekindle-wi
 | --- | --- |
 | 找不到 VS 2022 MSBuild | 确认安装的是 VS 2022，MSBuild 组件齐全；原生构建还要求 v143 C++ workload |
 | Python 版本或开发文件检查失败 | 检查当前 `python` 路径、3.14.4/64 位版本及头文件和导入库；不要使用 embeddable ZIP 作为开发安装 |
-| VS 报 `Python.h` 缺失 | 按上方 VS 配置设置 `.local/Build.props` 中的 `PythonHome`，然后重新加载项目 |
+| 历史原生对照测试报 `Python.h` 缺失 | 仅对照测试需传入 `/p:PythonHome=PYTHON_HOME`；生产工程不依赖 CPython |
 | 原生阶段成功，随后提示缺少 SDK 或 Targeting Pack | `--project all` 先构建和测试原生部分，再检查托管前置；补齐 .NET SDK 与 net48 Developer Pack 后重试 |
 | NuGet 锁定还原失败 | 检查源访问及项目与 lock file 是否匹配；不要默认解除锁定 |
-| Debug 启动时报加载 NativeBridge 失败 | 先完成 Debug/x64 原生构建，核对 `PythonHome` 后重新生成 Desktop；完整产品仍按 Release 流程打包 |
-| Python 修改后仍是旧行为 | 核对 EXE 所在配置，构建 Desktop 确认 Business 同步成功，再结束并重新启动游戏会话 |
+| Debug 启动时报加载 NativeBridge 失败 | 先完成 Debug/x64 原生构建，再重新生成 Desktop 和 Rust DLL；完整产品仍按 Release 流程打包 |
+| 修改测试对照 Python 后产品行为不变 | 产品逻辑在 `src/BattleRust`，对照代码不进入构建产物 |
 | 打包输出已存在 | 使用已确认的新目录或先保留旧产物；安装器输入路径须与产品目录一致 |
 
 客户端目录、图形预检、名称及退出错误见[使用问题排查](requirements.md#问题排查与反馈)。反馈构建问题时提供命令、工具版本、提交号及相关错误片段，去除个人路径等信息。

@@ -66,7 +66,8 @@ def test_original_armor_and_weapon_base_share_player_bot_pipeline(arena, attacke
     if attacker == 1:
         packet = next(p for p in arena.result['send'] if p['reason'] == 'combat-damage')
         result = battle_flow.decode_battle_result(packet['body'])
-        assert result.is_critical == (region == 'head') and result.target_rb_index == 5
+        assert result.is_critical == (region == 'head')
+        assert result.target_rb_index == {'head': 1, 'torso': 2, 'legs': 3}.get(region, 2)
     if region == 'unknown':
         assert any('combat-region-fallback' in log['message'] for log in arena.result['logs'])
 
@@ -237,7 +238,7 @@ def test_old_runtime_evidence_requires_restart(arena):
 
 
 def test_failed_hot_reload_keeps_old_revision_and_state(arena, tmp_path):
-    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / 'src/Business/scripts', tmp_path)
+    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / 'tests/reference/Business/scripts', tmp_path)
     try:
         runtime.active.module.STATE_VERSION = 17
         old = runtime.active

@@ -297,7 +297,7 @@ def test_hot_reload_preserves_bot_and_resumes_its_existing_timer(tmp_path, nav):
     tick(flow)
     battle.startAction(flow, 300560, released=True, actorId=wire.BOT_ID)
     original = deepcopy(flow.state)
-    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / "src/Business/scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / "tests/reference/Business/scripts", tmp_path / "revisions")
     try:
         state = host_runtime.encode(flow.state)
         runtime.prepare()

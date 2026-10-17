@@ -1,3 +1,4 @@
+#include <type_traits>
 #include "../../src/Runtime/bridge/T7RNativeBridge.h"
 #include "../../src/Runtime/launcher/MovementOverlay.h"
 #include <cassert>
@@ -29,6 +30,7 @@ int runDebugClientFixture();
 int runInputMethodDebugFixture();
 
 int main(int argc, char** argv) {
+    if (argc == 2 && std::string(argv[1]) == "--client-adaptation-tests") return verifyClientAdaptation() ? 0 : 1;
     if (argc == 2 && std::string(argv[1]) == "--ping-tests") return verifyClientAdaptation() && verifyPingDisplay() ? 0 : 1;
     if (argc == 2 && std::string(argv[1]) == "--audio-playback-tests") return verifyAudioPlaybackTrace() ? 0 : 1;
     if (argc == 2 && std::string(argv[1]) == "--audio-path-tests") return verifyAudioResourcePaths() ? 0 : 1;
@@ -48,11 +50,8 @@ int main(int argc, char** argv) {
     assert(offsetof(T7RNativePath, data) == 8);
     assert(offsetof(T7RNativeSnapshot, phase) == 56);
     assert(offsetof(T7RNativeOperation, operationId) == 8);
-    const auto features = static_cast<uint32_t>(t7r::MovementFeature::Terrain)
-        | static_cast<uint32_t>(t7r::MovementFeature::Gravity)
-        | static_cast<uint32_t>(t7r::MovementFeature::Jump)
-        | static_cast<uint32_t>(t7r::MovementFeature::Crouch);
-    assert(features == 0x0Fu);
+    static_assert(std::is_default_constructible_v<t7r::MovementOverlay>);
+    static_assert(!std::is_constructible_v<t7r::MovementOverlay, uint32_t>);
     assert(t7r::MovementOverlayInfo::kImageBase == 0x00400000u);
     assert(t7r::MovementOverlayInfo::kResourceOpenRva == 0x00071590u);
     assert(t7r::MovementOverlayInfo::kEntitySheetLoadRva == 0x00275A70u);

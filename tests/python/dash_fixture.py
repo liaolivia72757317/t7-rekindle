@@ -26,14 +26,14 @@ def weapons(*entries):
     return table(2829, rows)
 
 
-def parameters(*, category=32, duration='2033', extra=(), omit=(), rows=None):
+def parameters(*, category=32, actionType=13, duration='2033', extra=(), omit=(), rows=None):
     if rows is not None:
         return table(6412, rows)
     fields = [('[持续时间]过程', duration), ('[移动时间]', '967'), ('[移动初速度]', '2585'),
               ('[碰撞时间]开始', '0'), ('[碰撞时间]结束', '1133')]
     fields = [(key, value) for key, value in fields if key not in omit] + list(extra)
     row = bytearray(6412)
-    struct.pack_into('<IhhhH', row, 0, 6, category, 32, 2, len(fields))
+    struct.pack_into('<IhhhH', row, 0, 6, category, actionType, 2, len(fields))
     for index, (key, value) in enumerate(fields):
         struct.pack_into('<64s64s', row, 12 + index * 128, key.encode('gbk'), value.encode('gbk'))
     return table(6412, [row])

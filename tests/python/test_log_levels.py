@@ -7,7 +7,7 @@ from Business.scripts import app
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'src/Business/runtime'))
+sys.path.insert(0, str(ROOT / 'tests/reference/Business/runtime'))
 import host_runtime  # noqa: E402
 
 
@@ -41,7 +41,7 @@ def test_legacy_business_log():
     ({'level': 'WARN', 'message': 'fixture'}, {'level': 'WARN', 'message': 'fixture'}),
 ])
 def test_dispatch_normalizes_business_logs(tmp_path, monkeypatch, entry, expected):
-    runtime = host_runtime.Runtime(ROOT / 'src/Business/scripts', tmp_path / 'revisions')
+    runtime = host_runtime.Runtime(ROOT / 'tests/reference/Business/scripts', tmp_path / 'revisions')
     try:
         state = runtime.create(host_runtime.encode({}))
         monkeypatch.setattr(runtime.active.module, 'handleEvent', lambda event, value, context:

@@ -28,10 +28,13 @@ namespace T7R.ManagedHarness
 
         private static MainWindowViewModel Model(SettingsService settings, Func<UpdateChannel, Task<LauncherUpdateInfo>> check,
             Func<LauncherUpdateInfo, UpdateDownloadViewModel> download = null, FakeDesktopInteraction interaction = null) =>
-            new MainWindowViewModel(new FakeLauncherBridge(), settings,
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction ?? new FakeDesktopInteraction(),
-                createUpdateDownload: download, checkChannelUpdate: check,
+            new MainWindowViewModel(new FakeLauncherBridge(),
+                settings,
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction ?? new FakeDesktopInteraction(),
+                updates: new LauncherUpdateFactory(check: check, download: download),
                 previewAccess: PreviewAccessFixture.Authorized(settings.DirectoryPath + "-authorization"));
 
         private static LauncherUpdateInfo PreviewInfo(long number = 12) => new LauncherUpdateInfo

@@ -5,7 +5,8 @@ namespace T7R.Core
     public enum BattleMessageKind : byte
     {
         Admit = 1, Admitted = 2, OpenChannel = 3, GameData = 4, CloseChannel = 5,
-        WorldSample = 6, MatchState = 7, MatchEnded = 8, Ping = 9, Pong = 10
+        WorldSample = 6, MatchState = 7, MatchEnded = 8, Ping = 9, Pong = 10,
+        PlayerIntent = 11, MatchAborted = 12, MotionAttempt = 13, ContactBatch = 14
     }
 
     public enum BattleChannel : byte { None = 0, Login = 1, Logic = 2, Instance = 3 }

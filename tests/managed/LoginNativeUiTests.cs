@@ -91,8 +91,12 @@ namespace T7R.ManagedHarness
         }
         private static void VerifyMainCaption(string directory)
         {
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(directory),
-                new UserSettings(), null, path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(directory),
+                new UserSettings(),
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model, Opacity = 0, ShowActivated = false, ShowInTaskbar = false };

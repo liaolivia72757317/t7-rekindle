@@ -1,6 +1,7 @@
 #include "MovementHookCode.h"
 #include "MovementResources.h"
 #include "StartupAnimation.h"
+#include "../core/WorldSnapshot.h"
 #include <cstring>
 
 namespace t7r {
@@ -66,7 +67,7 @@ void botPositionCommand(Code& code, uint32_t imageBase, const MovementHookSite& 
     // but do not enqueue its sampled position over the controller's newer pose.
     code.emit({0x9C,0x60,0x81,0x7D,0x04}); code.word(imageBase + 0x6B65F2);
     const auto otherReceiver = code.branch(0x85);
-    code.emit({0x0F,0xB7,0x43,0x10,0x83,0xE8,2,0x83,0xF8,18});
+    code.emit({0x0F,0xB7,0x43,0x10,0x83,0xE8,2,0x83,0xF8,static_cast<uint8_t>(MAX_WORLD_ACTORS - 2)});
     const auto otherActor = code.branch(0x87);
     // The composite has not taken ownership yet; its native deleting destructor
     // releases this command through the original allocator, exactly once.

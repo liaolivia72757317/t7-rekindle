@@ -7,13 +7,47 @@ import struct
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/Business/vendor')]
+sys.path[:0] = [str(ROOT / 'tests/reference'), str(ROOT / 'tests/reference/Business/vendor')]
 
 from Business.scripts import combat_resources as combat, hero_resources
 from Business.scripts.animation_timing import AnimationTimings
 from Business.scripts.dash_resources import readSelected, rows
 
 DIRECTIONS = {300560: 'Up', 300550: 'Right', 300570: 'Down', 300540: 'Left'}
+KEY_MSG_PATH = 'data/table/s_res_key_msg_cli.bin'
+
+
+def attackDirections(weaponData, keyData):
+    columns = [set() for _ in range(35)]
+    for row in rows(keyData, 318):
+        count = struct.unpack_from('<H', row, 4)[0]
+        if count > 8:
+            raise ValueError('key-message condition count exceeds record')
+        conditions = struct.unpack_from('<8I', row, 6)
+        # Bots are on foot: KEY_COND_RIDING (11) is not an available input route.
+        if 11 in conditions[:count]:
+            continue
+        for column, messages in enumerate(columns):
+            message = struct.unpack_from('<I', row, 38 + column * 8)[0]
+            if message in DIRECTIONS:
+                messages.add(message)
+    result = {}
+    for row in rows(weaponData, 2829):
+        weaponId = struct.unpack_from('<I', row)[0]
+        # Native weapon input lookup uses this one-based message translation index.
+        column = struct.unpack_from('<H', row, 0x808)[0]
+        result[weaponId] = set(columns[column - 1]) if 1 <= column <= 35 else set()
+    return result
+
+
+def applyDirections(profile, allowed):
+    result = deepcopy(profile)
+    if not result['shield']:
+        if not allowed:
+            raise ValueError('melee weapon has no on-foot attack input mapping')
+        for message, attack in result['attacks'].items():
+            attack['enabled'] = int(message) in allowed
+    return result
 
 
 def hurtTiming(directory):
@@ -75,6 +109,9 @@ def applyTimings(profile, animation, hurtMs):
 
 def export(directory):
     catalogue = hero_resources.loadCatalogue(directory)
+    allowed = attackDirections(
+        readSelected(directory, 'data1.vfs', hero_resources.WEAPON_PATH, lambda data: data),
+        readSelected(directory, 'data1.vfs', KEY_MSG_PATH, lambda data: data))
     animations, templates, references = {}, [], {}
     hurtMs = hurtTiming(directory)
     for heroId, hero in sorted(catalogue.heroes.items()):
@@ -82,6 +119,7 @@ def export(directory):
         ids = {hero_resources.FIST_ID, *(tid for group in hero.groups for tid in group if tid)}
         for weaponId in sorted(ids):
             profile = combat.weaponProfile(directory, weaponId, hero.gender)
+            profile = applyDirections(profile, allowed[weaponId])
             if not profile['shield']:
                 path = profile['movementAnimation']['characterPath']
                 if path not in animations:

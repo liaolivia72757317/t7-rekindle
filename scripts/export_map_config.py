@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/Business/vendor')]
+sys.path[:0] = [str(ROOT / 'tests/reference'), str(ROOT / 'tests/reference/Business/vendor')]
 
 from Business.scripts import map_data, navmesh_resource, spawn_resource
 from Business.scripts.navigation import NavMesh

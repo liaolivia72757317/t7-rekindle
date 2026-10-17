@@ -10,6 +10,7 @@ namespace T7R.Desktop.Services
 {
     public sealed partial class SettingsService
     {
+        private static readonly object PersistenceGate = new object();
         private readonly string _directory;
         private readonly string _path;
         private readonly string _backupPath;
@@ -34,6 +35,11 @@ namespace T7R.Desktop.Services
         }
 
         public UserSettings Load()
+        {
+            lock (PersistenceGate) return LoadCore();
+        }
+
+        private UserSettings LoadCore()
         {
             LastWarning = string.Empty;
             var settings = TryRead(_path, out var hasUpdateChannel);
@@ -66,6 +72,32 @@ namespace T7R.Desktop.Services
         }
 
         public void Save(UserSettings settings)
+        {
+            lock (PersistenceGate) SaveCore(settings);
+        }
+
+        internal void SaveLauncherSettings(UserSettings settings)
+        {
+            lock (PersistenceGate)
+            {
+                settings.SelectedMatchMapIds = LoadCore().SelectedMatchMapIds;
+                SaveCore(settings);
+            }
+        }
+
+        internal void SaveMatchMaps(uint[] ids)
+        {
+            var selected = MatchMapSelection.Normalize(ids);
+            lock (PersistenceGate)
+            {
+                var settings = LoadCore();
+                if (!CanPersistLoadedSettings) throw new InvalidDataException("启动器配置无效，地图选择未保存。");
+                settings.SelectedMatchMapIds = selected;
+                SaveCore(settings);
+            }
+        }
+
+        private void SaveCore(UserSettings settings)
         {
             if (!SettingsSchema.IsValid(settings))
             {

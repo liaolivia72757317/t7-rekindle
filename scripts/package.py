@@ -9,25 +9,13 @@ import os
 from pathlib import Path
 import shutil
 import stat
-import struct
-import zipfile
 from release_metadata import package_build_metadata
 from rollback_history import build_rollback_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
-MAX_ARCHIVE_MEMBERS = 20000
-MAX_ARCHIVE_BYTES = 512 * 1024 * 1024
-# python314.zip from https://www.python.org/ftp/python/3.14.4/python-3.14.4-embed-amd64.zip
-# Bytecode magic identifies a minor release, not a patch; pin the standard library too.
-PYTHON_STDLIB_SHA256 = "310e5f6ce695f0ab95782a6c4824ac86d793f4f5a79837968a15b64266e484c2"
-PYTHON_FILE_VERSION = (3, 14, 4150, 1013)  # VS_FIXEDFILEINFO for CPython 3.14.4 final.
 FORBIDDEN_PRODUCT_NAMES = {
     "t7.server.exe", "server.exe", "server.ini", "tiejiclient.exe", "protocalhandler.dll",
     "t7.core.dll", "t7.nativebridge.dll",
-}
-FORBIDDEN_ARCHIVE_NAMES = FORBIDDEN_PRODUCT_NAMES | {
-    "t7-rekindle.exe", "t7r.core.dll", "t7r.nativebridge.dll", "manifest.json",
-    "license", "third-party.txt",
 }
 RESERVED_PACKAGE_NAMES = {"manifest.json", "license", "third-party.txt"}
 WINDOWS_RESERVED_NAMES = {
@@ -40,6 +28,9 @@ REQUIRED_RELEASE_FILES = {
     "T7-Rekindle.exe",
     "T7-Rekindle.exe.config",
     "T7R.Core.dll",
+    "T7R.Battle.dll",
+    "t7r_battle_ffi.dll",
+    "news/index.html",
     "CommunityToolkit.Mvvm.dll",
     "Microsoft.Bcl.AsyncInterfaces.dll",
     "Microsoft.Web.WebView2.Core.dll",
@@ -71,82 +62,13 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_python_dll(path: Path) -> None:
-    """Inspect PE headers and the version resource without loading the DLL."""
-    data = path.read_bytes()
-
-    def unpack(fmt, offset):
-        if offset < 0 or offset + struct.calcsize(fmt) > len(data):
-            raise ValueError("truncated Python PE image")
-        return struct.unpack_from(fmt, data, offset)
-
-    if data[:2] != b"MZ":
-        raise ValueError("Python runtime is not a PE image")
-    pe, = unpack("<I", 0x3C)
-    if data[pe:pe + 4] != b"PE\0\0":
-        raise ValueError("Python runtime PE signature is invalid")
-    machine, sections = unpack("<HH", pe + 4)
-    optional_size, = unpack("<H", pe + 20)
-    optional = pe + 24
-    magic, = unpack("<H", optional)
-    if machine != 0x8664 or magic != 0x20B:
-        raise ValueError("Python runtime must be AMD64 PE32+")
-    if optional_size < 136 or unpack("<I", optional + 108)[0] < 3:
-        raise ValueError("Python runtime has no resource directory")
-    resource_rva, resource_size = unpack("<II", optional + 128)
-
-    def file_offset(rva, size):
-        for index in range(sections):
-            section = optional + optional_size + index * 40
-            address, raw_size, raw_offset = unpack("<III", section + 12)
-            if address <= rva and rva - address + size <= raw_size:
-                offset = raw_offset + rva - address
-                if offset + size <= len(data):
-                    return offset
-        raise ValueError("Python PE resource points outside the image")
-
-    resource = file_offset(resource_rva, resource_size)
-
-    def entry(directory, wanted=None):
-        if directory + 16 > resource_size:
-            raise ValueError("invalid Python version resource directory")
-        named, ids = unpack("<HH", resource + directory + 12)
-        count = named + ids
-        if directory + 16 + count * 8 > resource_size:
-            raise ValueError("invalid Python version resource entries")
-        for index in range(count):
-            name, value = unpack("<II", resource + directory + 16 + index * 8)
-            if wanted is None or name == wanted:
-                return value
-        raise ValueError("Python version resource is missing")
-
-    directory = entry(0, 16)  # RT_VERSION -> name -> language -> data.
-    for _ in range(2):
-        if not directory & 0x80000000:
-            raise ValueError("invalid Python version resource hierarchy")
-        directory = entry(directory & 0x7FFFFFFF)
-    if directory & 0x80000000 or directory + 16 > resource_size:
-        raise ValueError("invalid Python version resource data")
-    value_rva, value_size = unpack("<II", resource + directory)
-    value = file_offset(value_rva, value_size)
-    length, fixed_length, value_type = unpack("<HHH", value)
-    key = "VS_VERSION_INFO\0".encode("utf-16le")
-    fixed = (6 + len(key) + 3) & ~3
-    if (data[value + 6:value + 6 + len(key)] != key or value_type != 0
-            or fixed_length < 52 or length > value_size or fixed + fixed_length > length):
-        raise ValueError("Python fixed version resource is invalid")
-    signature, structure, major_minor, build_private = unpack("<IIII", value + fixed)
-    version = (major_minor >> 16, major_minor & 0xFFFF, build_private >> 16, build_private & 0xFFFF)
-    if signature != 0xFEEF04BD or structure != 0x10000 or version != PYTHON_FILE_VERSION:
-        raise ValueError("Python runtime file version must be CPython 3.14.4 final")
-
-
-def validate_python_runtime(output: Path) -> None:
-    validate_python_dll(output / "python314.dll")
-    if (output / "python3.dll").exists():
-        validate_python_dll(output / "python3.dll")
-    if sha256_file(output / "python/python314.zip") != PYTHON_STDLIB_SHA256:
-        raise ValueError("Python standard library must match the CPython 3.14.4 AMD64 embeddable distribution")
+def reject_python_runtime(relative: Path) -> None:
+    parts = tuple(part.casefold() for part in relative.parts)
+    name = parts[-1]
+    if (parts[0] in {"business", "python", "__pycache__"}
+            or "__pycache__" in parts or relative.suffix.casefold() in {".py", ".pyc", ".pyd"}
+            or name.startswith("python") and relative.suffix.casefold() in {".dll", ".exe", ".zip", "._pth"}):
+        raise ValueError(f"Python runtime is not a product dependency: {relative}")
 
 
 def validate_windows_parts(name: str) -> tuple[str, ...]:
@@ -195,6 +117,7 @@ def validate_source_entries(source: Path, paths, label: str) -> None:
         if not is_directory:
             seen_files.add(canonical)
         seen_has_children.update(prefixes)
+        reject_python_runtime(path.relative_to(source))
         if path.name.casefold() in FORBIDDEN_PRODUCT_NAMES:
             raise ValueError(f"forbidden product file: {path.name}")
 
@@ -207,50 +130,6 @@ def copy_tree(source: Path, destination: Path) -> None:
             raise ValueError(f"symbolic links are not allowed in product sources: {path}")
     validate_source_entries(source, paths, "product sources")
     shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-
-
-def safe_archive_members(archive: zipfile.ZipFile, destination: Path) -> None:
-    base = destination.resolve()
-    seen = set()
-    seen_files = set()
-    seen_has_children = set()
-    total_size = 0
-    if len(archive.infolist()) > MAX_ARCHIVE_MEMBERS:
-        raise ValueError("python archive contains too many members")
-    for item in archive.infolist():
-        name = item.filename.replace("\\", "/")
-        if "\x00" in name:
-            raise ValueError(f"NUL archive member: {item.filename}")
-        parts = validate_windows_parts(name)
-        canonical = canonical_package_path(parts)
-        is_directory = item.is_dir() or name.endswith("/")
-        if canonical in seen:
-            raise ValueError(f"duplicate archive member: {item.filename}")
-        prefixes = [canonical_package_path(parts[:index]) for index in range(1, len(parts))]
-        if any(prefix in seen_files for prefix in prefixes):
-            raise ValueError(f"archive member is below a file: {item.filename}")
-        if not is_directory and canonical in seen_has_children:
-            raise ValueError(f"archive file contains a child path: {item.filename}")
-        seen.add(canonical)
-        if not is_directory:
-            seen_files.add(canonical)
-        seen_has_children.update(prefixes)
-        if parts[-1].casefold() in FORBIDDEN_ARCHIVE_NAMES:
-            raise ValueError(f"forbidden archive member: {item.filename}")
-        if name.startswith("/"):
-            raise ValueError(f"archive member escapes python root: {item.filename}")
-        mode = (item.external_attr >> 16) & 0xFFFF
-        file_type = stat.S_IFMT(mode)
-        if stat.S_ISLNK(mode) or file_type not in (0, stat.S_IFREG, stat.S_IFDIR):
-            raise ValueError(f"symbolic links are not allowed in python archive: {item.filename}")
-        if item.flag_bits & 1:
-            raise ValueError(f"encrypted archive members are not allowed: {item.filename}")
-        total_size += item.file_size
-        if total_size > MAX_ARCHIVE_BYTES:
-            raise ValueError("python archive expands beyond the package limit")
-        target = (destination / item.filename).resolve()
-        if base != target and base not in target.parents:
-            raise ValueError(f"archive member escapes python root: {item.filename}")
 
 
 def copy_product_output(source: Path, destination: Path) -> None:
@@ -267,8 +146,6 @@ def copy_product_output(source: Path, destination: Path) -> None:
             existing[canonical_package_path(parts)] = path
     for path in paths:
         relative = path.relative_to(source)
-        if relative.parts[0].casefold() == "business" and len(relative.parts) > 1:
-            continue
         if not path.is_file() or path.suffix.lower() == ".pdb":
             continue
         if path.name.casefold() in RESERVED_PACKAGE_NAMES:
@@ -278,7 +155,7 @@ def copy_product_output(source: Path, destination: Path) -> None:
         canonical = canonical_package_path(validate_windows_parts(relative.as_posix()))
         previous = existing.get(canonical)
         if previous is not None:
-            if canonical == "t7r.nativebridge.dll" and sha256_file(path) == sha256_file(previous):
+            if canonical in ("t7r.nativebridge.dll", "t7r_battle_ffi.dll") and sha256_file(path) == sha256_file(previous):
                 continue
             raise ValueError(f"package source collision: {target.relative_to(destination)}")
         if target.exists():
@@ -331,24 +208,12 @@ def verify_package(output: Path, require_runtime: bool = False, require_license:
         raise ValueError("package manifest release/license flags are invalid")
     if (require_runtime or require_license) and manifest.get("release") is not True:
         raise ValueError("release verification requires a release manifest")
-    python_kind = manifest.get("python")
-    archive_hash = manifest.get("pythonArchiveSha256")
-    if python_kind == "external-runtime-required":
-        if archive_hash is not None:
-            raise ValueError("external-runtime package must not record an archive hash")
-    elif python_kind == "3.14.4-amd64":
-        if (not isinstance(archive_hash, str) or len(archive_hash) != 64
-                or any(value not in "0123456789abcdef" for value in archive_hash)):
-            raise ValueError("bundled Python archive hash is invalid")
-        validate_python_runtime(output)
-    else:
-        raise ValueError("package manifest Python runtime policy is invalid")
+    if manifest.get("battleRuntime") != "rust" or "python" in manifest or "pythonArchiveSha256" in manifest:
+        raise ValueError("package must use the Rust runtime exclusively")
     if manifest.get("clientIncluded") or manifest.get("serverProductIncluded"):
         raise ValueError("package manifest includes a client or server product")
-    if require_runtime and (manifest.get("python") != "3.14.4-amd64"
-                            or not (output / "python314.dll").is_file()
-                            or not (output / "python" / "python314.zip").is_file()):
-        raise ValueError("release package must contain the CPython 3.14.4 runtime")
+    if not (output / "t7r_battle_ffi.dll").is_file():
+        raise FileNotFoundError("package is missing the Rust battle runtime")
     if require_license and (manifest.get("licenseIncluded") is not True
                             or not (output / "LICENSE").is_file()):
         raise FileNotFoundError("release package requires a root LICENSE file")
@@ -377,6 +242,7 @@ def verify_package(output: Path, require_runtime: bool = False, require_license:
     for path in sorted(output.rglob("*")):
         if is_link_like(path):
             raise ValueError(f"package contains a symbolic link: {path}")
+        reject_python_runtime(path.relative_to(output))
         if path.name.casefold() in FORBIDDEN_PRODUCT_NAMES:
             raise ValueError(f"forbidden product file in package: {path.name}")
         if not path.is_file() or path == manifest_path:
@@ -389,38 +255,30 @@ def verify_package(output: Path, require_runtime: bool = False, require_license:
     return manifest
 
 
-def _package(output: Path, python_archive: Path | None = None, release: bool = False) -> Path:
+def _package(output: Path, release: bool = False, artifacts: Path | None = None) -> Path:
     output = Path(output)
     if output.exists() or is_link_like(output):
         raise FileExistsError(f"refusing to overwrite existing output: {output}")
     output = output.resolve()
     if output.exists() or is_link_like(output):
         raise FileExistsError(f"refusing to overwrite existing output: {output}")
-    if release and python_archive is None:
-        raise ValueError("release packaging requires --python-archive")
-    native = ROOT / "artifacts/native/bin/x64/Release/T7R.NativeBridge.dll"
-    desktop = ROOT / "artifacts/bin/T7R.Desktop/x64/Release/net48"
-    if not native.is_file() or not (desktop / "T7-Rekindle.exe").is_file():
-        raise FileNotFoundError("build artifacts are missing; run scripts/build.py first")
+    artifacts = Path(artifacts) if artifacts is not None else ROOT / "artifacts"
+    native = artifacts / "native/bin/x64/Release/T7R.NativeBridge.dll"
+    rust = artifacts / "rust/x86_64-pc-windows-msvc/release/t7r_battle_ffi.dll"
+    desktop = artifacts / "bin/T7R.Desktop/x64/Release/net48"
+    if not native.is_file() or not rust.is_file() or not (desktop / "T7-Rekindle.exe").is_file():
+        raise FileNotFoundError("build artifacts are missing; build the native, Rust and desktop projects first")
     output.mkdir(parents=True)
-    (output / "python").mkdir()
     shutil.copy2(native, output / native.name)
+    shutil.copy2(rust, output / rust.name)
     copy_product_output(desktop, output)
-    copy_tree(ROOT / "src/Business", output / "Business")
-    if python_archive:
-        with zipfile.ZipFile(python_archive) as archive:
-            safe_archive_members(archive, output / "python")
-            archive.extractall(output / "python")
-        for name in ("python314.dll", "python3.dll", "vcruntime140.dll", "vcruntime140_1.dll"):
-            candidate = output / "python" / name
-            if candidate.is_file():
-                shutil.move(str(candidate), str(output / name))
-        if not (output / "python314.dll").is_file() or not (output / "python/python314.zip").is_file():
-            raise FileNotFoundError("python archive is missing python314.dll or python314.zip")
-        validate_python_runtime(output)
-        python_hash = sha256_file(python_archive)
-    else:
-        python_hash = None
+    news = output / "news"
+    news.mkdir(exist_ok=True)
+    for source in (ROOT / "src/Desktop/Resources/News").glob("*"):
+        if is_link_like(source):
+            raise ValueError("news assets must not be symbolic links")
+        if source.is_file():
+            copy_fixed_file(source, news / source.name)
     license_path = ROOT / "LICENSE"
     license_included = license_path.is_file()
     if license_included and is_link_like(license_path):
@@ -439,8 +297,7 @@ def _package(output: Path, python_archive: Path | None = None, release: bool = F
         "minimumWindowsBuild": "10.0.19041",
         "requiresDotNet": "net48",
         "createdAt": datetime.now(timezone.utc).isoformat(),
-        "python": "3.14.4-amd64" if python_archive else "external-runtime-required",
-        "pythonArchiveSha256": python_hash,
+        "battleRuntime": "rust",
         "clientIncluded": False,
         "serverProductIncluded": False,
         "rawWireCaptureDefault": False,
@@ -456,11 +313,11 @@ def _package(output: Path, python_archive: Path | None = None, release: bool = F
     return output
 
 
-def package(output: Path, python_archive: Path | None = None, release: bool = False) -> Path:
+def package(output: Path, release: bool = False, artifacts: Path | None = None) -> Path:
     output = Path(output).resolve()
     existed = output.exists() or output.is_symlink()
     try:
-        return _package(output, python_archive, release)
+        return _package(output, release, artifacts)
     except Exception:
         if not existed and output.is_dir() and not output.is_symlink():
             remove_tree(output)
@@ -470,16 +327,16 @@ def package(output: Path, python_archive: Path | None = None, release: bool = Fa
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--python-archive", type=Path)
+    parser.add_argument("--artifacts", type=Path, help="build artifact root (default: artifacts)")
     parser.add_argument("--release", action="store_true",
-                        help="require the bundled CPython runtime and a root LICENSE")
+                        help="require complete Rust product files and a root LICENSE")
     parser.add_argument("--verify", action="store_true",
                         help="verify an existing product directory instead of creating it")
     args = parser.parse_args()
     if args.verify:
         print(json.dumps(verify_package(args.output.resolve(), args.release, args.release), indent=2))
     else:
-        print(package(args.output, args.python_archive, args.release))
+        print(package(args.output, args.release, args.artifacts))
 
 
 if __name__ == "__main__":

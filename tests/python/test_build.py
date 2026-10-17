@@ -42,9 +42,9 @@ def test_msbuild_receives_selected_configuration(configuration):
     assert f"/p:Configuration={configuration}" in run.call_args.args[0]
 
 
-@pytest.mark.parametrize("project,count", [("all", 10), ("native", 1),
+@pytest.mark.parametrize("project,count", [("all", 9), ("native", 1),
                                          ("native-tests", 4), ("managed", 5),
-                                         ("battle", 3), ("battle-tests", 4)])
+                                         ("battle", 3), ("battle-tests", 3)])
 @pytest.mark.parametrize("configuration", [None, "Debug", "Release"])
 def test_build_configuration_reaches_all_projects(monkeypatch, project, count, configuration):
     build = load_build()
@@ -65,37 +65,20 @@ def test_build_configuration_reaches_all_projects(monkeypatch, project, count, c
     else:
         tests.assert_not_called()
     if project in ("all", "battle-tests"):
-        battle_tests.assert_called_once_with(Path("TOOLCHAIN"), selected)
+        battle_tests.assert_called_once_with(selected)
     else:
         battle_tests.assert_not_called()
 
 
-@pytest.mark.parametrize("configuration", ["Debug", "Release"])
-def test_battle_module_tests_use_isolated_runtime_and_selected_configuration(tmp_path, configuration):
+@pytest.mark.parametrize("project", ["native", "managed", "battle", "battle-tests"])
+def test_product_build_does_not_require_cpython_sdk(monkeypatch, project):
     build = load_build()
-    build.ROOT = tmp_path
-    fixture = tmp_path / 'artifacts/tmp/runtime-fixture-battle'
-    with patch.object(build, 'prepare_runtime_fixture', return_value=fixture), \
-            patch.object(build, 'remove_tree') as remove, patch.object(build.shutil, 'copy2') as copy, \
-            patch.object(build.subprocess, 'run') as run:
-        build.run_battle_tests(tmp_path / 'python', configuration)
-    assert [Path(call.args[0][0]) for call in run.call_args_list] == [
-        tmp_path / 'artifacts/native/bin/x64' / configuration / 'T7R.BattleHostTests.exe',
-        tmp_path / 'artifacts/bin/T7R.BattleHarness/x64' / configuration / 'net48/T7R.BattleHarness.exe']
-    assert all(call.args[0][1] == str(fixture) for call in run.call_args_list)
-    assert all(call.kwargs['env']['LOCALAPPDATA'] == str(fixture / 'state') for call in run.call_args_list)
-    copy.assert_called_once_with(tmp_path / 'artifacts/native/bin/x64' / configuration / 'T7R.NativeBridge.dll',
-                                 fixture / 'T7R.NativeBridge.dll')
-    remove.assert_called_once_with(fixture)
-
-
-def test_invalid_configuration_stops_before_toolchain_discovery(monkeypatch):
-    build = load_build()
-    monkeypatch.setattr(build.sys, "argv", ["build.py", "--configuration", "invalid"])
-    with patch.object(build, "locate_msbuild") as locate, pytest.raises(SystemExit) as error:
+    monkeypatch.setattr(build.sys, "argv", ["build.py", "--project", project])
+    with (patch.object(build, "locate_msbuild"), patch.object(build, "check_python") as python,
+          patch.object(build, "check_managed_sdk"), patch.object(build, "check_wpf_targeting_pack"),
+          patch.object(build, "run_msbuild"), patch.object(build, "run_battle_tests")):
         build.main()
-    assert error.value.code == 2
-    locate.assert_not_called()
+    python.assert_not_called()
 
 
 @pytest.mark.parametrize("configuration", ["Debug", "Release"])
@@ -115,7 +98,7 @@ def test_native_tests_run_from_selected_output(tmp_path, configuration):
 def test_runtime_fixture_includes_standard_library_extensions(tmp_path, embedded):
     build = load_build()
     build.ROOT = tmp_path
-    business = tmp_path / "src/Business"
+    business = tmp_path / "tests/reference/Business"
     business.mkdir(parents=True)
     (business / "sample.py").write_text("", encoding="utf-8")
     (business / "scripts").mkdir()

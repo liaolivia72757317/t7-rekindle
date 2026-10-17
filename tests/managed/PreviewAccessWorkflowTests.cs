@@ -33,11 +33,15 @@ namespace T7R.ManagedHarness
             Func<UpdateChannel, Task<LauncherUpdateInfo>> check, Func<PreviewAccessViewModel, bool> prompt = null,
             Func<LauncherUpdateInfo, UpdateDownloadViewModel> download = null, FakeLauncherBridge bridge = null,
             Func<UpdateChannel, CancellationToken, Task<IReadOnlyList<LauncherHistoryEntry>>> history = null,
-            FakeDesktopInteraction interaction = null) => new MainWindowViewModel(bridge ?? new FakeLauncherBridge(), settings,
-                new UserSettings { PlayerName = "玩家", ClientDirectory = @"C:\Games\T7" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction ?? new FakeDesktopInteraction { ConfirmResult = true },
-                checkChannelUpdate: check, createUpdateDownload: download, previewAccess: access,
-                requestPreviewAccess: prompt ?? (_ => false), loadUpdateHistory: history);
+            FakeDesktopInteraction interaction = null) => new MainWindowViewModel(bridge ?? new FakeLauncherBridge(),
+                settings,
+                new UserSettings { PlayerName = "玩家", ClientDirectory = @"C:\Games\T7" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction ?? new FakeDesktopInteraction { ConfirmResult = true },
+                updates: new LauncherUpdateFactory(check: check, download: download, history: history),
+                previewAccess: access,
+                requestPreviewAccess: prompt ?? (_ => false));
 
         private static LauncherUpdateInfo PreviewInfo() => new LauncherUpdateInfo
         {

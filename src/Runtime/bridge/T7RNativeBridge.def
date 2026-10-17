@@ -7,7 +7,11 @@ EXPORTS
     t7r_native_submit_start
     t7r_native_submit_start_named
     t7r_native_submit_start_options
+    t7r_native_submit_start_gateway
+    t7r_native_submit_start_gateway_profiles
     t7r_native_submit_stop
+    t7r_native_attach_battle
+    t7r_native_detach_battle
     t7r_native_cancel
     t7r_native_get_snapshot
     t7r_native_get_operation
@@ -21,9 +25,3 @@ EXPORTS
     t7r_native_set_log_level
     t7r_native_publish_titles
     t7r_native_get_title_request
-    t7r_battle_host_create
-    t7r_battle_host_start
-    t7r_battle_host_stop
-    t7r_battle_host_snapshot
-    t7r_battle_host_error
-    t7r_battle_host_release

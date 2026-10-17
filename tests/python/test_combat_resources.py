@@ -26,6 +26,36 @@ def test_offline_table_reader_retains_fallback_actions_movement_and_guard(client
     assert profiles[701]['changeMs'] == 700 and profiles[701]['guard'] == dict(prepareMs=150, successMs=667)
 
 
+@pytest.mark.parametrize('actionType,enabled', [(13, True), (32, False)])
+def test_offline_dash_availability_uses_native_action_type(client, monkeypatch, actionType, enabled):
+    from Business.scripts.dash_resources import DashAttackProfile, DashResources
+    table, characters = combat.resourceTables(str(client))
+    monkeypatch.setattr(combat, 'resourceTables', lambda _: (table | {(6, 0, 2, actionType, 2): [{}]}, characters))
+    calls = []
+
+    def load(directory, weaponId):
+        calls.append(weaponId)
+        return DashResources(DashAttackProfile(enabled=True, weaponId=weaponId, weaponCategory=2,
+            durationMs=1200, moveMs=500, speedMilli=4000, contactStartMs=540,
+            contactEndMs=720, reboundMs=933, durationSource='table'), ())
+
+    monkeypatch.setattr(combat.dash_resources, 'loadDashAttack', load)
+    result = combat.weaponProfile(str(client), 701, 1)
+    assert bool(result['dashAttack']) == enabled
+    assert calls == ([701] if enabled else [])
+
+
+@pytest.mark.parametrize('weaponId', [1040321, 1040322])
+def test_pan_feng_long_blades_have_native_dash_parameters(weaponId):
+    profile = combat.loadCombatProfiles('', 2104)[weaponId]
+    dash = profile['dashAttack']
+    assert dash['enabled'] and dash['weaponId'] == weaponId
+    assert (dash['durationMs'], dash['moveMs'], dash['speedMilli']) == (1233, 1133, 3500)
+    assert (dash['contactStartMs'], dash['contactEndMs'], dash['reboundMs']) == (383, 783, 933)
+    assert dash['animationPath'].endswith('m01b_common_dashattack_pa_yyd_animation.hkt')
+    assert profile['timingSources']['DashAttack'] == [1233, 1233, '']
+
+
 def test_runtime_combat_preflight_does_not_need_client_action_or_hero_tables(client):
     writeClient(client.parent)
     result = client_resources.checkResources(str(client))

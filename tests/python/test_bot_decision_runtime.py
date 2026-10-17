@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 @pytest.mark.parametrize("missingStreams", [(), ("stdout",), ("stderr",), ("stdin", "stdout", "stderr")])
 def test_packaged_dependencies_and_business_reload_without_site_packages(tmp_path, missingStreams):
     business = tmp_path / "Business"
-    shutil.copytree(ROOT / "src/Business", business, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copytree(ROOT / "tests/reference/Business", business, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     code = r"""
 from pathlib import Path
 import sys
@@ -60,7 +60,7 @@ originalStreams['stdout'].write('isolated-vendor-ok\n')
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows GUI process standard handles")
 def test_windows_no_console_process_loads_and_reloads_business(tmp_path):
     business = tmp_path / "Business"
-    shutil.copytree(ROOT / "src/Business", business, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copytree(ROOT / "tests/reference/Business", business, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     report = tmp_path / "result.txt"
     code = r"""
 from pathlib import Path
@@ -94,14 +94,18 @@ except BaseException:
     assert detail == "ok"
 
 
-def test_dependency_pins_and_licenses_are_included_in_offline_notices():
-    vendor = ROOT / "src/Business/vendor"
-    notices = (ROOT / "src/Desktop/Resources/THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8")
+def test_reference_dependency_pins_and_licenses_are_preserved_with_vendor():
+    from email.parser import Parser
+
+    vendor = ROOT / "tests/reference/Business/vendor"
+    readme = (vendor / "README.md").read_text(encoding="utf-8")
     for pin in (vendor / "requirements.txt").read_text(encoding="utf-8").splitlines():
         name, version = pin.split("==")
-        assert f"{name} {version}" in notices
-        licenses = list((vendor / f"{name}-{version}.dist-info/licenses").rglob("*"))
-        assert any(path.is_file() for path in licenses)
-        for path in licenses:
-            if path.is_file():
-                assert path.read_text(encoding="utf-8").strip() in notices
+        assert f"[{name}]" in readme and f"| {version} |" in readme
+        metadata_root = vendor / f"{name}-{version}.dist-info"
+        metadata = Parser().parsestr((metadata_root / "METADATA").read_text(encoding="utf-8"))
+        assert metadata["Name"] == name and metadata["Version"] == version
+        licenses = metadata.get_all("License-File")
+        assert licenses
+        for license_file in licenses:
+            assert (metadata_root / "licenses" / license_file).read_text(encoding="utf-8").strip()

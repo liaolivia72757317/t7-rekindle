@@ -338,7 +338,7 @@ def test_hot_reload_keeps_damage_and_resumes_existing_hurt_deadline(arena, tmp_p
     advance(arena, combat.hitTimer(1))
     original = deepcopy(arena.state)
     root = Path(__file__).resolve().parents[2]
-    runtime = host_runtime.Runtime(root / "src/Business/scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(root / "tests/reference/Business/scripts", tmp_path / "revisions")
     try:
         runtime.prepare()
         state = runtime.switch(host_runtime.encode(original))

@@ -44,14 +44,12 @@ bool verifyGraphicsSession(const t7r::fs::path& packageRoot) {
         require(graphics.state == T7RNB_GRAPHICS_UNAVAILABLE, "idle graphics state");
         uint64_t operation = 0;
         require(session->setOutputDevice(outputDevice) == T7RNB_OK, "output device selection rejected");
-        require(session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operation) == T7RNB_OK, "graphics test start");
+        require(session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operation, u8"新玩家", false, {1, 2, 3}) == T7RNB_OK, "graphics test start");
         waitFor([&] { session->graphics(graphics); return graphics.state == T7RNB_GRAPHICS_READY; });
         require(deviceSeen->load(), "output device was lost between the command and the client launch");
-        waitFor([&] { return worldReads->load() > 1; });
-        const auto worldStart = worldReads->load(), graphicsStart = graphicsReads->load();
+        const auto graphicsStart = graphicsReads->load();
         waitFor([&] { return graphicsReads->load() >= graphicsStart + 4; });
-        require(worldReads->load() - worldStart >= 2 * (graphicsReads->load() - graphicsStart),
-            "world readback is still gated by the slow settings monitor");
+        require(worldReads->load() == 0, "unbound session sampled world state without a capture request");
         const auto revision = graphics.revision;
         auto change = graphics.values; change.quality = 1;
         require(session->applyGraphics(revision - 1, change) == T7RNB_NOT_READY, "stale graphics revision accepted");

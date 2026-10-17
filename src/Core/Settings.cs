@@ -18,6 +18,7 @@ namespace T7R.Core
         public string UpdateChannel { get; set; } = "stable";
         public string OutputDeviceId { get; set; } = string.Empty;
         public string LogLevel { get; set; } = "INFO";
+        public uint[] SelectedMatchMapIds { get; set; } = MatchMapSelection.All;
     }
 
     public static class SettingsSchema
@@ -32,6 +33,7 @@ namespace T7R.Core
             }
 
             if (settings.UpdateChannel != "stable" && settings.UpdateChannel != "preview") return false;
+            if (!MatchMapSelection.IsValid(settings.SelectedMatchMapIds)) return false;
             if (!DiagnosticLogLevels.TryParse(settings.LogLevel, out var logLevel)
                 || DiagnosticLogLevels.Name(logLevel) != settings.LogLevel) return false;
             if (settings.OutputDeviceId == null || (settings.OutputDeviceId.Length != 0

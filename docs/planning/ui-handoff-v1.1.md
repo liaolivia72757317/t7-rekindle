@@ -80,8 +80,8 @@ python -m pytest -q
 
 以下是验收步骤和通过标准，不依赖维护者本机的历史截图或 JSON。`artifacts/` 中的报告由命令生成，不随仓库发布。
 
-1. 按[开发与交付](../development.md#1-准备工具链)准备工具链和官方 CPython 3.14.4 AMD64 embeddable ZIP。使用独立 Windows 测试账户，记录提交号、系统版本、显示器分辨率、缩放、任务栏状态和输入法。混合 DPI 检查需要两台显示器。
-2. 在仓库根目录依次执行以下命令，每条退出码为 0 后再继续。完整包包含 NativeBridge 所需的 Python 运行时，不从 managed 输出目录运行实际启动器。
+1. 按[开发与交付](../development.md#1-准备工具链)准备工具链。Python 仅用于开发脚本和对照测试，产品不需要 embeddable ZIP。使用独立 Windows 测试账户，记录提交号、系统版本、显示器分辨率、缩放、任务栏状态和输入法。混合 DPI 检查需要两台显示器。
+2. 在仓库根目录依次执行以下命令，每条退出码为 0 后再继续。完整包包含 NativeBridge 和 Rust DLL；项目级全量测试须先取得明确授权。
 
 ```powershell
 git rev-parse HEAD
@@ -89,8 +89,7 @@ python scripts/build.py --project all
 python -m pytest -q
 & .\artifacts\bin\T7R.ManagedHarness\x64\Release\net48\T7R.ManagedHarness.exe
 $run = Join-Path 'artifacts' ('ui-device-check-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-$pythonArchive = Read-Host '请输入 CPython 3.14.4 AMD64 embeddable ZIP 的完整路径'
-python scripts/package.py --output "$run/package" --python-archive "$pythonArchive" --release
+python scripts/package.py --output "$run/package" --release
 python scripts/package.py --output "$run/package" --verify --release
 & "$run\package\T7-Rekindle.exe"
 ```

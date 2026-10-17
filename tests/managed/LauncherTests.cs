@@ -30,6 +30,7 @@ namespace T7R.ManagedHarness
                 PreviewAccessWorkflowTests.Run(Path.Combine(directory, "preview-workflow"));
                 PreviewSigningScriptTests.Run(Path.Combine(directory, "preview-signing"));
                 GameSettingsFileTests.Run(directory);
+                MatchMapPreferencesTests.Run(directory);
                 OfflineGameSettingsTests.Run(directory);
                 GraphicsSettingsTests.Run(directory);
                 GraphicsResolutionTests.Run(directory);
@@ -40,6 +41,7 @@ namespace T7R.ManagedHarness
                 TestStartPreflight(directory);
                 TestStartupAnimationLaunch(directory);
                 TestLifecycle(directory);
+                SessionCloseTests.Run(directory);
                 TestLatestValidation(directory);
                 TestDelayedOperations(directory);
                 TestSaveFailure(directory);
@@ -112,8 +114,11 @@ namespace T7R.ManagedHarness
         {
             var bridge = new FakeLauncherBridge();
             var service = new SettingsService(Path.Combine(directory, "settings-navigation"));
-            using (var model = new MainWindowViewModel(bridge, service, new UserSettings { PlayerName = "玩家" }, null,
-                path => Task.FromResult(path.Length == 0 ? new ClientDirectoryResult("", "", "请选择目录。") : ValidDirectory(path)),
+            using (var model = new MainWindowViewModel(bridge,
+                service,
+                new UserSettings { PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(path.Length == 0 ? new ClientDirectoryResult("", "", "请选择目录。") : ValidDirectory(path))),
                 new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
@@ -148,9 +153,12 @@ namespace T7R.ManagedHarness
             {
                 var bridge = new FakeLauncherBridge { PendingCheck = new TaskCompletionSource<OperationSnapshot>() };
                 var settings = new SettingsService(Path.Combine(directory, "start-preflight-" + status));
-                using (var model = new MainWindowViewModel(bridge, settings,
-                    new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                    path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+                using (var model = new MainWindowViewModel(bridge,
+                settings,
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
                 {
                     RunTask(model.ValidationTask);
                     var start = model.StartCommand.ExecuteAsync(null);
@@ -171,8 +179,12 @@ namespace T7R.ManagedHarness
                         "client launch did not follow the native preflight result");
                     Assert(model.MainActionIcon != "hourglass", "completed start retained the hourglass");
                     if (status == OperationStatus.Succeeded)
+                    {
                         Assert(bridge.StartedDirectory == @"C:\Games\T7\Bin" && bridge.StartedName == "玩家",
                             "native launch did not receive the selected client and player");
+                        Assert(model.NativeLogText.Contains("启动模式：Rust 战局"),
+                            "launcher did not identify the selected runtime in diagnostics");
+                    }
                 }
             }
         }
@@ -184,8 +196,12 @@ namespace T7R.ManagedHarness
                 var bridge = new FakeLauncherBridge { PendingCheck = new TaskCompletionSource<OperationSnapshot>() };
                 var settings = new SettingsService(Path.Combine(directory, "startup-animation-" + enabled));
                 settings.Save(new UserSettings { ClientDirectory = @"C:\Games\T7", SkipStartupAnimation = enabled });
-                using (var model = new MainWindowViewModel(bridge, settings, settings.Load(), null,
-                    path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+                using (var model = new MainWindowViewModel(bridge,
+                settings,
+                settings.Load(),
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
                 {
                     RunTask(model.ValidationTask);
                     var start = model.StartCommand.ExecuteAsync(null);
@@ -210,8 +226,12 @@ namespace T7R.ManagedHarness
             var bridge = new FakeLauncherBridge();
             var interaction = new FakeDesktopInteraction();
             var service = new SettingsService(Path.Combine(directory, "lifecycle"));
-            using (var model = new MainWindowViewModel(bridge, service, new UserSettings(), null,
-                path => Task.FromResult(path.Length == 0 ? new ClientDirectoryResult("", "", "请选择目录。") : ValidDirectory(path)), interaction))
+            using (var model = new MainWindowViewModel(bridge,
+                service,
+                new UserSettings(),
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(path.Length == 0 ? new ClientDirectoryResult("", "", "请选择目录。") : ValidDirectory(path))),
+                interaction))
             {
                 RunTask(model.ValidationTask);
                 var endedCount = 0;
@@ -309,9 +329,12 @@ namespace T7R.ManagedHarness
         private static void TestLatestValidation(string directory)
         {
             var first = new TaskCompletionSource<ClientDirectoryResult>();
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(Path.Combine(directory, "latest")),
-                new UserSettings { ClientDirectory = @"C:\Old", PlayerName = "Player" }, null,
-                path => path == @"C:\Old" ? first.Task : Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(Path.Combine(directory, "latest")),
+                new UserSettings { ClientDirectory = @"C:\Old", PlayerName = "Player" },
+                null,
+                new FakeClientEnvironment(path => path == @"C:\Old" ? first.Task : Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 var oldTask = model.ValidationTask;
                 model.ClientDirectory = @"C:\New";
@@ -327,8 +350,12 @@ namespace T7R.ManagedHarness
             var blocked = Path.Combine(directory, "not-a-directory");
             File.WriteAllText(blocked, "fixture");
             var bridge = new FakeLauncherBridge();
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(blocked), new UserSettings(), null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(blocked),
+                new UserSettings(),
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 model.ClientDirectory = @"C:\Game";
                 model.PlayerName = "玩家";
@@ -350,9 +377,12 @@ namespace T7R.ManagedHarness
         private static void TestDelayedOperations(string directory)
         {
             var bridge = new FakeLauncherBridge { PendingCheck = new TaskCompletionSource<OperationSnapshot>() };
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "delayed")),
-                new UserSettings { ClientDirectory = @"C:\Old", PlayerName = "Player" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "delayed")),
+                new UserSettings { ClientDirectory = @"C:\Old", PlayerName = "Player" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 var pending = model.CheckCommand.ExecuteAsync(null);
@@ -378,9 +408,12 @@ namespace T7R.ManagedHarness
         private static void TestNoticeSeverity(string directory)
         {
             var interaction = new FakeDesktopInteraction { DirectoryError = new IOException("fixture error") };
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(Path.Combine(directory, "notices")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" }, "设置恢复提示",
-                path => Task.FromResult(ValidDirectory(path)), interaction))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(Path.Combine(directory, "notices")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" },
+                "设置恢复提示",
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction))
             {
                 RunTask(model.ValidationTask);
                 Assert(model.HasNotice && model.IsNoticeError, "settings warning lost its error presentation");

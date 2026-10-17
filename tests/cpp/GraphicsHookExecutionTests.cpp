@@ -1,4 +1,4 @@
-#include "../../src/Runtime/launcher/GraphicsSettings.h"
+#include "../../src/Runtime/launcher/ClientFrameRuntime.h"
 #include "../../src/Runtime/launcher/DebugClient.h"
 #include "../../src/Runtime/launcher/OutputDevice.h"
 #include "WorldHookFixture.h"
@@ -223,7 +223,8 @@ uint32_t readAudio(t7r::AudioSettings& audio, t7r::AudioValues& values, bool exp
 }
 bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
     const auto directory = t7r::fs::temp_directory_path() / (L"t7r-graphics-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
-    t7r::DebugClient client; t7r::GraphicsSettings graphics;
+    t7r::DebugClient client; t7r::ClientFrameRuntime runtime;
+    auto& graphics = runtime.graphics();
     try {
         require(t7r::fs::create_directory(directory), "graphics fixture directory");
         const auto path = directory / L"GraphicsFixture.exe"; fixture(path);
@@ -275,13 +276,13 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
             }
             t7r::writeClientMemory(process, BASE + t7r::MOVEMENT_ANIMATION_RVA, {0xCC});
             rejected = false;
-            try { graphics.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile()); }
+            try { runtime.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile()); }
             catch (const std::runtime_error&) { rejected = true; }
             require(rejected, "animation hook accepted an unknown native writer");
             t7r::writeClientMemory(process, BASE + t7r::MOVEMENT_ANIMATION_RVA, {0xF3});
             t7r::writeClientMemory(process, BASE + t7r::MOVEMENT_POSE_RVA, {0xCC});
             rejected = false;
-            try { graphics.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile()); }
+            try { runtime.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile()); }
             catch (const std::runtime_error&) { rejected = true; }
             require(rejected, "movement pose hook accepted an unknown native writer");
             t7r::writeClientMemory(process, BASE + t7r::MOVEMENT_POSE_RVA, {0xFF});
@@ -291,27 +292,27 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
             }) {
                 t7r::writeClientMemory(process, BASE + anchor.first, {0xCC});
                 rejected = false;
-                try { graphics.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile()); }
+                try { runtime.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile()); }
                 catch (const std::runtime_error&) { rejected = true; }
                 require(rejected, "defense exit accepted an unknown native event or variable writer");
                 t7r::writeClientMemory(process, BASE + anchor.first, {anchor.second});
                 require(t7r::readClientMemory(process, BASE + t7r::DEFENSE_EXIT_RVA, t7r::DEFENSE_EXIT_ORIGINAL.size())
                     == t7r::DEFENSE_EXIT_ORIGINAL, "failed defense exit installation changed the native event handler");
             }
-            graphics.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile());
+            runtime.install(process, BASE, GetThreadId(thread), sprintFixture::profile(), movementAnimationFixture::profile());
         }, [](t7r::DiagnosticLogLevel, const std::string& line) {
             if (line.find("exception") != std::string::npos || line.find("fault") != std::string::npos
                 || line.find("violation") != std::string::npos) std::cerr << line << '\n';
         });
         t7r::GraphicsValues values;
         require(readCompleted(graphics, values, false) == 1 && values.viewDistance == 159 && values.swoosh == 0, "graphics initial snapshot/default");
-        if (!combatOnly) titleFixture::verify(client.process(), graphics.titles());
+        if (!combatOnly) titleFixture::verify(client.process(), runtime.titles());
         if (titlesOnly) {
             require(readWord(client.process(), STATS) == readWord(client.process(), STATS + 4), "title frame hook changed ESP");
             for (const auto pair : std::array<std::pair<uint32_t, uint32_t>, 6>{{
                 {8,0x11223344},{12,0x22334455},{16,0x33445566},{20,0x44556677},{24,0x3F800000},{28,0x3F800000}
             }}) require(readWord(client.process(), STATS + pair.first) == pair.second, "title frame hook changed registers/FPU/SSE");
-            client.check(); client.stop(); graphics.clear();
+            client.check(); client.stop(); runtime.clear();
             require(t7r::fs::canonical(directory).parent_path() == t7r::fs::canonical(t7r::fs::temp_directory_path()), "title fixture cleanup boundary");
             t7r::fs::remove_all(directory);
             std::cout << "x86 title description updates, original refresh and register preservation passed\n";
@@ -320,7 +321,7 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
         if (combatOnly) {
             const auto entry = BASE + t7r::GRAPHICS_TICK_RVA + 5 + readWord(client.process(), BASE + t7r::GRAPHICS_TICK_RVA + 1);
             combatProfileFixture::verify(client.process(), readWord(client.process(), entry + 10) - t7r::WORLD_CODE_OFFSET);
-            client.check(); client.stop(); graphics.clear();
+            client.check(); client.stop(); runtime.clear();
             require(t7r::fs::canonical(directory).parent_path() == t7r::fs::canonical(t7r::fs::temp_directory_path()), "combat fixture cleanup boundary");
             t7r::fs::remove_all(directory);
             std::cout << "x86 hero/weapon-selected movement and dash profiles passed\n";
@@ -352,7 +353,7 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
         require(readCompleted(graphics, values, true) == 2 && values.frameLimit == 0, "stale settings overwrote game change");
         require(readWord(client.process(), STATS + 32) == 1, "conflict executed the apply handler");
         require(readWord(client.process(), RESTORE_COUNT) == 1, "conflict restored the game window");
-        auto& audio = graphics.audio(); t7r::AudioValues sound;
+        auto& audio = runtime.audio(); t7r::AudioValues sound;
         writeWord(client.process(), BASE + 0x3700, 0x1B796EC); // base class during initialization
         require(readAudio(audio, sound, false) == 0, "audio accepted an uninitialized sound engine");
         writeWord(client.process(), BASE + 0x3700, 0x1B797B4);
@@ -380,8 +381,8 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
         std::cout << "x86 airborne heading preserves vertical velocity and native physics clock passed\n";
         movementAnimationFixture::verifyTurn(client.process());
         std::cout << "x86 stationary speed restores native turn animation and idle transitions passed\n";
-        worldFixture::verify(client.process(), graphics.world(), worldMailbox);
-        terrainFixture::verify(client.process(), graphics.world());
+        worldFixture::verify(client.process(), runtime.world(), worldMailbox);
+        terrainFixture::verify(client.process(), runtime.world());
         try { movementAnimationFixture::verify(client.process(), worldMailbox); }
         catch (const std::exception& error) { throw std::runtime_error(std::string("movement animation: ") + error.what()); }
         std::cout << "x86 movement animation gait/cache, defense release and unchanged physical speeds/timer passed\n";
@@ -389,15 +390,15 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
         std::cout << "x86 defense exit restores locomotion selection without speed or animation events passed\n";
         movementPoseFixture::defenseExit::verify(client.process());
         std::cout << "x86 defense exit preserves native layer fade without intermediate Idle and clears pose immediately passed\n";
-        movementCommandFixture::verify(client.process(), worldMailbox);
+        movementCommandFixture::verify(client.process(), runtime.world(), worldMailbox);
         std::cout << "x86 queued A/D commands preserve running animation and native movement state passed\n";
-        bladeFixture::verify(client.process(), graphics.world(), worldMailbox);
+        bladeFixture::verify(client.process(), runtime.world(), worldMailbox);
         weaponTrailFixture::verify(client.process());
         try { sprintFixture::verify(client.process()); }
         catch (const std::exception& error) { throw std::runtime_error(std::string("sprint: ") + error.what()); }
-        try { chatInputFixture::verify(client.process(), graphics.world()); }
+        try { chatInputFixture::verify(client.process(), runtime.world()); }
         catch (const std::exception& error) { throw std::runtime_error(std::string("chat input: ") + error.what()); }
-        roundEndFixture::verify(client.process(), graphics.world(), worldMailbox);
+        roundEndFixture::verify(client.process(), runtime.world(), worldMailbox);
         require(readWord(client.process(), STATS) == readWord(client.process(), STATS + 4), "frame hook changed ESP");
         for (const auto pair : std::array<std::pair<uint32_t, uint32_t>, 6>{{
             {8,0x11223344},{12,0x22334455},{16,0x33445566},{20,0x44556677},{24,0x3F800000},{28,0x3F800000}
@@ -420,13 +421,13 @@ bool verifyGraphicsHookExecution(bool combatOnly, bool titlesOnly) {
         std::cout << "x86 hero/weapon-selected movement and dash profiles, unknown-key isolation passed\n";
         writeWord(client.process(), RENDERER + 0x11C, 0);
         require(readCompleted(graphics, values, false) == 0, "missing rendering device reported graphics ready");
-        client.check(); client.stop(); graphics.clear();
+        client.check(); client.stop(); runtime.clear();
         require(t7r::fs::canonical(directory).parent_path() == t7r::fs::canonical(t7r::fs::temp_directory_path()), "graphics cleanup boundary");
         t7r::fs::remove_all(directory);
         std::cout << "x86 output device, graphics/audio/world, weapon trail, sprint/chat input, round settlement, and FPU/SSE preservation passed\n";
         return true;
     } catch (const std::exception& e) {
-        try { client.stop(); graphics.clear(); } catch (const std::exception& cleanup) { std::cerr << cleanup.what() << '\n'; }
+        try { client.stop(); runtime.clear(); } catch (const std::exception& cleanup) { std::cerr << cleanup.what() << '\n'; }
         std::cerr << e.what() << '\n'; return false;
     }
 }

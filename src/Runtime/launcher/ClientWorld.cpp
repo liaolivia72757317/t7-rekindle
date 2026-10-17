@@ -3,6 +3,9 @@
 #include "RoundEndHookCode.h"
 #include <cmath>
 #include <cstring>
+#include <realtimeapiset.h>
+
+#pragma comment(lib, "mincore.lib")
 
 namespace t7r {
 namespace {
@@ -78,7 +81,7 @@ void ClientWorld::request() {
         if (!WriteProcessMemory(process_, reinterpret_cast<void*>(static_cast<uintptr_t>(slot + offsetof(ActorMailbox, targetId))),
                                 &targets_[i], sizeof(uint32_t), &actual) || actual != sizeof(uint32_t)
             || !WriteProcessMemory(process_, reinterpret_cast<void*>(static_cast<uintptr_t>(slot + offsetof(ActorMailbox, targetMask))),
-                                   &targetMasks_[i], sizeof(uint32_t), &actual) || actual != sizeof(uint32_t))
+                                   &targetMasks_[i], sizeof(uint64_t), &actual) || actual != sizeof(uint64_t))
             throw std::runtime_error(errorText("world target publication"));
     }
     requestedAt_ = GetTickCount64();
@@ -87,7 +90,7 @@ void ClientWorld::request() {
         throw std::runtime_error(errorText("world request publication"));
     pending_ = true;
 }
-bool ClientWorld::poll(WorldSnapshot& value) {
+bool ClientWorld::poll(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD_ACTORS>& camps) {
     if (!process_) return false;
     const auto roundEnd = readClientMemory(process_, remote_ + ROUND_END_DATA_OFFSET, sizeof(RoundEndMailbox));
     RoundEndMailbox handoff;
@@ -112,6 +115,9 @@ bool ClientWorld::poll(WorldSnapshot& value) {
     value.contactBatchId = frame.batchId;
     if (raw.ready == 1 && raw.instanceStartedAt != 0 && frame.count) {
         const auto events = readClientMemory(process_, remote_ + CONTACTS_DATA_OFFSET, frame.count * sizeof(ContactEventMailbox));
+        ULONGLONG readCompleted = 0;
+        QueryInterruptTimePrecise(&readCompleted);
+        const uint64_t observedAt = readCompleted / 10000;
         for (uint32_t i = 0; i < frame.count; ++i) {
             ContactEventMailbox source;
             std::memcpy(&source, events.data() + i * sizeof(source), sizeof(source));
@@ -132,8 +138,12 @@ bool ClientWorld::poll(WorldSnapshot& value) {
             event.actorId = source.actorId; event.entity = source.entity; event.targetEntity = source.targetEntity;
             event.state = source.state; event.sequence = source.sequence; event.instanceStartedAt = source.epoch;
             event.targetState = source.targetState; event.targetSequence = source.targetSequence;
-            event.phaseAt = sampleTime(source.phaseTick, now); event.targetPhaseAt = sampleTime(source.targetPhaseTick, now);
-            event.occurredAt = static_cast<double>(sampleTime(source.tick, now)) - source.spanMs * (1. - source.hit.time);
+            event.sourceObservedAt = observedAt; event.targetObservedAt = observedAt;
+            event.phaseAt = sampleTime(source.phaseTick, observedAt); event.targetPhaseAt = sampleTime(source.targetPhaseTick, observedAt);
+            if ((source.phaseTick != 0 && event.phaseAt == 0)
+                || (source.targetPhaseTick != 0 && event.targetPhaseAt == 0))
+                throw std::runtime_error("native contact phase exceeds observation clock range");
+            event.occurredAt = static_cast<double>(sampleTime(source.tick, observedAt)) - source.spanMs * (1. - source.hit.time);
             event.sourcePosition = source.sourcePosition; event.targetPosition = source.targetPosition;
             event.sourceHeading = degrees(source.sourceYaw); event.targetHeading = degrees(source.targetYaw);
             event.airborne = source.airborne != 0;
@@ -153,7 +163,7 @@ bool ClientWorld::poll(WorldSnapshot& value) {
     }
     const auto actorBytes = readClientMemory(process_, remote_ + ACTORS_DATA_OFFSET,
                                              MAX_WORLD_ACTORS * sizeof(ActorMailbox));
-    std::array<ActorMailbox, MAX_WORLD_ACTORS> entries;
+    std::vector<ActorMailbox> entries(MAX_WORLD_ACTORS);
     std::memcpy(entries.data(), actorBytes.data(), actorBytes.size());
     value.ready = raw.ready == 1 && raw.instanceStartedAt != 0 && now - value.sampledAt <= 250;
     for (size_t i = 0; i < entries.size(); ++i) {
@@ -163,6 +173,7 @@ bool ClientWorld::poll(WorldSnapshot& value) {
         actor.ready = value.ready && source.ready == 1 && validPosition(source.position) && std::isfinite(heading);
         actor.entity = source.blade.actorEntity; actor.state = source.blade.state; actor.sequence = source.blade.sequence;
         actor.phaseAt = sampleTime(source.blade.phaseTick, now);
+        actor.forwardAttemptAt = source.forwardAttemptTick ? sampleTime(source.forwardAttemptTick, now) : 0;
         if (!actor.ready) continue;
         actor.position = source.position; actor.heading = heading; actor.targetId = source.targetId;
         actor.blade = bladeTrace(source.blade);
@@ -175,15 +186,13 @@ bool ClientWorld::poll(WorldSnapshot& value) {
     value.playerHeading = value.actors[0].heading; value.botHeading = value.actors[1].heading;
     value.terrain = {value.actors[0].terrain, value.actors[1].terrain};
     // Query every enemy in melee reach, never reuse the nearest enemy's ray for another target.
-    // RID 2..11 are opponents; RID 1 and 12..20 are the human's team.
-    auto enemyTeam = [](size_t index) { return index >= 1 && index <= 10; };
     for (size_t i = 0; i < entries.size(); ++i) {
         targets_[i] = 0;
         targetMasks_[i] = 0;
         if (!value.actors[i].ready) continue;
         float closest = 3.f;
         for (size_t j = 0; j < entries.size(); ++j) {
-            if (enemyTeam(i) == enemyTeam(j) || !value.actors[j].ready) continue;
+            if (i == j || (camps[i] != 0 && camps[i] == camps[j]) || !value.actors[j].ready) continue;
             const auto& from = value.actors[i].position;
             const auto& to = value.actors[j].position;
             const auto dx = to[0] - from[0], dy = to[1] - from[1];
@@ -191,7 +200,7 @@ bool ClientWorld::poll(WorldSnapshot& value) {
             const auto yaw = entries[i].yaw;
             if (std::abs(to[2] - from[2]) > 1.f || distance > 2.2f
                 || (distance > .01f && (dx * std::cos(yaw) - dy * std::sin(yaw)) / distance < .5f)) continue;
-            targetMasks_[i] |= 1u << j;
+            targetMasks_[i] |= uint64_t{1} << j;
             const auto rank = std::hypot(distance, to[2] - from[2]);
             if (rank >= closest) continue;
             closest = rank; targets_[i] = static_cast<uint32_t>(j + 1);

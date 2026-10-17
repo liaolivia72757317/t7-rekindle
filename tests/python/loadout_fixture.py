@@ -48,7 +48,7 @@ def damageProfiles(heroId, weaponIds):
         value = weaponProfile(100000)
         value.update(weaponId=tid, shieldMax=100 if tid == 703 else 0, attackGrade='C', defenceGrade='C', weight=1.)
         result[str(tid)] = value
-    return dict(heroId=heroId, armor=0, armorType='light', traits=[], weapons=result)
+    return dict(heroId=heroId, armor=0, maxHealth=100, armorType='light', traits=[], weapons=result)
 
 
 def writeStaticCombatProfiles(path):
@@ -72,7 +72,7 @@ def writeStaticDamageProfiles(path):
                1030411: (32, 2, 1030411, (20, 0, 0), 0, (), 'C', 'C')}
     actions = {category: {intent: index + 1 for index, intent in enumerate((300560, 300550, 300570, 300540, 700250))}
                for category in (2, 32, 104)}
-    path.write_text(f'WEAPONS = {weapons!r}\nHEROES = {{1101: (1101, 0, ())}}\nACTIONS = {actions!r}\n', encoding='utf-8')
+    path.write_text(f'WEAPONS = {weapons!r}\nHEROES = {{1101: (1101, 0, (), 100)}}\nACTIONS = {actions!r}\n', encoding='utf-8')
 
 
 def resourceTables():

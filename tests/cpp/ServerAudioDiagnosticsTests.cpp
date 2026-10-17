@@ -1,4 +1,4 @@
-#include "../../src/Runtime/server/Server.h"
+#include "../../tests/reference/native-server/Server.h"
 #include <algorithm>
 #include <iostream>
 

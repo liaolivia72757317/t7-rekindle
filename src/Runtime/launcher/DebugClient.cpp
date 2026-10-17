@@ -120,6 +120,7 @@ struct DebugProcess {
     DWORD primaryTid = 0;
     ProcessRole role = ProcessRole::RejectedChild;
     bool nativeInitial = false, wow64Initial = false;
+    bool isolateCrash = false;
     ULONGLONG terminationDeadline = 0;
     std::map<uintptr_t, EntryBreakpoint> entries;
 };
@@ -282,6 +283,7 @@ void DebugClient::start(const fs::path& executable, const std::string& imageHash
                         state.role = known ? ProcessRole::VerifiedGameChild : ProcessRole::CompatibleChild;
                         if (known && found->prepare)
                             found->prepare(state.process, static_cast<uint32_t>(reinterpret_cast<uintptr_t>(event.u.CreateProcessInfo.lpBaseOfImage)));
+                        state.isolateCrash = !known || found->isolateCrash;
                         if (log) log(DiagnosticLogLevel::Debug, std::string(known ? "Verified" : "Compatible") + " client child process; PID="
                             + std::to_string(event.dwProcessId) + "; image=" + name + "; role=" + roleName(state.role)
                             + (known ? "; reason=game component rule" : "; reason=registered IME module observed"));
@@ -296,7 +298,7 @@ void DebugClient::start(const fs::path& executable, const std::string& imageHash
                     if (!DuplicateHandle(GetCurrentProcess(), state.process,
                                          GetCurrentProcess(), &exitedProcess, SYNCHRONIZE, FALSE, 0))
                         fail(errorText("exiting process wait handle"), true);
-                    if (!stopping_.load() && state.role == ProcessRole::CompatibleChild
+                    if (!stopping_.load() && state.isolateCrash
                         && event.u.ExitProcess.dwExitCode && !state.terminationDeadline)
                         warn(exit + "; game session continues");
                     processes.erase(event.dwProcessId);
@@ -375,7 +377,7 @@ void DebugClient::start(const fs::path& executable, const std::string& imageHash
                     } else {
                         disposition = DBG_EXCEPTION_NOT_HANDLED;
                         const auto level = event.u.Exception.dwFirstChance ? DiagnosticLogLevel::Debug
-                            : state.role == ProcessRole::CompatibleChild ? DiagnosticLogLevel::Warn : DiagnosticLogLevel::Error;
+                            : state.isolateCrash ? DiagnosticLogLevel::Warn : DiagnosticLogLevel::Error;
                         if (log) log(level, "Client exception; firstChance=" + std::to_string(event.u.Exception.dwFirstChance)
                                      + "; code=" + std::to_string(exception.ExceptionCode) + "; address=" + std::to_string(address)
                                      + "; PID=" + std::to_string(event.dwProcessId) + "; role=" + roleName(state.role));
@@ -391,10 +393,12 @@ void DebugClient::start(const fs::path& executable, const std::string& imageHash
                             }
                             const auto failure = "unhandled client exception code=" + std::to_string(exception.ExceptionCode)
                                 + "; " + location + "; PID=" + std::to_string(event.dwProcessId) + "; role=" + roleName(state.role);
-                            if (state.role != ProcessRole::CompatibleChild) throw std::runtime_error(failure);
-                            warn(failure + "; terminating only compatible child; game session continues");
+                            if (!state.isolateCrash) throw std::runtime_error(failure);
+                            warn(failure + (state.role == ProcessRole::CompatibleChild
+                                ? "; terminating only compatible child; game session continues"
+                                : "; terminating only optional game child; game session continues"));
                             if (!TerminateProcess(state.process, exception.ExceptionCode))
-                                fail(errorText("compatible child termination"), true);
+                                fail(errorText("isolated child termination"), true);
                             state.terminationDeadline = GetTickCount64() + 10000;
                             disposition = DBG_CONTINUE;
                         }

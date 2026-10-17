@@ -247,7 +247,7 @@ def test_hot_reload_preserves_observation_and_continues_the_same_decision(nearBo
     flow = nearBot
     battle.startAction(flow, 300550, released=True)
     tick(flow)
-    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / "src/Business/scripts", tmp_path)
+    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / "tests/reference/Business/scripts", tmp_path)
     try:
         original = deepcopy(flow.state)
         runtime.prepare()

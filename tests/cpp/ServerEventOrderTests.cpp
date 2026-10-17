@@ -1,5 +1,5 @@
-#include "../../src/Runtime/server/Server.h"
-#include "../../src/Runtime/server/PythonObjects.h"
+#include "../../tests/reference/native-server/Server.h"
+#include "../../tests/reference/native-server/PythonObjects.h"
 #include <initializer_list>
 #include <iostream>
 #include <utility>

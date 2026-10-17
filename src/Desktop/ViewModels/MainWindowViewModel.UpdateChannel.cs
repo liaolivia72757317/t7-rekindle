@@ -82,7 +82,7 @@ namespace T7R.Desktop.ViewModels
                 _updateChannel = channel;
                 _previewExpiredPending = false;
                 About.ResetUpdateChannel(channel);
-                foreach (var identity in _announcedUpdateVersions) Notices.Resolve("update.available." + identity);
+                foreach (var identity in _updateChecks.AnnouncedIdentities) Notices.Resolve("update.available." + identity);
                 Notices.Resolve("update.failed");
                 Notices.Resolve("暂无正式发布版本");
                 Notices.Resolve("暂无预览构建");

@@ -15,6 +15,40 @@ namespace T7R.ManagedHarness
         [STAThread]
         private static int Main(string[] args)
         {
+            if (args.Length == 1 && args[0] == "--match-map-tests")
+            {
+                var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "t7r-match-maps-" + Guid.NewGuid().ToString("N"));
+                try
+                {
+                    MatchMapPreferencesTests.Run(directory);
+                    GameSettingsFileTests.Run(directory);
+                    SettingsMergeTests.Run(directory);
+                    Console.WriteLine("team map selection, persistence, restore and settings preservation checks passed");
+                    return 0;
+                }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+                finally { if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true); }
+            }
+            if (args.Length == 1 && args[0] == "--title-publication-tests")
+            {
+                try
+                {
+                    NativeTitlePublicationTests.Run();
+                    Console.WriteLine("native title result retention, acknowledgement, retry and epoch checks passed");
+                    return 0;
+                }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+            }
+            if (args.Length == 3 && args[0] == "--offline-battle-contract-tests")
+            {
+                try
+                {
+                    OfflineBattleSessionTests.Run(args[1], args[2]);
+                    Console.WriteLine("offline Rust battle startup rollback checks passed");
+                    return 0;
+                }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+            }
             if (args.Length == 2 && args[0] == "--native-contract-tests")
             {
                 try
@@ -204,6 +238,11 @@ namespace T7R.ManagedHarness
             if (args.Length == 2 && args[0] == "--render-v11")
             {
                 try { ThemeTests.Run(args[1]); return 0; }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+            }
+            if (args.Length == 1 && args[0] == "--launcher-tests")
+            {
+                try { RunGroup(nameof(LauncherTests), LauncherTests.Run); return 0; }
                 catch (Exception error) { Console.Error.WriteLine(error); return 1; }
             }
             NativeAbiLayout.Validate();

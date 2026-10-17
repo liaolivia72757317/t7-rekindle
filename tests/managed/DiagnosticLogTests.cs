@@ -58,9 +58,11 @@ namespace T7R.ManagedHarness
                 Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("th-TH");
                 var earliest = DateTime.Now.AddSeconds(-1);
                 using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
-                    new SettingsService(Path.Combine(directory, "log-timestamps")),
-                    new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" }, null,
-                    path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+                new SettingsService(Path.Combine(directory, "log-timestamps")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
                 {
                     RunTask(model.ValidationTask);
                     RunTask(model.CheckCommand.ExecuteAsync(null));
@@ -118,9 +120,11 @@ namespace T7R.ManagedHarness
                 };
                 var bridge = new FakeLauncherBridge { Failure = "launcher failure" };
                 using (var model = new MainWindowViewModel(bridge,
-                    new SettingsService(Path.Combine(directory, "forwarded-logs")),
-                    new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" }, null,
-                    path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+                new SettingsService(Path.Combine(directory, "forwarded-logs")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
                 {
                     // Account and client metadata initialization are outside this forwarding contract.
                     RunTask(model.ValidationTask);
@@ -155,8 +159,9 @@ namespace T7R.ManagedHarness
                     RunTask(model.StartCommand.ExecuteAsync(null));
                     var launcherLines = model.NativeLogText.Split(new[] { Environment.NewLine }, StringSplitOptions.None)
                         .Where(line => line.Contains("  [Launcher] ") && !line.Contains("客户端版本：")).ToArray();
-                    Assert(launcherLines.Length == 2 && launcherLines.Any(line => line.Contains("  错误  ")),
-                        "launcher fixture did not produce info and error records");
+                    Assert(launcherLines.Length == 3 && launcherLines.Count(line => line.Contains("  信息  ")) == 2
+                        && launcherLines.Count(line => line.Contains("  错误  ")) == 1,
+                        "launcher fixture did not produce info and error records: " + string.Join(" | ", launcherLines));
                     foreach (var line in launcherLines)
                     {
                         var expected = line.Replace("  信息  [Launcher] ", "|INFO|Launcher|")
@@ -186,13 +191,15 @@ namespace T7R.ManagedHarness
                 LogManager.Configuration = configuration;
                 var inspections = 0;
                 using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
-                    new SettingsService(Path.Combine(directory, "operation-errors")),
-                    new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" }, null,
-                    path =>
+                new SettingsService(Path.Combine(directory, "operation-errors")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" },
+                null,
+                new FakeClientEnvironment(path =>
                     {
                         if (++inspections > 1) throw new InvalidOperationException("fixture inspection failure");
                         return Task.FromResult(ValidDirectory(path));
-                    }, new FakeDesktopInteraction()))
+                    }),
+                new FakeDesktopInteraction()))
                 {
                     RunTask(model.ValidationTask);
                     // Startup diagnostics are independent of the operation exception below.
@@ -265,9 +272,12 @@ namespace T7R.ManagedHarness
         private static void TestLiveDiagnostics(string directory)
         {
             var bridge = new FakeLauncherBridge { Failure = new string('A', 180) + " token=fixture-secret" };
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "live-diagnostics")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "live-diagnostics")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "Player" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 var dialog = new TextDialog(model);

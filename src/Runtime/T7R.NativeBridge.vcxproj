@@ -27,13 +27,16 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <ModuleDefinitionFile>bridge\T7RNativeBridge.def</ModuleDefinitionFile>
-      <AdditionalDependencies>python314.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bridge\T7RNativeBridge.cpp" />
-    <ClCompile Include="bridge\T7RBattleHost.cpp" />
     <ClCompile Include="bridge\Session.cpp" />
+    <ClCompile Include="bridge\SessionMonitoring.cpp" />
+    <ClCompile Include="bridge\BattleCapture.cpp" />
+    <ClCompile Include="bridge\BattleSnapshotIngress.cpp" />
+    <ClCompile Include="bridge\BattleGatewaySink.cpp" />
     <ClCompile Include="core\Common.cpp" />
     <ClCompile Include="core\DiagnosticLog.cpp" />
     <ClCompile Include="core\Protocol.cpp" />
@@ -42,6 +45,7 @@
     <ClCompile Include="launcher\LobbyNewsHookCode.cpp" />
     <ClCompile Include="launcher\OutputDevice.cpp" />
     <ClCompile Include="launcher\GraphicsSettings.cpp" />
+    <ClCompile Include="launcher\ClientFrameRuntime.cpp" />
     <ClCompile Include="launcher\GraphicsValues.cpp" />
     <ClCompile Include="launcher\GraphicsHookCode.cpp" />
     <ClCompile Include="launcher\AudioSettings.cpp" />
@@ -62,6 +66,7 @@
     <ClCompile Include="launcher\TerrainHookCode.cpp" />
     <ClCompile Include="launcher\BladePoseHookCode.cpp" />
     <ClCompile Include="launcher\BladeSweepHookCode.cpp" />
+    <ClCompile Include="launcher\WeaponGuardHookCode.cpp" />
     <ClCompile Include="launcher\ContactFrameHookCode.cpp" />
     <ClCompile Include="launcher\WeaponTrailHookCode.cpp" />
     <ClCompile Include="bridge\SessionGraphics.cpp" />
@@ -81,16 +86,13 @@
     <ClCompile Include="launcher\MovementResources.cpp" />
     <ClCompile Include="launcher\StartupAnimation.cpp" />
     <ClCompile Include="launcher\MovementHookCode.cpp" />
-    <ClCompile Include="server\Journal.cpp" />
-    <ClCompile Include="server\RunDirectory.cpp" />
-    <ClCompile Include="server\PythonHost.cpp" />
-    <ClCompile Include="server\PythonContext.cpp" />
-    <ClCompile Include="server\Server.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bridge\T7RNativeBridge.h" />
-    <ClInclude Include="bridge\T7RBattleHost.h" />
     <ClInclude Include="bridge\Session.h" />
+    <ClInclude Include="bridge\BattleCapture.h" />
+    <ClInclude Include="bridge\BattleSnapshotIngress.h" />
+    <ClInclude Include="bridge\BattleGatewaySink.h" />
     <ClInclude Include="core\Common.h" />
     <ClInclude Include="core\DiagnosticLog.h" />
     <ClInclude Include="core\PlayerName.h" />
@@ -119,14 +121,6 @@
     <ClInclude Include="launcher\StartupAnimation.h" />
     <ClInclude Include="launcher\MovementHookCode.h" />
     <ClInclude Include="launcher\ProcessCleanup.h" />
-    <ClInclude Include="server\Journal.h" />
-    <ClInclude Include="server\RunDirectory.h" />
-    <ClInclude Include="server\PythonHost.h" />
-    <ClInclude Include="server\PythonContext.h" />
-    <ClInclude Include="server\PythonObjects.h" />
-    <ClInclude Include="server\SendQueue.h" />
-    <ClInclude Include="server\Server.h" />
-    <ClInclude Include="server\ServerTiming.h" />
   </ItemGroup>
   <ItemGroup><None Include="bridge\T7RNativeBridge.def" /><None Include="launcher\ClientImportTable.inc" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

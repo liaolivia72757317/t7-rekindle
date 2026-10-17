@@ -20,7 +20,7 @@ bool verifyNamedSessionExit(const t7r::fs::path& packageRoot, DWORD exitCode, bo
     auto session = t7r::bridge::Session::createForTest(t7r::utf8(packageRoot.wstring()), std::move(adapter));
     uint64_t operationId = 0;
     bool valid = session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()),
-        operationId, u8"重燃玩家", skipStartupAnimation) == T7RNB_OK;
+        operationId, u8"重燃玩家", skipStartupAnimation, {1, 2, 3}) == T7RNB_OK;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     t7r::bridge::Snapshot snapshot;
     do {
@@ -82,7 +82,7 @@ bool verifyFailureCleanup(const t7r::fs::path& packageRoot, bool cancel) {
     auto session = t7r::bridge::Session::createForTest(t7r::utf8(packageRoot.wstring()), std::move(adapter));
     state->session = session;
     uint64_t operationId = 0;
-    bool valid = session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operationId) == T7RNB_OK;
+    bool valid = session->submit(T7RNB_OPERATION_START, t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring()), operationId, u8"新玩家", false, {1, 2, 3}) == T7RNB_OK;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     t7r::bridge::Snapshot snapshot;
     do {
@@ -138,7 +138,7 @@ bool verifyWindowCloseCleanup(const t7r::fs::path& packageRoot, bool failCleanup
         return false;
     };
     uint64_t operationId = 0;
-    bool valid = session->submit(T7RNB_OPERATION_START, directory, operationId) == T7RNB_OK;
+    bool valid = session->submit(T7RNB_OPERATION_START, directory, operationId, u8"新玩家", false, {1, 2, 3}) == T7RNB_OK;
     valid = waitState(T7RNB_STATE_RUNNING) && valid;
     state->closed = true;
     const bool detected = stopping.wait_for(std::chrono::seconds(2)) == std::future_status::ready;
@@ -147,7 +147,7 @@ bool verifyWindowCloseCleanup(const t7r::fs::path& packageRoot, bool failCleanup
         && (snapshot.flags & 1u) == 0;
     if (detected) {
         uint64_t rejected = 0;
-        valid = session->submit(T7RNB_OPERATION_START, directory, rejected) == T7RNB_BUSY && valid;
+        valid = session->submit(T7RNB_OPERATION_START, directory, rejected, u8"新玩家", false, {1, 2, 3}) == T7RNB_BUSY && valid;
         valid = session->submit(T7RNB_OPERATION_CHECK, directory, rejected) == T7RNB_BUSY && valid;
     }
     state->resume.set_value();

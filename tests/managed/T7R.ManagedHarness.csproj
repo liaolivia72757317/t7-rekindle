@@ -8,6 +8,7 @@
     <ApplicationManifest>..\..\src\Desktop\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="..\fixtures\resources\client-cache-v1.vfs" Link="fixtures\client-cache-v1.vfs" CopyToOutputDirectory="PreserveNewest" />
     <Reference Include="System.Net.Http" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />

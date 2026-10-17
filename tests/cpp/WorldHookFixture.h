@@ -18,6 +18,15 @@ inline void word(t7r::Bytes& bytes, uint32_t v) {
 inline void writeWord(HANDLE process, uint32_t address, uint32_t value) {
     t7r::Bytes bytes; word(bytes, value); t7r::writeClientMemory(process, address, bytes);
 }
+inline void requestFrame(HANDLE process) {
+    // The client changes 2 to 1 when the frame completes. A patch-style
+    // readback can race that acknowledgement; callers wait for 1 instead.
+    const uint32_t command = 2;
+    SIZE_T written = 0;
+    if (!WriteProcessMemory(process, reinterpret_cast<void*>(static_cast<uintptr_t>(FRAME_GATE)),
+            &command, sizeof(command), &written) || written != sizeof(command))
+        throw std::runtime_error(t7r::errorText("fixture frame request"));
+}
 inline void prepare(HANDLE process) {
     writeWord(process, BASE + 0x2E405F8, STATE); writeWord(process, STATE + 0x38, 4);
     writeWord(process, BASE + 0x2E37804, INSTANCE); writeWord(process, INSTANCE + 0x68, 1234);
@@ -47,7 +56,7 @@ inline void prepare(HANDLE process) {
     t7r::writeClientMemory(process, BASE + 0x3D11B0, {0xD9,0x81,0xAC,0,0,0,0xC3});
     writeWord(process, TABLE + 0x34, BASE + 0x2956F0); writeWord(process, ANCHOR + 0x14, ANCHOR);
     writeWord(process, TABLE + 0x74, BASE + 0x3D11B0);
-    for (uint32_t i = 0; i < 20; ++i) {
+    for (uint32_t i = 0; i < t7r::MAX_WORLD_ACTORS; ++i) {
         writeWord(process, ENTITY + i * 0x100 + 0x7C, ENTITY);
         writeWord(process, ENTITY + i * 0x100 + 0x80, MOVABLE + i * 0x100);
         writeWord(process, ENTITY + i * 0x100 + 0x84, PLAYER + i * 0x100);
@@ -65,10 +74,17 @@ inline void prepare(HANDLE process) {
         t7r::writeClientMemory(process, CONTROLLER + i * 0x100 + 0xAC, bytes);
     }
 }
-inline t7r::WorldSnapshot read(t7r::ClientWorld& reader) {
+inline std::array<uint8_t, t7r::MAX_WORLD_ACTORS> camps() {
+    std::array<uint8_t, t7r::MAX_WORLD_ACTORS> result{};
+    result.fill(1);
+    for (size_t i = 1; i <= 10; ++i) result[i] = 2;
+    return result;
+}
+inline t7r::WorldSnapshot read(t7r::ClientWorld& reader,
+        const std::array<uint8_t, t7r::MAX_WORLD_ACTORS>& actorCamps = camps()) {
     t7r::WorldSnapshot value;
     const auto deadline = GetTickCount64() + 3000;
-    while (!reader.poll(value)) {
+    while (!reader.poll(value, actorCamps)) {
         if (GetTickCount64() >= deadline) throw std::runtime_error("world fixture response timeout");
         Sleep(5);
     }
@@ -87,6 +103,8 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
     if (!value.actors[19].ready || value.actors[19].position != std::array<float, 3>{289,169,.25f})
         throw std::runtime_error("world dropped last actor: ready=" + std::to_string(value.actors[19].ready)
             + " heading=" + std::to_string(value.actors[19].heading) + " position=" + std::to_string(value.actors[19].position[0]));
+    if (!value.actors[59].ready || value.actors[59].position != std::array<float, 3>{329,209,.25f})
+        throw std::runtime_error("world dropped native actor 60");
     // A dead/choosing local player must not suspend the rest of the battle.
     writeWord(process, PLAYER + 0x34, 0);
     for (uint32_t state : {3u, 1u}) {

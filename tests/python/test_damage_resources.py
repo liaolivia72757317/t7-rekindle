@@ -1,8 +1,33 @@
+import struct
+
 import pytest
 
 from Business.scripts import battle, damage_resources as damage
 from Business.scripts.combat_profile_data import HERO_WEAPONS
 from Business.scripts.damage_data import HEROES, WEAPONS
+
+
+def test_offline_damage_export_selects_dash_instead_of_war_skill(monkeypatch):
+    from loadout_fixture import catalogue
+    weapon, attr, hero, heroAttr = bytearray(2829), bytearray(554), bytearray(7286), bytearray(420)
+    struct.pack_into('<I', weapon, 4, 701)
+    struct.pack_into('<3i', attr, 0x18e, 20, 10, 5)
+    for index, amount in enumerate((20, 10, 5)):
+        struct.pack_into('<3hf', attr, 46 + index * 10, 1, 10 + index, 1, amount)
+    struct.pack_into('<I', hero, 0x1069, 1101)
+    struct.pack_into('<i', heroAttr, 0x2c, 137)
+    struct.pack_into('<i', heroAttr, 0x48, 63)
+    tables = {'s_weapon_cli': {701: weapon}, 's_weapon_attr': {701: attr},
+              's_heroscard_cli': {1101: hero}, 's_hero_attr': {1101: heroAttr},
+              's_res_buff_cli': {}, 's_res_feature_cli': {}}
+    parameters = {(2, 0, 2, direction, 2): [{'伤害ID': str(100 + direction)}] for direction in (1, 2, 3, 4)}
+    parameters.update({(6, 0, 2, 13, 2): [{'伤害ID': '215'}], (6, 0, 2, 32, 2): [{'伤害ID': '999'}]})
+    monkeypatch.setattr(damage.hero_resources, 'loadCatalogue', lambda _: catalogue())
+    monkeypatch.setattr(damage, 'clientTable', lambda directory, name, width: tables[name])
+    monkeypatch.setattr(damage.combat_resources, 'resourceTables', lambda _: (parameters, b''))
+    _, heroes, actions = damage.extract('fixture', {1101: {701: 0}})
+    assert heroes[1101] == (1101, 63, (), 137)
+    assert actions[2][700250] == 215
 
 
 def test_static_export_covers_current_roster_without_reading_client(monkeypatch):
@@ -38,6 +63,18 @@ def test_original_values_and_project_rules_are_distinguished():
     assert all(value['base'] == 20 and value['damageType'] == 'blunt' for value in fist['attacks'].values())
     assert damage.loadProfile(1101, (100000, 1030411))['armor'] == 63
     assert damage.weaponProfile(1090111)['shieldMax'] == 125
+
+
+def test_hero_health_uses_original_base_attribute():
+    for heroId, expected in ((1001, 99), (1101, 110)):
+        profile = damage.loadProfile(heroId, (100000,))
+        assert profile['maxHealth'] == expected
+        assert profile['healthSource'] == 'client'
+
+
+@pytest.mark.parametrize('weaponId,damageId', [(1030411, 103039), (1040321, 104038), (1040322, 104038)])
+def test_dash_damage_identifier_comes_from_action_type_13(weaponId, damageId):
+    assert damage.weaponProfile(weaponId)['attacks']['700250']['damageId'] == damageId
 
 
 def test_bound_traits_are_not_applied_globally():

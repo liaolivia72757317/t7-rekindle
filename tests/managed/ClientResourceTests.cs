@@ -22,11 +22,12 @@ namespace T7R.ManagedHarness
         }
 
         private static MainWindowViewModel Model(string root, FakeLauncherBridge bridge,
-            Func<string, Task<ClientVersionResult>> readVersion = null) => new MainWindowViewModel(
-                bridge, new SettingsService(Path.Combine(root, "settings")),
-                new UserSettings { ClientDirectory = root, PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
-                readClientVersion: readVersion ?? (path => Task.FromResult(ClientVersionService.Read(path))));
+            Func<string, Task<ClientVersionResult>> readVersion = null) => new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(root, "settings")),
+                new UserSettings { ClientDirectory = root, PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))) { Version = readVersion ?? (path => Task.FromResult(ClientVersionService.Read(path))) },
+                new FakeDesktopInteraction());
 
         private static void TestMetadata(string root)
         {

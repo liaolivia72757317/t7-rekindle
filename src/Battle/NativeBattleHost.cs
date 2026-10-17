@@ -1,23 +1,23 @@
 using System;
-using System.ComponentModel;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
+using System.Threading;
+using System.Threading.Tasks;
 using T7R.Core;
 
 namespace T7R.Battle
 {
-    // Shared by the launcher-side host and the headless console. No WPF or game
-    // process lifecycle belongs here. Native release joins its workers first.
+    // Headless host of the same Rust gateway used by the desktop session.
     public sealed class NativeBattleHost : IDisposable
     {
+        private static long _nextEpoch = DateTime.UtcNow.Ticks;
         private readonly object _sync = new object();
-        private readonly LibraryHandle _library;
-        private readonly HostHandle _host;
-        private readonly HostCall _start, _stop;
-        private readonly SnapshotCall _snapshot;
-        private readonly ErrorCall _error;
+        private BattleRearmCoordinator _rearm = new BattleRearmCoordinator();
+        private readonly string _library, _clientDirectory, _writableRoot;
+        private ClientGateway _gateway;
+        private CancellationTokenSource _cancellation;
+        private Task _monitor;
+        private string _failure = string.Empty;
         private bool _disposed;
 
         public NativeBattleHost(string packageRoot, string clientDirectory, string writableRoot)
@@ -25,161 +25,136 @@ namespace T7R.Battle
             ValidatePath(packageRoot, nameof(packageRoot));
             ValidatePath(clientDirectory, nameof(clientDirectory));
             ValidatePath(writableRoot, nameof(writableRoot));
-            if (IntPtr.Size != 8 || Marshal.SizeOf<NativeBattleHostCreateArgs>() != 80
-                || Marshal.SizeOf<NativeBattleHostSnapshot>() != 104)
-                throw new PlatformNotSupportedException("Battle host requires the x64 ABI.");
-            _library = new LibraryHandle(Path.Combine(packageRoot, NativeBridgeContract.LibraryName));
-            try
-            {
-                var create = Function<CreateCall>("t7r_battle_host_create");
-                var release = Function<ReleaseCall>("t7r_battle_host_release");
-                _start = Function<HostCall>("t7r_battle_host_start");
-                _stop = Function<HostCall>("t7r_battle_host_stop");
-                _snapshot = Function<SnapshotCall>("t7r_battle_host_snapshot");
-                _error = Function<ErrorCall>("t7r_battle_host_error");
-                using (var root = new Utf8Path(packageRoot))
-                using (var client = new Utf8Path(clientDirectory))
-                using (var writable = new Utf8Path(writableRoot))
-                {
-                    var args = new NativeBattleHostCreateArgs
-                    {
-                        AbiVersion = NativeBridgeContract.AbiVersion, StructSize = 80,
-                        PackageRoot = root.Value, ClientDirectory = client.Value, WritableRoot = writable.Value
-                    };
-                    IntPtr handle;
-                    var status = create(ref args, out handle);
-                    if (status != NativeStatus.Ok) throw new InvalidOperationException("Create battle host: " + status);
-                    _host = new HostHandle(handle, _library, release);
-                }
-            }
-            catch { _library.Dispose(); throw; }
+            _library = Path.Combine(packageRoot, "t7r_battle_ffi.dll");
+            _clientDirectory = clientDirectory;
+            _writableRoot = writableRoot;
         }
 
-        public void Start() { lock (_sync) { EnsureOpen(); Check(_start(_host)); } }
-        public void Stop() { lock (_sync) { EnsureOpen(); Check(_stop(_host)); } }
+        public void Start()
+        {
+            lock (_sync)
+            {
+                EnsureOpen();
+                if (_gateway != null) throw new InvalidOperationException("Battle host is already started.");
+                _failure = string.Empty;
+                _rearm = new BattleRearmCoordinator();
+                try
+                {
+                    var directory = new DirectoryInfo(_clientDirectory);
+                    var root = directory.Name.Equals("Bin", StringComparison.OrdinalIgnoreCase) ? directory.Parent.FullName : directory.FullName;
+                    string version;
+                    using (var reader = new StreamReader(Path.Combine(root, "update.lst"), new UTF8Encoding(false, true)))
+                        version = reader.ReadLine()?.Trim();
+                    var resources = new LocalResourceOptions(_clientDirectory, Path.Combine(_writableRoot, "battle-cache"), 1, 1, version);
+                    _gateway = ClientGateway.CreateLocalProfiledAsync(_library, resources, PlayerNameRules.DefaultName,
+                        Path.Combine(_writableRoot, "player-profile.json")).GetAwaiter().GetResult();
+                    var epoch = NextEpoch();
+                    _gateway.StartAsync(epoch).GetAwaiter().GetResult();
+                    _gateway.StartLocalBattleAsync(epoch, 1, unchecked((uint)epoch)).GetAwaiter().GetResult();
+                    _cancellation = new CancellationTokenSource();
+                    var gateway = _gateway;
+                    var token = _cancellation.Token;
+                    gateway.SetProfileChangedHandler(cancellation => RearmAsync(gateway, false, cancellation));
+                    _monitor = Task.Run(() => MonitorAsync(gateway, token));
+                }
+                catch (Exception error)
+                {
+                    _failure = error.Message;
+                    try { StopCore(); }
+                    catch (Exception cleanup) { throw new AggregateException(error, cleanup); }
+                    throw new InvalidOperationException("Rust battle host startup failed: " + error.Message, error);
+                }
+            }
+        }
+
+        private static ulong NextEpoch() => checked((ulong)Interlocked.Increment(ref _nextEpoch));
+
+        private async Task MonitorAsync(ClientGateway gateway, CancellationToken cancellation)
+        {
+            while (true)
+            {
+                await Task.Delay(100, cancellation).ConfigureAwait(false);
+                if (gateway.Completion.IsCompleted) await gateway.Completion.ConfigureAwait(false);
+                await RearmAsync(gateway, true, cancellation).ConfigureAwait(false);
+            }
+        }
+
+        private Task RearmAsync(ClientGateway gateway, bool returned, CancellationToken cancellation) =>
+            _rearm.TryRearmAsync(
+                () => ReferenceEquals(_gateway, gateway)
+                    && (returned ? gateway.BattleReturnedToRoom() : gateway.TryReserveBattleRearm()),
+                async token =>
+                {
+                    await gateway.StopBattleAsync().ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    var epoch = NextEpoch();
+                    await gateway.StartLocalBattleAsync(epoch, 1, unchecked((uint)epoch)).ConfigureAwait(false);
+                }, cancellation);
+
+        public void Stop() { lock (_sync) { EnsureOpen(); StopCore(); } }
+
+        private void StopCore()
+        {
+            // Drain both monitor and profile-triggered rebuilds before gateway disposal takes its lifecycle lock.
+            _rearm.StopAsync(() => _gateway?.SetProfileChangedHandler(null)).GetAwaiter().GetResult();
+            _cancellation?.Cancel();
+            try
+            {
+                if (_monitor != null)
+                {
+                    try { _monitor.GetAwaiter().GetResult(); }
+                    catch (OperationCanceledException) when (_cancellation.IsCancellationRequested) { }
+                }
+            }
+            finally
+            {
+                _monitor = null;
+                _cancellation?.Dispose(); _cancellation = null;
+                var gateway = _gateway;
+                if (gateway != null) { gateway.Dispose(); _gateway = null; }
+            }
+        }
 
         public BattleHostSnapshot GetSnapshot()
         {
             lock (_sync)
             {
                 EnsureOpen();
-                var snapshot = new NativeBattleHostSnapshot { AbiVersion = NativeBridgeContract.AbiVersion, StructSize = 104 };
-                Check(_snapshot(_host, ref snapshot));
-                var length = Array.IndexOf(snapshot.Phase, (byte)0);
-                return new BattleHostSnapshot(snapshot, Encoding.UTF8.GetString(snapshot.Phase, 0,
-                    length < 0 ? snapshot.Phase.Length : length));
+                var value = _gateway?.GetSnapshot();
+                var failed = _failure.Length != 0 || value?.HasFailed == true || _monitor?.IsFaulted == true || _gateway?.Completion.IsFaulted == true;
+                var running = !failed && value?.IsRunning == true;
+                return new BattleHostSnapshot(new NativeBattleHostSnapshot
+                {
+                    State = failed ? BattleHostState.Failed : running ? BattleHostState.Running : BattleHostState.Stopped,
+                    LoginPort = value?.LoginPort ?? 0, LogicPort = value?.LogicPort ?? 0, InstancePort = value?.InstancePort ?? 0,
+                    Connections = value?.ActiveConnections ?? 0
+                }, failed ? "failed" : running ? "running" : "stopped");
             }
         }
 
-        public string GetError() { lock (_sync) { EnsureOpen(); return ReadError(); } }
+        public string GetError()
+        {
+            lock (_sync)
+            {
+                EnsureOpen();
+                return _monitor?.Exception?.GetBaseException().Message ?? _gateway?.Completion.Exception?.GetBaseException().Message
+                    ?? (_failure.Length != 0 ? _failure : _gateway?.GetError() ?? string.Empty);
+            }
+        }
 
         public void Dispose()
         {
             lock (_sync)
             {
                 if (_disposed) return;
+                StopCore();
                 _disposed = true;
-                _host.Dispose();
-                _library.Dispose();
             }
         }
-
-        private void Check(NativeStatus status)
-        {
-            if (status != NativeStatus.Ok)
-                throw new InvalidOperationException("Battle host: " + status + ". " + ReadError());
-        }
-
-        private string ReadError()
-        {
-            uint required;
-            var status = _error(_host, null, 0, out required);
-            if (status == NativeStatus.Ok && required == 0) return string.Empty;
-            if (status != NativeStatus.BufferTooSmall || required > 1024 * 1024)
-                throw new InvalidOperationException("Read battle error: " + status);
-            var bytes = new byte[required];
-            status = _error(_host, bytes, required, out required);
-            if (status != NativeStatus.Ok) throw new InvalidOperationException("Read battle error: " + status);
-            return Encoding.UTF8.GetString(bytes, 0, checked((int)required));
-        }
-
-        private T Function<T>(string name) where T : Delegate
-        {
-            var address = GetProcAddress(_library, name);
-            if (address == IntPtr.Zero) throw new EntryPointNotFoundException(name);
-            return Marshal.GetDelegateForFunctionPointer<T>(address);
-        }
-
-        private void EnsureOpen()
-        {
-            if (_disposed) throw new ObjectDisposedException(nameof(NativeBattleHost));
-        }
-
+        private void EnsureOpen() { if (_disposed) throw new ObjectDisposedException(nameof(NativeBattleHost)); }
         private static void ValidatePath(string value, string name)
         {
-            if (!NativeBridgeContract.IsUtf8PathAcceptable(value))
-                throw new ArgumentException("Expected an absolute UTF-8 path.", name);
+            if (!NativeBridgeContract.IsUtf8PathAcceptable(value)) throw new ArgumentException("Expected an absolute UTF-8 path.", name);
         }
-
-        private sealed class Utf8Path : IDisposable
-        {
-            public NativePath Value { get; }
-            public Utf8Path(string value)
-            {
-                var bytes = new UTF8Encoding(false, true).GetBytes(value);
-                var pointer = Marshal.AllocHGlobal(bytes.Length);
-                Marshal.Copy(bytes, 0, pointer, bytes.Length);
-                Value = new NativePath { AbiVersion = 1, StructSize = 24, Data = pointer, Length = (uint)bytes.Length };
-            }
-            public void Dispose() { Marshal.FreeHGlobal(Value.Data); }
-        }
-
-        private sealed class LibraryHandle : SafeHandleZeroOrMinusOneIsInvalid
-        {
-            public LibraryHandle(string path) : base(true)
-            {
-                SetHandle(LoadLibraryEx(path, IntPtr.Zero, 0x100 | 0x800));
-                if (IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error(), "Loading battle runtime failed.");
-            }
-            protected override bool ReleaseHandle() { return FreeLibrary(handle); }
-        }
-
-        private sealed class HostHandle : SafeHandleZeroOrMinusOneIsInvalid
-        {
-            private readonly LibraryHandle _library;
-            private readonly ReleaseCall _release;
-            public HostHandle(IntPtr value, LibraryHandle library, ReleaseCall release) : base(true)
-            {
-                bool retained = false;
-                library.DangerousAddRef(ref retained);
-                _library = library;
-                _release = release;
-                SetHandle(value);
-            }
-            protected override bool ReleaseHandle()
-            {
-                var status = _release(handle);
-                _library.DangerousRelease();
-                return status == NativeStatus.Ok;
-            }
-        }
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate NativeStatus CreateCall(ref NativeBattleHostCreateArgs args, out IntPtr host);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate NativeStatus HostCall(HostHandle host);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate NativeStatus ReleaseCall(IntPtr host);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate NativeStatus SnapshotCall(HostHandle host, ref NativeBattleHostSnapshot snapshot);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate NativeStatus ErrorCall(HostHandle host, [Out] byte[] buffer, uint capacity, out uint required);
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr LoadLibraryEx(string path, IntPtr file, uint flags);
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
-        private static extern IntPtr GetProcAddress(LibraryHandle library, string name);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool FreeLibrary(IntPtr library);
     }
 }
