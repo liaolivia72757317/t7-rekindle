@@ -456,18 +456,6 @@ impl State {
                 outputs,
             ));
         }
-        if chamber
-            && (e.occurred_at_ms < e.phase_at_ms as f64
-                || 3. * (e.occurred_at_ms - e.phase_at_ms as f64)
-                    > f64::from(swing.strike_duration_ms))
-        {
-            return Ok(reject_guard(
-                e,
-                swing,
-                GuardRejectReason::ChamberWindow,
-                outputs,
-            ));
-        }
         let Some(defence) = defender.resources.damage.weapons.get(&e.defence_weapon_id) else {
             return Ok(reject_guard(
                 e,

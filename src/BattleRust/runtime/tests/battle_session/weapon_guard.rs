@@ -45,6 +45,14 @@ fn strike_session(
 }
 
 fn guard_session(strike_duration_ms: u16, grade: &str) -> BattleSession {
+    guard_session_with_contact_window(strike_duration_ms, grade, [70, strike_duration_ms - 50])
+}
+
+fn guard_session_with_contact_window(
+    strike_duration_ms: u16,
+    grade: &str,
+    contact_window: [u16; 2],
+) -> BattleSession {
     let mut raw: serde_json::Value = serde_json::from_slice(include_bytes!(
         "../../../../../tests/fixtures/resources/bundle-v1.json"
     ))
@@ -53,7 +61,8 @@ fn guard_session(strike_duration_ms: u16, grade: &str) -> BattleSession {
     for id in ["300540", "300550", "300560", "300570"] {
         let profile = &mut raw["combatProfiles"]["1101"]["701"]["attacks"][id];
         profile["phases"][2] = serde_json::json!(strike_duration_ms);
-        profile["contactEndMs"] = serde_json::json!(strike_duration_ms - 50);
+        profile["contactStartMs"] = serde_json::json!(contact_window[0]);
+        profile["contactEndMs"] = serde_json::json!(contact_window[1]);
     }
     let bundle = ResourceBundle::from_slice(&serde_json::to_vec(&raw).unwrap()).unwrap();
     BattleSession::new(
@@ -250,47 +259,59 @@ fn pending_guard_break_does_not_transfer_to_a_replaced_entity_or_a_stopped_swing
 }
 
 #[test]
-fn chamber_window_scales_with_full_strike_duration_and_reports_rejections() {
-    use t7r_battle_runtime::battle_session::{GuardRejectReason, ParryOutcome};
-    for duration in [300, 602, 1200] {
-        for offset in [0, 1] {
-            let elapsed = u64::from(duration / 3) + offset;
-            let (mut battle, due, sequence) = strike_session(
-                guard_session(duration, "C"),
-                Intent::Attack(Direction::Down),
-                elapsed,
-            );
-            let at = due + elapsed;
-            let mut volume = contact(sequence, due, at as f64);
-            volume.guard_volume = true;
-            volume.region = Region::None;
-            volume.defence_weapon_id = 701;
-            volume.target_intent = Some(Intent::Attack(Direction::Up));
-            volume.target_phase = Phase::Prepare;
-            let output = settle(&mut battle, at, vec![volume]);
-            assert_eq!(
-                output.iter().any(|e| matches!(
-                    e,
-                    Output::Parry {
-                        outcome: ParryOutcome::Chambered,
-                        ..
-                    }
-                )),
-                offset == 0
-            );
-            assert_eq!(
-                output.iter().any(|e| matches!(e, Output::GuardRejected {
-                reason: GuardRejectReason::ChamberWindow, strike_duration_ms, evidence
-            } if *strike_duration_ms == duration && evidence.guard_volume)),
-                offset == 1
-            );
+fn chamber_accepts_late_strike_contacts_within_configured_contact_window() {
+    use t7r_battle_runtime::battle_session::ParryOutcome;
+    for duration in [300_u16, 602, 1200] {
+        for [start, end] in [[0, duration], [70, duration - 50]] {
+            for elapsed in [
+                0,
+                start.saturating_sub(1),
+                start,
+                duration / 3,
+                duration / 3 + 1,
+                end,
+                end + 1,
+                duration,
+                duration + 1,
+            ] {
+                let (mut battle, due, sequence) = strike_session(
+                    guard_session_with_contact_window(duration, "C", [start, end]),
+                    Intent::Attack(Direction::Down),
+                    u64::from(elapsed),
+                );
+                let at = due + u64::from(elapsed);
+                let mut volume = contact(sequence, due, at as f64);
+                volume.guard_volume = true;
+                volume.region = Region::None;
+                volume.defence_weapon_id = 701;
+                volume.target_intent = Some(Intent::Attack(Direction::Up));
+                volume.target_phase = Phase::Prepare;
+                let output = settle(&mut battle, at, vec![volume]);
+                assert_eq!(
+                    output.iter().any(|e| matches!(
+                        e,
+                        Output::Parry {
+                            outcome: ParryOutcome::Chambered,
+                            ..
+                        }
+                    )),
+                    (start..=end).contains(&elapsed),
+                    "strike duration={duration}, contact window={start}..={end}, elapsed={elapsed}"
+                );
+                assert!(
+                    !output
+                        .iter()
+                        .any(|e| matches!(e, Output::GuardRejected { .. })),
+                    "strike duration={duration}, contact window={start}..={end}, elapsed={elapsed}"
+                );
+            }
         }
     }
 }
 
 #[test]
-fn chamber_uses_attacker_first_third_instead_of_defender_elapsed() {
-    for elapsed in [70, 150, 200, 201, 250] {
+fn chamber_requires_defender_prepare_not_preparation_age() {
+    for elapsed in [70, 150, 200, 201, 250, 550] {
         for preparation_age in [0, 49, 50, 201, 400] {
             for phase in [Phase::Prepare, Phase::Hold, Phase::Strike] {
                 let (mut battle, due, sequence) =
@@ -307,7 +328,7 @@ fn chamber_uses_attacker_first_third_instead_of_defender_elapsed() {
                 let output = settle(&mut battle, at, vec![weapon]);
                 assert_eq!(
                     output.iter().any(|e| matches!(e, Output::Parry { .. })),
-                    elapsed <= 200 && phase == Phase::Prepare,
+                    phase == Phase::Prepare,
                     "attack elapsed={elapsed}, preparation age={preparation_age}, phase={phase:?}"
                 );
             }
@@ -430,7 +451,7 @@ fn prestart_target_phase_preserves_idle_guard_and_chamber_outcomes() {
     for (intent, phase, parried) in [
         (None, Phase::Idle, false),
         (Some(Intent::Guard(Direction::Down)), Phase::Hold, true),
-        (Some(Intent::Attack(Direction::Up)), Phase::Prepare, false),
+        (Some(Intent::Attack(Direction::Up)), Phase::Prepare, true),
     ] {
         let (mut battle, due, sequence) = striking(Intent::Attack(Direction::Down));
         let at = due + 250;
