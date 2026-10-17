@@ -54,7 +54,7 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
     auto require = [](bool value, const char* message) { if (!value) throw std::runtime_error(message); };
     writeWord(process, worldFixture::FRAME_GATE, 1); Sleep(30);
     auto step = [&](uint32_t command = 0) {
-        writeWord(process, COMMAND, command); writeWord(process, worldFixture::FRAME_GATE, 2);
+        writeWord(process, COMMAND, command); worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             require(GetTickCount64() < deadline, "round end frame timeout"); Sleep(1);

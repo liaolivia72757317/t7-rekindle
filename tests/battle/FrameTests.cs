@@ -22,7 +22,7 @@ namespace T7R.BattleHarness
             Program.Check(frame.GetPayload()[0] == 11, "payload ownership");
             var encoded = BattleFrameCodec.Encode(frame);
             Program.Check(encoded[3] == 39 && encoded[8] == 1 && encoded[15] == 8, "big-endian format");
-            var decoded = BattleFrameCodec.Decode(encoded.Skip(4).ToArray());
+            var decoded = BattleFrameCodec.DecodeBody(encoded.Skip(4).ToArray());
             Program.Check(decoded.RoomId == frame.RoomId && decoded.Sequence == ulong.MaxValue
                 && decoded.Channel == BattleChannel.Instance && decoded.GetPayload().SequenceEqual(frame.GetPayload()), "frame round trip");
             var copy = decoded.GetPayload(); copy[0] = 99;
@@ -33,7 +33,7 @@ namespace T7R.BattleHarness
             foreach (int index in new[] { 0, 1, 2, 3 })
             {
                 var invalid = encoded.Skip(4).ToArray(); invalid[index] = 255;
-                Program.Throws<InvalidDataException>(() => BattleFrameCodec.Decode(invalid));
+                Program.Throws<InvalidDataException>(() => BattleFrameCodec.DecodeBody(invalid));
             }
             Program.Throws<ArgumentException>(() => new BattleFrame(BattleMessageKind.GameData, BattleChannel.None, 1, 1, 1, 1, payload));
             Program.Throws<ArgumentOutOfRangeException>(() => new BattleFrame(BattleMessageKind.WorldSample, BattleChannel.None,

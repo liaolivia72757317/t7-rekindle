@@ -147,7 +147,7 @@ def test_independent_timers_and_full_roster_survive_reload_then_leave(multi, tmp
         battle.startAction(multi, 300560, released=True, actorId=rid)
     timers = deepcopy(multi.session["pending"])
     assert len({battle.actionTimer(rid) for rid in range(1, 21)}) == 20
-    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / "src/Business/scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / "tests/reference/Business/scripts", tmp_path / "revisions")
     try:
         runtime.prepare()
         state = runtime.switch(host_runtime.encode(multi.state))

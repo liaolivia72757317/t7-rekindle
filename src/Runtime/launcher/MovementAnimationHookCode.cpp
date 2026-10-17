@@ -87,6 +87,7 @@ Bytes buildMovementAnimationHook(uint32_t address, uint32_t imageBase, uint32_t,
         c.emit({0x81,0xB8}); c.word(0x98); c.word(static_cast<uint32_t>(profile.weaponId));
         native.push_back(c.branch(0x85));
     }
+    c.emit({0x83,0xFB,1}); const auto weaponChange = c.branch(0x84);
     c.emit({0x83,0xFB,2}); const auto idle = c.branch(0x84);
     std::vector<size_t> shield;
     if (dynamicProfiles) for (uint32_t state : {95u, 309u}) {
@@ -96,7 +97,7 @@ Bytes buildMovementAnimationHook(uint32_t address, uint32_t imageBase, uint32_t,
     c.emit({0x83,0xF8,3}); const auto holding = c.branch(0x86);
     c.emit({0x8D,0x83}); c.word(static_cast<uint32_t>(-305));
     c.emit({0x83,0xF8,3}); native.push_back(c.branch(0x87));
-    c.bind(idle); c.bind(holding);
+    c.bind(weaponChange); c.bind(idle); c.bind(holding);
     for (auto branch : shield) c.bind(branch);
     c.emit({0x8B,0x46,0x60,0x8D,0x50,0xFF,0x83,0xFA,7}); native.push_back(c.branch(0x87));
     c.emit({0x33,0xFF}); // EDI selects established running, independently of physical velocity.
@@ -112,7 +113,9 @@ Bytes buildMovementAnimationHook(uint32_t address, uint32_t imageBase, uint32_t,
     c.emit({0x8D,0x48,0xFC,0x83,0xF9,2}); const auto notBackward = c.branch(0x87);
     coordinate(20); c.bind(notBackward);
     std::vector<size_t> slow;
+    c.emit({0x83,0xFB,1}); const auto weaponChangeGait = c.branch(0x84);
     c.emit({0x83,0xFB,2}); slow.push_back(c.branch(0x85));
+    c.bind(weaponChangeGait);
     c.emit({0x83,0x3D}); c.word(data + 16); c.emit({2}); slow.push_back(c.branch(0x85));
     c.emit({0x83,0xF8,2}); const auto forward = c.branch(0x86);
     c.emit({0x83,0xF8,8}); slow.push_back(c.branch(0x85));

@@ -20,6 +20,8 @@ namespace T7R.ManagedHarness
         public int OutputDeviceSetCount { get; private set; }
         public void SetOutputDevice(Guid identifier) { OutputDevice = identifier; OutputDeviceSetCount++; }
         public SessionSnapshot Snapshot { get; set; } = new SessionSnapshot { State = SessionState.Idle, CleanupComplete = true };
+        public RuntimeSessionStatus RuntimeStatus { get; set; } = new RuntimeSessionStatus(false);
+        public RuntimeSessionStatus GetRuntimeStatus() => RuntimeStatus;
         public bool HoldStart { get; set; }
         public string Failure { get; set; }
         public bool Cancelled { get; private set; }
@@ -27,6 +29,8 @@ namespace T7R.ManagedHarness
         public string StartedDirectory { get; private set; }
         public bool StartedSkipStartupAnimation { get; private set; }
         public int StartCount { get; private set; }
+        public int StopCount { get; private set; }
+        public Exception StopError { get; set; }
         public int CheckCount { get; private set; }
         public TaskCompletionSource<OperationSnapshot> PendingCheck { get; set; }
         public TaskCompletionSource<OperationSnapshot> PendingStart { get; set; }
@@ -74,10 +78,14 @@ namespace T7R.ManagedHarness
                 return pending.Task;
             }
             Snapshot = new SessionSnapshot { State = SessionState.Running };
+            RuntimeStatus = new RuntimeSessionStatus(true);
             return Task.FromResult(new OperationSnapshot { Status = OperationStatus.Succeeded });
         }
         public Task<OperationSnapshot> StopAsync(CancellationToken token)
         {
+            StopCount++;
+            if (StopError != null) throw StopError;
+            RuntimeStatus = new RuntimeSessionStatus(false);
             Snapshot = new SessionSnapshot { State = SessionState.Idle, CleanupComplete = true };
             return Task.FromResult(new OperationSnapshot { Status = OperationStatus.Succeeded });
         }

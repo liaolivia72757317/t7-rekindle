@@ -14,9 +14,9 @@
 | 托管运行时 | .NET Framework 4.8 或兼容的更高版本；仅运行程序不需要 Developer Pack |
 | 图形能力 | 预检要求 Direct3D 9 硬件设备支持 Pixel Shader 3.0 和 Vertex Shader 3.0 |
 | 游戏客户端 | 自行准备与下述基线匹配的原版 x86 客户端及完整资源 |
-| 启动器文件 | 完整产品目录；包含原生 DLL、托管依赖、嵌入式 Python 和业务脚本 |
+| 启动器文件 | 完整产品目录；包含原生 DLL、托管依赖、Rust 战斗 DLL 与静态新闻 |
 
-.NET Framework 运行时可从 [Microsoft 下载页](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48)获取。完整产品包自带 Python；仅运行启动器不需要安装 Python、Visual Studio 或 .NET SDK。
+.NET Framework 运行时可从 [Microsoft 下载页](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48)获取。产品不使用 Python；仅运行启动器不需要安装 Python、Visual Studio 或 .NET SDK。
 
 项目尚未正式发布。从源码制作程序包见[开发与交付](development.md)；使用 CI 产物时，应先查看对应提交的测试结果和已知限制。
 

@@ -113,7 +113,7 @@ def test_recheck_drops_cached_success_and_can_retry(client):
 
 
 def test_revision_preflight_uses_same_resource_loaders_and_retires_cache(client, tmp_path, monkeypatch):
-    business = Path(__file__).resolve().parents[2] / 'src/Business'
+    business = Path(__file__).resolve().parents[2] / 'tests/reference/Business'
     runtime = Runtime(business / 'scripts', tmp_path / 'revisions')
     revision = runtime.active.path
     try:

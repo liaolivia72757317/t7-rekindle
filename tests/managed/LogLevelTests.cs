@@ -105,9 +105,13 @@ namespace T7R.ManagedHarness
 
         private static MainWindowViewModel CreateModel(FakeLauncherBridge bridge, SettingsService service, UserSettings settings,
             PreviewAccessService previewAccess = null, FakeDesktopInteraction interaction = null)
-            => new MainWindowViewModel(bridge, service, settings, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction ?? new FakeDesktopInteraction(),
-                checkChannelUpdate: channel => Task.FromResult(new LauncherUpdateInfo { Channel = channel }),
+            => new MainWindowViewModel(bridge,
+                service,
+                settings,
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction ?? new FakeDesktopInteraction(),
+                updates: new LauncherUpdateFactory(check: channel => Task.FromResult(new LauncherUpdateInfo { Channel = channel })),
                 previewAccess: previewAccess);
 
         private static void TestPreference(string directory, string output)

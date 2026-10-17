@@ -1,9 +1,12 @@
 #include "T7RNativeBridge.h"
 #include "Session.h"
 #include "../core/Common.h"
+#include "../launcher/CombatProfileHookCode.h"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <memory>
+#include <set>
 
 struct T7RNativeSessionOpaque {
     std::shared_ptr<t7r::bridge::Session> value;
@@ -48,7 +51,9 @@ int32_t guard(F&& action) noexcept {
 }
 
 int32_t submitStart(T7RNativeSessionHandle handle, const T7RNativeStartArgs* args,
-                    uint64_t* operationId, bool skipStartupAnimation) {
+                    uint64_t* operationId, bool skipStartupAnimation,
+                    std::array<uint16_t, 3> gatewayPorts = {},
+                    std::vector<t7r::CombatProfile> profiles = {}) {
     if (!operationId) return T7RNB_INVALID_ARGUMENT;
     *operationId = 0;
     if (!args) return T7RNB_INVALID_ARGUMENT;
@@ -57,7 +62,8 @@ int32_t submitStart(T7RNativeSessionHandle handle, const T7RNativeStartArgs* arg
     std::string directory, name;
     status = copyUtf8(args->clientDirectory, args->clientDirectoryLength, directory); if (status != T7RNB_OK) return status;
     status = copyUtf8(args->playerName, args->playerNameLength, name); if (status != T7RNB_OK) return status;
-    return session->submit(T7RNB_OPERATION_START, std::move(directory), *operationId, std::move(name), skipStartupAnimation);
+    return session->submit(T7RNB_OPERATION_START, std::move(directory), *operationId,
+                           std::move(name), skipStartupAnimation, gatewayPorts, std::move(profiles));
 }
 }
 
@@ -209,6 +215,31 @@ extern "C" int32_t T7RNB_CALL t7r_native_submit_stop(T7RNativeSessionHandle hand
     });
 }
 
+extern "C" int32_t T7RNB_CALL t7r_native_attach_battle(T7RNativeSessionHandle handle,
+                                                          const T7RNativeBattleAttachArgs* args) {
+    return guard([&]() -> int32_t {
+        if (!args || !args->config || !args->gatewayHandle) return T7RNB_INVALID_ARGUMENT;
+        if (!validHeader(args->abiVersion, args->structSize, sizeof(*args))
+            || args->config->abiVersion != T7R_BATTLE_CONFIG_ABI_VERSION
+            || args->config->structSize != sizeof(T7RBattleConfig)) return T7RNB_INVALID_ABI;
+        std::shared_ptr<Session> session;
+        auto status = checkSession(handle, session);
+        if (status != T7RNB_OK) return status;
+        std::string path;
+        status = copyPath(&args->rustLibrary, path, false);
+        if (status != T7RNB_OK) return status;
+        return session->attachBattle(*args->config, std::filesystem::path(t7r::wide(path)), args->gatewayHandle);
+    });
+}
+
+extern "C" int32_t T7RNB_CALL t7r_native_detach_battle(T7RNativeSessionHandle handle) {
+    return guard([&]() -> int32_t {
+        std::shared_ptr<Session> session;
+        const auto status = checkSession(handle, session);
+        return status == T7RNB_OK ? session->detachBattle() : status;
+    });
+}
+
 extern "C" int32_t T7RNB_CALL t7r_native_submit_start_named(T7RNativeSessionHandle handle, const T7RNativeStartArgs* args, uint64_t* operationId) {
     return guard([&] { return submitStart(handle, args, operationId, false); });
 }
@@ -221,6 +252,78 @@ extern "C" int32_t T7RNB_CALL t7r_native_submit_start_options(T7RNativeSessionHa
         if (!validHeader(args->start.abiVersion, args->start.structSize, sizeof(T7RNativeStartOptions))) return T7RNB_INVALID_ABI;
         if (args->reserved || (args->flags & ~T7RNB_START_SKIP_STARTUP_ANIMATION)) return T7RNB_INVALID_ARGUMENT;
         return submitStart(handle, &args->start, operationId, (args->flags & T7RNB_START_SKIP_STARTUP_ANIMATION) != 0);
+    });
+}
+
+extern "C" int32_t T7RNB_CALL t7r_native_submit_start_gateway(T7RNativeSessionHandle handle,
+        const T7RNativeGatewayStartOptions* args, uint64_t* operationId) {
+    return guard([&]() -> int32_t {
+        if (!operationId) return T7RNB_INVALID_ARGUMENT;
+        *operationId = 0;
+        if (!args) return T7RNB_INVALID_ARGUMENT;
+        if (!validHeader(args->start.start.abiVersion, args->start.start.structSize, sizeof(*args)))
+            return T7RNB_INVALID_ABI;
+        if (args->start.reserved || args->reserved
+            || (args->start.flags & ~T7RNB_START_SKIP_STARTUP_ANIMATION)
+            || !args->loginPort || !args->logicPort || !args->instancePort
+            || args->loginPort == args->logicPort || args->loginPort == args->instancePort
+            || args->logicPort == args->instancePort)
+            return T7RNB_INVALID_ARGUMENT;
+        return submitStart(handle, &args->start.start, operationId,
+            (args->start.flags & T7RNB_START_SKIP_STARTUP_ANIMATION) != 0,
+            {args->loginPort, args->logicPort, args->instancePort});
+    });
+}
+
+extern "C" int32_t T7RNB_CALL t7r_native_submit_start_gateway_profiles(T7RNativeSessionHandle handle,
+        const T7RNativeGatewayProfileStartOptions* args, uint64_t* operationId) {
+    return guard([&]() -> int32_t {
+        if (!operationId) return T7RNB_INVALID_ARGUMENT;
+        *operationId = 0;
+        if (!args) return T7RNB_INVALID_ARGUMENT;
+        const auto& gateway = args->gateway;
+        if (!validHeader(gateway.start.start.abiVersion, gateway.start.start.structSize, sizeof(*args)))
+            return T7RNB_INVALID_ABI;
+        if (gateway.start.reserved || gateway.reserved || args->reserved
+            || (gateway.start.flags & ~T7RNB_START_SKIP_STARTUP_ANIMATION)
+            || !gateway.loginPort || !gateway.logicPort || !gateway.instancePort
+            || gateway.loginPort == gateway.logicPort || gateway.loginPort == gateway.instancePort
+            || gateway.logicPort == gateway.instancePort || !args->profiles
+            || !args->profileCount || args->profileCount > t7r::MAX_COMBAT_PROFILES)
+            return T7RNB_INVALID_ARGUMENT;
+        std::vector<t7r::CombatProfile> profiles;
+        profiles.reserve(args->profileCount);
+        std::set<std::pair<int32_t, int32_t>> keys;
+        for (uint32_t index = 0; index < args->profileCount; ++index) {
+            const auto& input = args->profiles[index];
+            if (input.heroId <= 0 || input.weaponId <= 0
+                || !keys.emplace(input.heroId, input.weaponId).second
+                || !std::isfinite(input.forwardSlow) || !std::isfinite(input.lateralSlow)
+                || !std::isfinite(input.backwardSlow) || !std::isfinite(input.forwardSprint)
+                || input.forwardSlow <= 0 || input.lateralSlow <= 0 || input.backwardSlow <= 0
+                || input.forwardSprint <= input.forwardSlow || input.forwardSprint <= input.lateralSlow
+                || (input.dashDurationMs == 0 && (input.dashMoveMs || input.dashSpeedMilli))
+                || (input.dashDurationMs && (!input.dashMoveMs || !input.dashSpeedMilli
+                    || input.dashMoveMs > input.dashDurationMs || input.dashMoveMs > 65535)))
+                return T7RNB_INVALID_ARGUMENT;
+            t7r::CombatProfile profile;
+            profile.heroId = input.heroId;
+            profile.movement.enabled = true;
+            profile.movement.weaponId = input.weaponId;
+            profile.movement.forwardSlow = input.forwardSlow;
+            profile.movement.lateralSlow = input.lateralSlow;
+            profile.movement.backwardSlow = input.backwardSlow;
+            profile.movement.forwardSprint = input.forwardSprint;
+            profile.dash.enabled = input.dashDurationMs != 0;
+            profile.dash.weaponId = input.weaponId;
+            profile.dash.durationMs = input.dashDurationMs;
+            profile.dash.moveMs = input.dashMoveMs;
+            profile.dash.speedMilli = input.dashSpeedMilli;
+            profiles.push_back(std::move(profile));
+        }
+        return submitStart(handle, &gateway.start.start, operationId,
+            (gateway.start.flags & T7RNB_START_SKIP_STARTUP_ANIMATION) != 0,
+            {gateway.loginPort, gateway.logicPort, gateway.instancePort}, std::move(profiles));
     });
 }
 

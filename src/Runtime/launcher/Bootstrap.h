@@ -5,7 +5,7 @@
 #include "LobbyNews.h"
 #include "DebugClient.h"
 #include "StartupGate.h"
-#include "GraphicsSettings.h"
+#include "ClientFrameRuntime.h"
 #include "OutputDevice.h"
 #include "ClientWindowMonitor.h"
 #include <functional>
@@ -43,10 +43,10 @@ public:
     void applyGraphics(const GraphicsValues& values);
     bool pollAudio(AudioValues& values, uint32_t& result, bool& applied);
     void applyAudio(const AudioValues& values);
-    void updateTitleDescriptions(const Bytes& bytes) { graphicsSettings_.titles().update(bytes); }
-    void pollTitleDescriptions() { graphicsSettings_.titles().poll(); }
-    bool titleCatalogueApplied() { return graphicsSettings_.titles().applied(); }
-    bool pollWorld(WorldSnapshot& value);
+    void updateTitleDescriptions(const Bytes& bytes) { frameRuntime_.titles().update(bytes); }
+    void pollTitleDescriptions() { frameRuntime_.titles().poll(); }
+    bool titleCatalogueApplied() { return frameRuntime_.titles().applied(); }
+    bool pollWorld(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD_ACTORS>& camps = {});
 private:
     HANDLE process_ = nullptr;
     std::unique_ptr<DebugClient> debugClient_;
@@ -54,7 +54,7 @@ private:
     MovementOverlay movementOverlay_;
     LobbyNews lobbyNews_;
     StartupGate startupGate_;
-    GraphicsSettings graphicsSettings_;
+    ClientFrameRuntime frameRuntime_;
     ClientWindowMonitor windowMonitor_;
     OutputDevice outputDevice_;
     uint32_t clientImageBase_ = 0;

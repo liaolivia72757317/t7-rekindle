@@ -2,6 +2,7 @@
 #include "RemoteImage.h"
 #include "SprintHookCode.h"
 #include "WorldHookCode.h"
+#include "ClientWorld.h"
 #include <cstring>
 
 namespace t7r {
@@ -32,6 +33,23 @@ Bytes buildMovementCommandHook(uint32_t address, uint32_t imageBase, uint32_t th
     std::vector<size_t> native;
     c.emit({0x64,0xA1}); c.word(0x24); c.emit({0x3D}); c.word(threadId); native.push_back(c.branch(0x85));
     c.emit({0x81,0x3B}); c.word(imageBase + 0x17784E4); native.push_back(c.branch(0x85));
+    // Observe the original forward axis before the existing local-player speed adaptation.
+    // Match the movable entity against the live RID table; never change the command.
+    std::vector<size_t> noAttempt;
+    c.emit({0x8B,0x43,8,0x85,0xC0}); noAttempt.push_back(c.branch(0x84));
+    c.emit({0x81,0x7E,0x28}); c.word(floatBits(-1.f)); noAttempt.push_back(c.branch(0x85));
+    c.emit({0x50,0xFF,0x15}); c.word(imageBase + GET_TICK_COUNT_IAT_RVA); c.emit({0x5A});
+    c.emit({0xBF}); c.word(address + LIVE_ACTORS_OFFSET);
+    c.emit({0xB9}); c.word(MAX_WORLD_ACTORS);
+    const auto attemptLoop = c.bytes.size();
+    c.emit({0x39,0x97}); c.word(offsetof(ActorMailbox, blade) + offsetof(BladeMailbox, actorPointer));
+    const auto matched = c.branch(0x84);
+    c.emit({0x81,0xC7}); c.word(sizeof(ActorMailbox)); c.emit({0x49});
+    c.bind(c.branch(0x85), attemptLoop);
+    noAttempt.push_back(c.jump());
+    c.bind(matched);
+    c.emit({0x89,0x87}); c.word(offsetof(ActorMailbox, forwardAttemptTick));
+    for (auto branch : noAttempt) c.bind(branch);
     c.emit({0x8B,0x43,8,0x85,0xC0}); native.push_back(c.branch(0x84));
     c.emit({0x3B,0x05}); c.word(data + 8); native.push_back(c.branch(0x85));
     c.emit({0xA1}); c.word(imageBase + 0x2E405F8); c.emit({0x85,0xC0}); native.push_back(c.branch(0x84));
@@ -66,7 +84,9 @@ Bytes buildMovementCommandHook(uint32_t address, uint32_t imageBase, uint32_t th
         c.emit({0x81,0x38}); c.word(imageBase + table); native.push_back(c.branch(0x85));
     };
     component(0x1783860, 0x178380C);
+    c.emit({0x83,0x78,0x38,1}); const auto weaponChange = c.branch(0x84);
     c.emit({0x83,0x78,0x38,2}); native.push_back(c.branch(0x85));
+    c.bind(weaponChange);
     component(0x178692C, 0x17868BC);
     c.emit({0x83,0x78,0x60,6}); native.push_back(c.branch(0x82));
     c.emit({0x8B,0x40,0x54,0x85,0xC0}); native.push_back(c.branch(0x84));

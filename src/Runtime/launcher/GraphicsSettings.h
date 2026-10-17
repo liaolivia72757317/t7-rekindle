@@ -1,8 +1,5 @@
 #pragma once
 #include "../core/Common.h"
-#include "AudioSettings.h"
-#include "ClientWorld.h"
-#include "TitleSettings.h"
 #include <array>
 
 namespace t7r {
@@ -34,20 +31,12 @@ Bytes buildGraphicsHook(uint32_t address, uint32_t imageBase, uint32_t threadId,
 
 class GraphicsSettings final {
 public:
-    void install(HANDLE process, uint32_t imageBase, DWORD threadId, const DashAttackProfile& dash = {},
-                 const MovementAnimationProfile& animation = {},
-                 const std::vector<CombatProfile>& profiles = {});
-    void clear(); // Called after the owned process has exited.
+    void attach(HANDLE process, uint32_t address, uint32_t imageBase);
+    void clear();
     // false means no completed read yet; result: 0 not ready, 1 ready, 2 conflict.
     bool poll(GraphicsValues& values, uint32_t& result, bool& applied);
     void apply(const GraphicsValues& values);
-    AudioSettings& audio() { return audio_; }
-    ClientWorld& world() { return world_; }
-    TitleSettings& titles() { return titles_; }
 private:
-    AudioSettings audio_;
-    ClientWorld world_;
-    TitleSettings titles_;
     void request(uint32_t command);
     HANDLE process_ = nullptr;
     uint32_t remote_ = 0, imageBase_ = 0, pending_ = 0;

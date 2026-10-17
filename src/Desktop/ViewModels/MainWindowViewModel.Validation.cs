@@ -46,8 +46,8 @@ namespace T7R.Desktop.ViewModels
             {
                 if (debounce) await Task.Delay(300, cancellation.Token);
                 var result = scanDescendants
-                    ? await _locateDirectory(path, cancellation.Token)
-                    : await _inspectDirectory(path);
+                    ? await _clientEnvironment.LocateAsync(path, cancellation.Token)
+                    : await _clientEnvironment.InspectAsync(path);
                 cancellation.Token.ThrowIfCancellationRequested();
                 if (_disposed || version != _validationVersion) return;
                 await RefreshClientVersionAsync(result, version);
@@ -104,7 +104,7 @@ namespace T7R.Desktop.ViewModels
             }
             try
             {
-                _settings.Save(CreateSettings(directory, name));
+                _settings.SaveLauncherSettings(CreateSettings(directory, name));
                 _savedDirectory = directory;
                 _savedName = name;
                 _hasSaveError = false;

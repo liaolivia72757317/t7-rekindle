@@ -38,9 +38,12 @@ namespace T7R.ManagedHarness
         {
             var bridge = new FakeLauncherBridge();
             var interaction = new FakeDesktopInteraction();
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "construction")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "construction")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };
@@ -92,9 +95,12 @@ namespace T7R.ManagedHarness
             const string address = "https://www.bilibili.com/opus/768784882628296761";
             var interaction = new FakeDesktopInteraction();
             var bridge = new FakeLauncherBridge();
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "client-download")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction))
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "client-download")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };
@@ -325,8 +331,12 @@ namespace T7R.ManagedHarness
         {
             var service = new SettingsService(Path.Combine(directory, "game-settings"));
             Assert(!service.Load().SkipStartupAnimation, "startup animation skipping is not off by default");
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), service, service.Load(), null,
-                _ => Task.FromResult(new ClientDirectoryResult("", "", "请选择目录")), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                service,
+                service.Load(),
+                null,
+                new FakeClientEnvironment(_ => Task.FromResult(new ClientDirectoryResult("", "", "请选择目录"))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 model.SkipStartupAnimation = true;
@@ -337,8 +347,12 @@ namespace T7R.ManagedHarness
                 model.SaveSettings(1200, 900);
                 Assert(service.Load().SkipStartupAnimation, "saving other settings discarded the game setting");
             }
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), service, service.Load(), null,
-                _ => Task.FromResult(new ClientDirectoryResult("", "", "请选择目录")), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                service,
+                service.Load(),
+                null,
+                new FakeClientEnvironment(_ => Task.FromResult(new ClientDirectoryResult("", "", "请选择目录"))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 Assert(model.SkipStartupAnimation, "game setting was not restored when reopening the launcher");
@@ -400,8 +414,12 @@ namespace T7R.ManagedHarness
                 Assert(saved.MinimizeToTray && saved.StartWithWindows && saved.SkipStartupAnimation && registration,
                     "preferences were not persisted or discarded the game setting");
             }
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(Path.Combine(directory, "name-only")),
-                new UserSettings(), null, _ => Task.FromResult(new ClientDirectoryResult("", "", "请选择目录")), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(Path.Combine(directory, "name-only")),
+                new UserSettings(),
+                null,
+                new FakeClientEnvironment(_ => Task.FromResult(new ClientDirectoryResult("", "", "请选择目录"))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 model.PlayerName = "已保存名称";
@@ -413,9 +431,12 @@ namespace T7R.ManagedHarness
         private static void TestDraftRejectsLateValidation(string directory)
         {
             var pending = new TaskCompletionSource<ClientDirectoryResult>();
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(Path.Combine(directory, "draft")),
-                new UserSettings { ClientDirectory = @"C:\Old", PlayerName = "玩家" }, null,
-                path => path == @"C:\Old" ? pending.Task : Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(Path.Combine(directory, "draft")),
+                new UserSettings { ClientDirectory = @"C:\Old", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => path == @"C:\Old" ? pending.Task : Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 var old = model.ValidationTask;
                 model.BeginDirectoryDraft();
@@ -487,9 +508,12 @@ namespace T7R.ManagedHarness
 
         private static MainWindowViewModel CreateModel(string directory, Func<Task<LauncherUpdateInfo>> checkUpdate = null,
             FakeDesktopInteraction interaction = null) => new MainWindowViewModel(new FakeLauncherBridge(),
-            new SettingsService(directory), new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-            path => Task.FromResult(ValidDirectory(path)), interaction ?? new FakeDesktopInteraction(),
-            checkUpdate: checkUpdate ?? (() => Task.FromResult(new LauncherUpdateInfo())),
-            previewAccess: PreviewAccessFixture.Authorized(directory + "-authorization"));
+                new SettingsService(directory),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction ?? new FakeDesktopInteraction(),
+                updates: new LauncherUpdateFactory(check: _ => ((Func<Task<LauncherUpdateInfo>>)(checkUpdate ?? (() => Task.FromResult(new LauncherUpdateInfo()))))()),
+                previewAccess: PreviewAccessFixture.Authorized(directory + "-authorization"));
     }
 }

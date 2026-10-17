@@ -94,8 +94,11 @@ namespace T7R.ManagedHarness
             }
         }
         private static MainWindowViewModel CreateModel(FakeLauncherBridge bridge, string directory) =>
-            new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "audio")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction());
+            new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "audio")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction());
     }
 }

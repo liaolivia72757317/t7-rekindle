@@ -78,7 +78,6 @@ namespace T7R.Desktop.Services
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "T7-Rekindle", "updates"))
                 .DownloadAsync(asset, progress, cancellation, control);
 
-        public static Task<LauncherUpdateInfo> CheckSampleUpdateAsync() => CheckUpdateAsync();
 
         internal static string FormatVersion(Version version) => "v" + version.ToString(version.Revision > 0 ? 4 : 3);
 

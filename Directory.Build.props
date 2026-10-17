@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <RepositoryRoot>$(MSBuildThisFileDirectory)</RepositoryRoot>
+    <T7RArtifactsRoot Condition="'$(T7RArtifactsRoot)' == ''">$(RepositoryRoot)artifacts\</T7RArtifactsRoot>
     <LangVersion>7.3</LangVersion>
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
@@ -12,8 +13,8 @@
     <RestoreLockedMode Condition="'$(RestoreLockedMode)' == ''">true</RestoreLockedMode>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
-    <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
-    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(T7RArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(T7RArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
   </PropertyGroup>
   <Import Project="$(RepositoryRoot).local\Build.props" Condition="Exists('$(RepositoryRoot).local\Build.props')" />
   <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">

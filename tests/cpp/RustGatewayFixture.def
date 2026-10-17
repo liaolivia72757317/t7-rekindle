@@ -1,0 +1,12 @@
+LIBRARY "T7R.RustGatewayFixture.dll"
+EXPORTS
+    t7r_runtime_abi_version
+    t7r_gateway_create
+    t7r_gateway_create_local
+    t7r_gateway_start
+    t7r_gateway_stop
+    t7r_gateway_release
+    t7r_gateway_snapshot
+    t7r_gateway_read_request
+    t7r_gateway_complete
+    t7r_gateway_error

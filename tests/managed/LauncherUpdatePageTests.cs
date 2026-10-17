@@ -164,16 +164,18 @@ namespace T7R.ManagedHarness
 
         private static void TestCloseDuringDownload(string settingsDirectory, bool paused)
         {
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), new SettingsService(settingsDirectory),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
-                checkUpdate: () => Task.FromResult(UpdateDownloadViewModelTests.Info()),
-                createUpdateDownload: info => new UpdateDownloadViewModel(info, (asset, progress, token, control) =>
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                new SettingsService(settingsDirectory),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction(),
+                updates: new LauncherUpdateFactory(check: _ => ((Func<Task<LauncherUpdateInfo>>)(() => Task.FromResult(UpdateDownloadViewModelTests.Info())))(), download: info => new UpdateDownloadViewModel(info, (asset, progress, token, control) =>
                 {
                     var pending = new TaskCompletionSource<string>();
                     token.Register(() => pending.TrySetCanceled());
                     return pending.Task;
-                }, path => Task.FromResult(false), address => { })))
+                }, path => Task.FromResult(false), address => { }))))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };

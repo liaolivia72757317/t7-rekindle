@@ -238,11 +238,11 @@ void Bootstrap::launch(const fs::path& directory, const Config& config, const Di
             installOutputDevice(process, static_cast<uint32_t>(base), outputDevice_);
             startupGate_.install(process, static_cast<uint32_t>(base));
             movementOverlay_.install(process, base, log, config.skipStartupAnimation);
-            graphicsSettings_.install(process, static_cast<uint32_t>(base), GetThreadId(thread),
+            frameRuntime_.install(process, static_cast<uint32_t>(base), GetThreadId(thread),
                                       config.dashAttack, config.movementAnimation, config.combatProfiles);
             if (log) log(DiagnosticLogLevel::Debug, "Client code, imports, TP paths and movement adapted before first ResumeThread; disk binaries unchanged");
         }, log, cancelled, {{fs::absolute(directory / "TieJiWebHelper.exe"), WEB_HELPER_HASH,
-            [this](HANDLE process, uint32_t base) { lobbyNews_.installHelper(process, base); }}},
+            [this](HANDLE process, uint32_t base) { lobbyNews_.installHelper(process, base); }, true}},
         [this](DWORD threadId, uintptr_t address) {
             return startupGate_.handleBreakpoint(threadId, address) || movementOverlay_.handleBreakpoint(threadId, address);
         }, warning, traceAudio);
@@ -296,7 +296,7 @@ void Bootstrap::stop() {
         if (!cleanupError.empty()) cleanupError += "; ";
         cleanupError += error.what();
     }
-    try { graphicsSettings_.clear(); }
+    try { frameRuntime_.clear(); }
     catch (const std::exception& error) {
         if (!cleanupError.empty()) cleanupError += "; ";
         cleanupError += error.what();
@@ -307,7 +307,7 @@ void Bootstrap::stop() {
 }
 bool Bootstrap::pollGraphics(GraphicsValues& values, uint32_t& result, bool& applied) {
     if (testAdapter_.launch) return testAdapter_.pollGraphics && testAdapter_.pollGraphics(values, result, applied);
-    const auto completed = graphicsSettings_.poll(values, result, applied);
+    const auto completed = frameRuntime_.graphics().poll(values, result, applied);
     if (completed && result != 0 && !outputDeviceVerified_) {
         verifyOutputDevice(process_, clientImageBase_, outputDevice_);
         outputDeviceVerified_ = true;
@@ -319,21 +319,21 @@ void Bootstrap::applyGraphics(const GraphicsValues& values) {
         if (!testAdapter_.applyGraphics) throw std::runtime_error("test graphics adapter unavailable");
         testAdapter_.applyGraphics(values); return;
     }
-    graphicsSettings_.apply(values);
+    frameRuntime_.graphics().apply(values);
 }
 bool Bootstrap::pollAudio(AudioValues& values, uint32_t& result, bool& applied) {
     if (testAdapter_.launch) return testAdapter_.pollAudio && testAdapter_.pollAudio(values, result, applied);
-    return graphicsSettings_.audio().poll(values, result, applied);
+    return frameRuntime_.audio().poll(values, result, applied);
 }
-bool Bootstrap::pollWorld(WorldSnapshot& value) {
+bool Bootstrap::pollWorld(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD_ACTORS>& camps) {
     if (testAdapter_.launch) return testAdapter_.pollWorld && testAdapter_.pollWorld(value);
-    return graphicsSettings_.world().poll(value);
+    return frameRuntime_.world().poll(value, camps);
 }
 void Bootstrap::applyAudio(const AudioValues& values) {
     if (testAdapter_.launch) {
         if (!testAdapter_.applyAudio) throw std::runtime_error("test audio adapter unavailable");
         testAdapter_.applyAudio(values); return;
     }
-    graphicsSettings_.audio().apply(values);
+    frameRuntime_.audio().apply(values);
 }
 }

@@ -2,6 +2,7 @@
 #include "MovementHookCode.h"
 #include "MovementResources.h"
 #include "StartupAnimation.h"
+#include "TrainingHud.h"
 #include "ProcessCleanup.h"
 #include "RemoteImage.h"
 #include <cstring>
@@ -18,16 +19,16 @@ std::string hexBytes(const Bytes& bytes) {
     for (auto byte : bytes) output << std::setw(2) << static_cast<unsigned>(byte);
     return output.str();
 }
-uint32_t readWord(HANDLE process, uintptr_t address) {
+uint32_t readUInt32(HANDLE process, uintptr_t address) {
     const auto bytes = readClientMemory(process, address, 4);
     uint32_t value = 0; std::memcpy(&value, bytes.data(), 4); return value;
 }
 std::string readPath(HANDLE process, uint32_t address) {
     if (!address || address > UINT32_MAX - 24) throw std::runtime_error("movement filename object address invalid");
-    const auto length = readWord(process, address + 0x10);
-    const auto capacity = readWord(process, address + 0x14);
+    const auto length = readUInt32(process, address + 0x10);
+    const auto capacity = readUInt32(process, address + 0x14);
     if (!length || length > 512 || capacity < length) throw std::runtime_error("movement filename extent invalid");
-    const auto data = capacity < 16 ? address : readWord(process, address);
+    const auto data = capacity < 16 ? address : readUInt32(process, address);
     if (!data || data > UINT32_MAX - length) throw std::runtime_error("movement filename data address invalid");
     const auto bytes = readClientMemory(process, data, length);
     return std::string(bytes.begin(), bytes.end());
@@ -42,7 +43,6 @@ void writeBuffer(HANDLE process, uintptr_t address, const Bytes& bytes) {
 }
 }
 
-MovementOverlay::MovementOverlay(uint32_t features) : features_(features) {}
 MovementOverlay::~MovementOverlay() { clear(); }
 
 void MovementOverlay::install(HANDLE process, uintptr_t imageBase,
@@ -99,14 +99,17 @@ bool MovementOverlay::handleBreakpoint(DWORD threadId, uintptr_t address) {
         || !context.Esi || !context.Edi || context.Edi > MOVEMENT_XML_LIMIT
         || context.Esi > UINT32_MAX - context.Edi - MOVEMENT_XML_RESERVE - 1)
         throw std::runtime_error("movement XML frame mismatch");
-    const auto path = readPath(process_, readWord(process_, context.Ebp + 8));
+    const auto path = readPath(process_, readUInt32(process_, context.Ebp + 8));
     const auto resource = movementResourceForPath(path);
     const auto startupAnimation = skipStartupAnimation_ && isStartupAnimationResourcePath(path);
-    if (resource == MovementResource::None && !startupAnimation) throw std::runtime_error("unexpected client XML resource");
+    const auto trainingHud = isTrainingHudResourcePath(path);
+    if (resource == MovementResource::None && !startupAnimation && !trainingHud)
+        throw std::runtime_error("unexpected client XML resource");
     const auto original = readClientMemory(process_, context.Esi, static_cast<size_t>(context.Edi) + 1);
     if (original.back() != 0) throw std::runtime_error("movement XML terminator mismatch");
     const std::string source(original.begin(), original.end() - 1);
-    const auto transformed = startupAnimation ? skipStartupAnimation(source) : transformMovementResource(resource, source);
+    const auto transformed = startupAnimation ? skipStartupAnimation(source)
+        : trainingHud ? hideTrainingMatchHud(source) : transformMovementResource(resource, source);
     if (transformed.size() > source.size() + MOVEMENT_XML_RESERVE)
         throw std::runtime_error("movement XML exceeds reserved pool capacity");
     Bytes replacement(transformed.begin(), transformed.end()); replacement.push_back(0);
@@ -114,6 +117,7 @@ bool MovementOverlay::handleBreakpoint(DWORD threadId, uintptr_t address) {
     // retain or mutate it; no external buffer is freed or reused across documents.
     writeBuffer(process_, context.Esi, replacement);
     if (log_) log_(DiagnosticLogLevel::Debug, startupAnimation ? "Startup animation skip branch prepared in memory; original login completion event preserved"
+        : trainingHud ? "Training HUD prepared; native training timer and interaction preserved"
         : "Runtime local movement resource prepared; kind=" + std::to_string(static_cast<int>(resource)));
     return true;
 }

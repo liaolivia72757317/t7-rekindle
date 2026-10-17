@@ -11,6 +11,7 @@ constexpr uint32_t STATE_KEYS_OFFSET = SPRINT_STATES_OFFSET + 0x40;
 constexpr uint32_t JUMP_EVENT_OFFSET = 0x180, END_JUMP_EVENT_OFFSET = 0x198;
 constexpr uint32_t SPEED_RVA = 0x3D2550, RUNNING_RVA = 0x3D2E20, STATE_RVA = 0x3D2570;
 constexpr uint32_t LINE_MOVE_RVA = 0x75D140, STOP_MOVE_RVA = 0x75D3B0;
+constexpr uint32_t SEND_HEADING_RVA = 0x475F50;
 constexpr uint32_t ANIMATION_VTABLE_RVA = 0x177722C, ANIMATION_EVENT_RVA = 0x3BEEC0;
 uint32_t floatBits(float value) {
     uint32_t result; std::memcpy(&result, &value, sizeof(result)); return result;
@@ -23,6 +24,7 @@ void verifySprintFunctions(HANDLE process, uint32_t imageBase) {
         {STATE_RVA, {0x55,0x8B,0xEC,0x6A,0xFF,0x68}},
         {LINE_MOVE_RVA, {0x55,0x8B,0xEC,0x6A,0xFF,0x68}},
         {STOP_MOVE_RVA, {0x55,0x8B,0xEC,0x6A,0xFF,0x68}},
+        {SEND_HEADING_RVA, {0x55,0x8B,0xEC,0x56,0x8B,0xF1,0x8B,0x46,8}},
         {ANIMATION_EVENT_RVA, {0x55,0x8B,0xEC,0x56,0x57,0xFF,0x75,8,0x8B,0xF9,0x8B,0x37}},
         {JUMP_PHYSICS_RVA, JUMP_PHYSICS_ORIGINAL},
         {JUMP_PHYSICS_RVA + 6, {0x5F,0x5E,0x5D,0xC2,4,0}},
@@ -173,8 +175,10 @@ Bytes buildSprintHook(uint32_t address, uint32_t imageBase, const DashAttackProf
     c.bind(noRestore);
     std::vector<size_t> reset;
     c.emit({0x83,0x3D}); c.word(game); c.emit({4}); reset.push_back(c.branch(0x85));
-    // Ordinary attacks and parries retain JOG_SPEED and clear the run timer until idle.
+    // Weapon changes preserve locomotion and its timer; attacks and parries still reset both.
+    c.emit({0x83,0xFE,1}); const auto weaponChange = c.branch(0x84);
     c.emit({0x83,0xFE,2}); reset.push_back(c.branch(0x85));
+    c.bind(weaponChange);
     c.emit({0x8B,0xC7,0x83,0xE0,0x13,0x83,0xF8,1}); reset.push_back(c.branch(0x85));
     // Carry an established run through jump input/takeoff/landing while still moving forward.
     c.emit({0x83,0x3D}); c.word(tracking); c.emit({2}); const auto keepRunning = c.branch(0x84);
@@ -228,6 +232,21 @@ Bytes buildSprintHook(uint32_t address, uint32_t imageBase, const DashAttackProf
     // Input edges were consumed in midair. On landing, resume the current native
     // key snapshot once, including a released key's stop command; never replay Jump.
     c.emit({0x83,0x3D}); c.word(resumeMovement); c.emit({0}); const auto noLandingMove = c.branch(0x84);
+    // The native sender cached turns discarded in midair. Force its current
+    // heading once before movement, even when the camera has stopped rotating.
+    std::vector<size_t> noHeading;
+    c.emit({0x8B,0x0D}); c.word(identity); c.emit({0x68}); c.word(imageBase + 0x1781950);
+    c.call(imageBase + 0x26A1C0);
+    c.emit({0x85,0xC0}); noHeading.push_back(c.branch(0x84));
+    c.emit({0x81,0x38}); c.word(imageBase + 0x1781904); noHeading.push_back(c.branch(0x85));
+    c.emit({0x8B,0x48,0x38,0x85,0xC9}); noHeading.push_back(c.branch(0x84));
+    // Resolve the active infantry sender owned by GePlayerMountBladeDirInput.
+    c.emit({0x81,0x39}); c.word(imageBase + 0x1781D90); noHeading.push_back(c.branch(0x85));
+    c.emit({0x8B,0x89}); c.word(0xA4);
+    c.emit({0x85,0xC9}); noHeading.push_back(c.branch(0x84));
+    c.emit({0x81,0x39}); c.word(imageBase + 0x17825EC); noHeading.push_back(c.branch(0x85));
+    c.emit({0x6A,1}); c.call(imageBase + SEND_HEADING_RVA);
+    for (auto branch : noHeading) c.bind(branch);
     c.emit({0x8B,0xC7}); move(RUN_SPEED); c.bind(noLandingMove);
     // Reapply only when the native key tree or a phase change altered the commanded speed.
     c.emit({0x8B,0x4B,0x38,0xA1}); c.word(speed); c.emit({0x3B,0x41,0x24});

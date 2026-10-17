@@ -39,7 +39,7 @@ inline void verify(HANDLE process, uint32_t mailbox) {
     writeFloat(process, movementAnimationFixture::VELOCITY, 3.f);
     auto frame = [&](uint32_t tick, float physical, float animation) {
         writeWord(process, CLOCK, tick);
-        writeWord(process, worldFixture::FRAME_GATE, 2);
+        worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             if (GetTickCount64() >= deadline) throw std::runtime_error("combat profile frame timeout");
@@ -71,6 +71,20 @@ inline void verify(HANDLE process, uint32_t mailbox) {
     setFightState(process, 439, 3000); frame(3200, 2.7f, 3); frame(3500, 0, 3);
     writeWord(process, FIGHT + 0x98, 999);
     setFightState(process, 439, 4000); frame(4000, 0, 3);
+    // The new weapon selects animation coordinates without restarting locomotion.
+    writeWord(process, FIGHT + 0x98, 501);
+    setFightState(process, 2, 5000); frame(5000, 3, 2.8f);
+    writeWord(process, FIGHT + 0x98, 502);
+    setFightState(process, 1, 5400); frame(5400, 3, 2.4f);
+    frame(5999, 3, 2.4f); frame(6000, 5, 2.4f);
+    writeFloat(process, movementAnimationFixture::VELOCITY, 5.f);
+    frame(6001, 5, 3.6f);
+    setFightState(process, 2, 6200); frame(6200, 5, 3.6f);
+    writeWord(process, FIGHT + 0x98, 501);
+    setFightState(process, 1, 6300); frame(6300, 5, 4.2f);
+    setFightState(process, 2, 7300); frame(7300, 5, 4.2f);
+    if (readWord(process, mailbox + t7r::SPRINT_DATA_OFFSET + 12) != 5000)
+        throw std::runtime_error("weapon profile change restarted the run timer");
     writeWord(process, CLOCK_MODE, 0); writeWord(process, worldFixture::FRAME_GATE, 0);
 }
 }

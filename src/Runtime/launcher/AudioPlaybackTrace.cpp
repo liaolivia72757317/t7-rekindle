@@ -21,7 +21,7 @@ constexpr Binding BINDINGS[]{
     {AudioPlaybackApi::RtpcId, "?SetRTPCValue@SoundEngine@AK@@YA?AW4AKRESULT@@KM"},
     {AudioPlaybackApi::Init, "?Init@SOUNDENGINE_DLL@AK@@"},
 };
-uint32_t readWord(HANDLE process, uint32_t address) {
+uint32_t readUInt32(HANDLE process, uint32_t address) {
     const auto bytes = readClientMemory(process, address, 4);
     uint32_t word = 0; std::memcpy(&word, bytes.data(), 4); return word;
 }
@@ -140,11 +140,11 @@ void AudioPlaybackTrace::install() {
     for (const auto& module : clientImportModules()) {
         for (size_t i = 0; i < module.symbols.size(); ++i) {
             const auto address = CLIENT_BASE + module.iatRva + static_cast<uint32_t>(i * 4);
-            if (lower(module.dll) == "kernel32.dll" && module.symbols[i] == "GetTickCount") tick = readWord(process_, address);
+            if (lower(module.dll) == "kernel32.dll" && module.symbols[i] == "GetTickCount") tick = readUInt32(process_, address);
             if (module.dll != "aksoundenginedll.dll") continue;
             for (const auto& binding : BINDINGS) {
                 if (module.symbols[i].rfind(binding.prefix, 0) != 0) continue;
-                const auto original = readWord(process_, address);
+                const auto original = readUInt32(process_, address);
                 verifyTarget(process_, original);
                 imports.push_back({binding.api, address, original, 0});
             }

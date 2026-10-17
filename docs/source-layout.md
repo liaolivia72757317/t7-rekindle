@@ -17,10 +17,11 @@ PROJECT_ROOT/
       bridge/                  # C ABI 与 Session 生命周期
       core/                    # 原生公共类型、编码和协议 framing
       launcher/                # 客户端预检、运行时适配和进程清理
-      server/                  # 三通道、Journal、PythonHost
-    Business/
-      runtime/                 # 业务版本加载、状态和结果校验
-      scripts/                 # Python 业务状态机
+    Battle/                    # 本地平台后端、Rust FFI、无界面宿主
+    BattleRust/                # Rust core/runtime/resources/ffi
+  tests/{cpp,managed,battle,python}/
+  tests/reference/             # Python 和原生历史对照实现，仅开发使用
+  scripts/                 # Python 业务状态机
         codec/                 # 业务使用的协议编解码
   tests/{cpp,managed,python}/
   scripts/                     # 构建、打包、集成测试与可选工具环境脚本
@@ -36,11 +37,11 @@ PROJECT_ROOT/
   pytest.ini
 ```
 
-`Runtime/` 是原生模块，`Business/runtime/` 是 Python 业务宿主，产品包中的 `python/` 是解释器文件，三者职责不同。
+`Runtime/` 只负责 Windows 客户端适配，`BattleRust/` 负责产品战斗与网关运行时。
 
 ## 产品包布局
 
-打包脚本读取本次 Release 构建和 `src/Business/`，生成下面的独立运行目录：
+打包脚本读取本次 Release 的原生、Rust 和 Desktop 构建，生成下面的独立运行目录：
 
 ```text
 产品包/
@@ -48,10 +49,9 @@ PROJECT_ROOT/
   T7-Rekindle.exe.config
   T7R.Core.dll
   T7R.NativeBridge.dll
-  python314.dll
-  python3.dll
-  python/                      # Python 标准库及随附文件
-  Business/                    # 来自 src/Business/
+  T7R.Battle.dll
+  t7r_battle_ffi.dll
+  news/index.html              # 来自 src/Desktop/Resources/News/
   NLog.config
   LICENSE
   THIRD-PARTY.txt
@@ -71,6 +71,7 @@ WPF 以可执行文件所在目录作为包根。整个目录一起部署；单�
 | `artifacts/obj/<Project>/` | 托管还原及中间文件 |
 | `artifacts/native/bin/<Platform>/<Configuration>/` | 原生 DLL、测试程序和链接产物 |
 | `artifacts/native/obj/<Project>/<Platform>/<Configuration>/` | 原生中间文件 |
+| `artifacts/rust/` | Cargo 产物（Windows x64） |
 | `artifacts/package/` | 默认产品包目录，也是安装器的输入 |
 | `artifacts/test-results/` | 自动化测试和构建诊断报告 |
 | `artifacts/tmp/` | 自动化测试生成的临时运行环境 |

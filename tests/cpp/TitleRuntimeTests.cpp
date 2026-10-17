@@ -1,4 +1,4 @@
-#include "../../src/Runtime/server/Server.h"
+#include "../../tests/reference/native-server/Server.h"
 #include "../../src/Runtime/bridge/Session.h"
 #include <cstring>
 #include <iostream>
@@ -9,11 +9,6 @@ struct TitleRuntimeTests {
     static void catalogueGate(const fs::path& root) {
         bridge::Session session(utf8(root.wstring()));
         session.snapshot_.state = T7RNB_STATE_RUNNING;
-        session.server_ = std::make_unique<Server>();
-        auto& server = *session.server_;
-        server.signals_ = std::make_unique<detail::ServerSignals>();
-        server.stopping_ = false; server.ready_ = true; server.ioReady_ = true;
-        server.snapshot_.status = "running";
         Bytes catalogue(8 + TITLE_RECORD_SIZE, 0);
         const uint32_t header[] = {1, 1, 1000000};
         std::memcpy(catalogue.data(), header, sizeof(header));
@@ -21,12 +16,12 @@ struct TitleRuntimeTests {
         const std::string owned = R"({"titles":[{"titleId":1000000,"owned":true,"enabled":true}],"equippedTitleId":1000000})";
         require(session.publishTitles(1, owned, 0, true, catalogue) == T7RNB_OK, "custom title update was rejected");
         session.monitorTitles();
-        require(server.events_.empty() && session.titleUpdates_.size() == 1 && session.titleError_.empty(),
+        require(session.titleRequest_.epoch == 0 && session.titleUpdates_.size() == 1 && session.titleError_.empty(),
             "custom title ownership was published before the native catalogue was ready");
         const std::string offline = R"({"titles":[],"equippedTitleId":null})";
         require(session.publishTitles(2, offline, 0, true, {}) == T7RNB_OK, "offline title update was rejected");
         session.monitorTitles();
-        require(server.events_.size() == 1 && server.events_.front().sequence == 2
+        require(session.titleRequest_.epoch == 2
             && session.titleUpdates_.empty() && session.titleError_.empty(),
             "a waiting catalogue blocked logout or restored old account ownership");
     }

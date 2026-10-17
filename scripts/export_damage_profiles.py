@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/Business/vendor')]
+sys.path[:0] = [str(ROOT / 'tests/reference'), str(ROOT / 'tests/reference/Business/vendor')]
 
 from Business.scripts.combat_profile_data import HERO_WEAPONS
 from Business.scripts.damage_resources import extract
@@ -13,7 +13,7 @@ from Business.scripts.damage_resources import extract
 def render(weapons, heroes, actions):
     lines = ['"""Offline client resource data. Regenerate with scripts/export_damage_profiles.py.',
              '', 'WEAPONS: category, family, base attribute ID, slash/pierce/blunt, shield HP, buff IDs, attack/defence letters.',
-             'HEROES: base attribute ID, armor, feature IDs. ACTIONS: category -> intent -> damage ID.',
+             'HEROES: base attribute ID, armor, feature IDs, max HP. ACTIONS: category -> intent -> damage ID.',
              'Sources: s_weapon_cli, s_weapon_attr, s_heroscard_cli, s_hero_attr, s_battle_param_cli.',
              'Damage type, fists, charge peak, relative weight and armor class are project rules in damage_resources.',
              '"""', '']

@@ -7,5 +7,20 @@
     <AssemblyName>T7R.Battle</AssemblyName>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Core\T7R.Core.csproj" /></ItemGroup>
+  <ItemGroup><Reference Include="System.Runtime.Serialization" /><Reference Include="System.Xml.Linq" /></ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\BattleRust\resources\data\training-loadouts-v1.json" LogicalName="T7R.TrainingLoadouts" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>T7R.BattleHarness</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>T7-Rekindle</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>T7R.ManagedHarness</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
   <Import Project="..\..\Managed.Common.targets" />
 </Project>

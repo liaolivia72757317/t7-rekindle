@@ -491,7 +491,11 @@ def test_native_bridge_exports_are_explicit_and_versioned():
         "t7r_native_submit_start",
         "t7r_native_submit_start_named",
         "t7r_native_submit_start_options",
+        "t7r_native_submit_start_gateway",
+        "t7r_native_submit_start_gateway_profiles",
         "t7r_native_submit_stop",
+        "t7r_native_attach_battle",
+        "t7r_native_detach_battle",
         "t7r_native_cancel",
         "t7r_native_get_snapshot",
         "t7r_native_get_operation",
@@ -505,18 +509,34 @@ def test_native_bridge_exports_are_explicit_and_versioned():
         "t7r_native_set_log_level",
         "t7r_native_publish_titles",
         "t7r_native_get_title_request",
-        "t7r_battle_host_create",
-        "t7r_battle_host_start",
-        "t7r_battle_host_stop",
-        "t7r_battle_host_snapshot",
-        "t7r_battle_host_error",
-        "t7r_battle_host_release",
     ]
     service = (ROOT / "src/Desktop/Services/NativeBridgeService.cs").read_text(encoding="utf-8")
     bindings = re.findall(r'Resolve<\w+>\(module, "([^"]+)"\)', service)
     assert sorted(bindings) == sorted(name for name in exports if name.startswith('t7r_native_'))
     host = (ROOT / 'src/Battle/NativeBattleHost.cs').read_text(encoding='utf-8')
-    host_bindings = re.findall(r'Function<\w+>\("([^"]+)"\)', host)
-    assert sorted(host_bindings) == sorted(name for name in exports if name.startswith('t7r_battle_host_'))
+    assert 'ClientGateway.CreateLocalProfiledAsync' in host
+    assert 't7r_battle_host_' not in host
     contract = (ROOT / "src/Core/NativeBridgeContract.cs").read_text(encoding="utf-8")
     assert 'public const string LibraryName = "T7R.NativeBridge.dll";' in contract
+
+
+def test_managed_gateway_bindings_match_rust_exports():
+    gateway = '\n'.join(path.read_text(encoding='utf-8')
+                        for path in (ROOT / 'src/Battle').glob('ClientGateway*.cs'))
+    bindings = re.findall(r'Function<\w+>\("([^"]+)"\)', gateway)
+    expected = {
+        't7r_runtime_abi_version', 't7r_gateway_create', 't7r_gateway_create_local',
+        't7r_gateway_start', 't7r_gateway_stop', 't7r_gateway_release',
+        't7r_gateway_snapshot', 't7r_gateway_read_request', 't7r_gateway_complete',
+        't7r_gateway_error', 't7r_gateway_resource_json', 't7r_gateway_select_map',
+        't7r_gateway_battle_start_staged', 't7r_gateway_battle_stop',
+        't7r_gateway_battle_clock', 't7r_gateway_battle_dispatch_next',
+        't7r_gateway_battle_returned_to_room', 't7r_gateway_battle_preparation_open',
+        't7r_gateway_battle_reserve_rearm',
+        't7r_gateway_publish_titles', 't7r_gateway_title_request',
+    }
+    assert sorted(bindings) == sorted(expected)
+    rust = '\n'.join(path.read_text(encoding='utf-8')
+                     for path in (ROOT / 'src/BattleRust/ffi/src').rglob('*.rs'))
+    exports = set(re.findall(r'pub (?:unsafe )?extern "C" fn (t7r_\w+)\(', rust))
+    assert expected <= exports

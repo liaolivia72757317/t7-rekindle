@@ -11,7 +11,7 @@ from time import perf_counter_ns
 from types import ModuleType, SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/Business/vendor')]
+sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests/reference/Business/vendor')]
 
 import pytest
 from Business.runtime import host_runtime as host
@@ -70,7 +70,7 @@ def main():
         parser.error('warmup must be nonnegative; samples and repeats must be positive')
     baseline = host
     if args.baseline_ref:
-        source = subprocess.check_output(['git', 'show', f'{args.baseline_ref}:src/Business/runtime/host_runtime.py'],
+        source = subprocess.check_output(['git', 'show', f'{args.baseline_ref}:tests/reference/Business/runtime/host_runtime.py'],
                                          cwd=ROOT, text=True, encoding='utf-8')
         baseline = ModuleType('baseline_host_runtime')
         baseline.__file__ = host.__file__

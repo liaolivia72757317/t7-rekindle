@@ -315,7 +315,7 @@ def test_instance_initialization_commits_static_combat_profiles(monkeypatch):
 
 
 def test_restart_loads_saved_profile_and_reload_keeps_round_snapshot(tmp_path, monkeypatch):
-    root = Path(__file__).resolve().parents[2] / 'src/Business/scripts'
+    root = Path(__file__).resolve().parents[2] / 'tests/reference/Business/scripts'
     context = dict(playerProfilePath=str(tmp_path/'player-profile.json'), clientDirectory='fixture', nowMs=0)
     cat = catalogue()
     saved = player_profile.change(player_profile.create(cat), cat, formation=[2102, 1101])

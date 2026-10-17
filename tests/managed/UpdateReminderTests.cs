@@ -135,9 +135,11 @@ namespace T7R.ManagedHarness
             var interaction = new FakeDesktopInteraction();
             using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
                 new SettingsService(Path.Combine(directory, "update-reminder")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction,
-                checkUpdate: () => { checks++; return result; }))
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                interaction,
+                updates: new LauncherUpdateFactory(check: _ => ((Func<Task<LauncherUpdateInfo>>)(() => { checks++; return result; }))())))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };

@@ -11,7 +11,7 @@ from dash_fixture import profile
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src/Business/runtime"))
+sys.path.insert(0, str(ROOT / "tests/reference/Business/runtime"))
 import host_runtime  # noqa: E402
 
 ACTION_TIMER = "battle-action-phase"
@@ -387,7 +387,7 @@ def test_leave_cancels_action_timers_and_ignores_late_events():
 
 
 def test_host_reload_preserves_action_and_other_connections(tmp_path):
-    runtime = host_runtime.Runtime(ROOT / "src/Business/scripts", tmp_path / "revisions")
+    runtime = host_runtime.Runtime(ROOT / "tests/reference/Business/scripts", tmp_path / "revisions")
     state = makeFlow().state
     state["sessions"]["2"] = deepcopy(state["sessions"]["1"])
     peer = deepcopy(state["sessions"]["2"])

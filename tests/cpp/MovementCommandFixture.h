@@ -23,7 +23,7 @@ inline void prepare(HANDLE process) {
     writeWord(process, COMMAND, BASE + 0x17782D8);
     writeWord(process, TARGET, worldFixture::MOVABLE);
 }
-inline void verify(HANDLE process, uint32_t mailbox) {
+inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
     using namespace sprintFixture;
     using worldFixture::MOVABLE;
     using movementAnimationFixture::readFloat;
@@ -42,21 +42,38 @@ inline void verify(HANDLE process, uint32_t mailbox) {
         writeFloat(process, COMMAND + 0x28, static_cast<float>(((keys & 8) != 0) - ((keys & 4) != 0)));
         writeFloat(process, COMMAND + 0x2C, static_cast<float>(((keys & 2) != 0) - ((keys & 1) != 0)));
         if (noncanonicalAxis) writeFloat(process, COMMAND + 0x28, .5f);
-        writeWord(process, REQUEST, 1); writeWord(process, worldFixture::FRAME_GATE, 2);
+        const auto entity = readWord(process, MOVABLE + 8);
+        const auto ridIndex = (entity - worldFixture::ENTITY) / 0x100;
+        const auto attemptAddress = mailbox + t7r::LIVE_ACTORS_OFFSET
+            + ridIndex * static_cast<uint32_t>(sizeof(t7r::ActorMailbox))
+            + static_cast<uint32_t>(offsetof(t7r::ActorMailbox, forwardAttemptTick));
+        writeWord(process, attemptAddress, 0);
+        writeWord(process, REQUEST, 1); worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             if (GetTickCount64() >= deadline) throw std::runtime_error("movement command frame timeout");
             Sleep(1);
         }
         if (readWord(process, MOVABLE + 0x2C) != state || readFloat(process, worldFixture::CONTROLLER + 0x24) != speed)
-            throw std::runtime_error("queued movement command changed locomotion state/speed before animation");
+            throw std::runtime_error("queued movement command changed locomotion state/speed before animation: keys="
+                + std::to_string(keys) + " entity=" + std::to_string(entity)
+                + " state=" + std::to_string(readWord(process, MOVABLE + 0x2C))
+                + " speed=" + std::to_string(readFloat(process, worldFixture::CONTROLLER + 0x24)));
+        const auto attempt = readWord(process, attemptAddress);
+        if ((attempt != 0) != ((keys & 4) != 0 && (keys & 8) == 0 && !noncanonicalAxis))
+            throw std::runtime_error("native forward movement attempt did not match its RID and command axis: keys="
+                + std::to_string(keys) + " rid=" + std::to_string(ridIndex + 1)
+                + " tick=" + std::to_string(attempt));
     };
     // Every A/D edge is a new native command, not just a changed input cache.
-    for (uint32_t keys : {1u,5u,1u,9u,5u,13u,9u,1u}) {
-        const auto state = keys == 5 ? 11u : keys == 9 ? 12u : 10u;
-        frame(keys, 2, 3, state, 5);
-        if (std::abs(readFloat(process, MOVABLE + 0x5C) - movementAnimationFixture::profile().forwardSprint) > .00001f)
-            throw std::runtime_error("running A/D command blended a walking animation");
+    for (uint32_t fightState : {2u, 1u, 2u}) {
+        setFightState(process, fightState);
+        for (uint32_t keys : {1u,5u,1u,9u,5u,13u,9u,1u}) {
+            const auto state = keys == 5 ? 11u : keys == 9 ? 12u : 10u;
+            frame(keys, 2, 3, state, 5);
+            if (std::abs(readFloat(process, MOVABLE + 0x5C) - movementAnimationFixture::profile().forwardSprint) > .00001f)
+                throw std::runtime_error("running A/D command blended a walking animation");
+        }
     }
     for (uint32_t keys = 0; keys < 16; ++keys)
         frame(keys, 0, keys == 0 ? 0.f : 3.f, states[keys], keys == 0 ? 0.f : 3.f);
@@ -71,12 +88,29 @@ inline void verify(HANDLE process, uint32_t mailbox) {
     // Other actors, state-directed commands and special speeds retain native semantics.
     writeWord(process, MOVABLE + 8, worldFixture::ENTITY + 0x100);
     frame(5, 2, 3, 2, 3, 2); writeWord(process, MOVABLE + 8, worldFixture::ENTITY);
+    writeWord(process, worldFixture::ENTITY + 19 * 0x100 + 8, 119);
+    writeWord(process, MOVABLE + 8, worldFixture::ENTITY + 19 * 0x100);
+    frame(5, 2, 3, 2, 3, 2);
+    writeWord(process, MOVABLE + 8, worldFixture::ENTITY);
+    writeWord(process, worldFixture::ENTITY + 19 * 0x100 + 8, 0);
     writeWord(process, COMMAND + 0x34, 1);
     frame(5, 2, 3, 2, 3, 2); writeWord(process, COMMAND + 0x34, 0);
     frame(5, 2, 4, 2, 4, 2);
     frame(5, 2, 3, 2, 3, 2, true);
     writeWord(process, worldFixture::STATE + 0x38, 2);
     frame(5, 2, 3, 2, 3, 2); writeWord(process, worldFixture::STATE + 0x38, 4);
+    frame(5, 2, 3, 11, 5, 2);
+    t7r::WorldSnapshot observed;
+    if (reader.poll(observed)) throw std::runtime_error("movement capture expected a fresh world request");
+    worldFixture::requestFrame(process);
+    const auto deadline = GetTickCount64() + 3000;
+    while (readWord(process, worldFixture::FRAME_GATE) != 1) {
+        if (GetTickCount64() >= deadline) throw std::runtime_error("movement capture freeze timeout");
+        Sleep(1);
+    }
+    observed = worldFixture::read(reader);
+    if (!observed.actors[0].forwardAttemptAt || observed.actors[0].forwardAttemptAt > observed.sampledAt)
+        throw std::runtime_error("native forward attempt was not decoded with the frozen pose batch");
     writeWord(process, KEYS, 0); writeWord(process, CLOCK_MODE, 0); writeWord(process, worldFixture::FRAME_GATE, 0);
 }
 }

@@ -1,6 +1,6 @@
 #include "../../src/Runtime/bridge/Session.h"
 #include "../../src/Runtime/core/DiagnosticLog.h"
-#include "../../src/Runtime/server/PythonHost.h"
+#include "../../tests/reference/native-server/PythonHost.h"
 #include <algorithm>
 #include <chrono>
 #include <fstream>

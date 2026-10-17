@@ -8,5 +8,6 @@
     <AssemblyName>T7R.BattleServer</AssemblyName>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Battle\T7R.Battle.csproj" /></ItemGroup>
+  <Import Project="..\..\RustRuntime.targets" />
   <Import Project="..\..\Managed.Common.targets" />
 </Project>

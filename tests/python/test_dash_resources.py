@@ -33,6 +33,24 @@ def load(source, weaponId=1030411):
     return resources.loadDashAttack(source[0], weaponId)
 
 
+@pytest.mark.parametrize('category', [32, 119])
+def test_dash_selects_native_action_type_13_not_war_skill_32(source, category):
+    source[1][resources.WEAPON_PATH] = weapons((1030411, category))
+    dash = parameters(category=category, actionType=13, duration='1233')[140:]
+    warSkill = parameters(category=category, actionType=32, duration='2033')[140:]
+    source[1][resources.PARAM_PATH] = parameters(rows=[warSkill, dash])
+    result = load(source)
+    assert result.profile.enabled and result.profile.durationMs == 1233
+    assert not result.diagnostics
+
+
+def test_war_skill_row_does_not_enable_a_missing_dash(source):
+    source[1][resources.PARAM_PATH] = parameters(actionType=32)
+    result = load(source)
+    assert not result.profile.enabled
+    assert any('key=(6,32,13,2)' in message for _, message in result.diagnostics)
+
+
 def test_current_weapon_uses_table_without_loading_animation(source):
     result = load(source)
     value = result.profile

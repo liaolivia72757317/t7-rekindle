@@ -60,6 +60,72 @@ MemoryPatch hudPingPatch() {
          0x80,0x79,0x1C,0,0x0F,0x84,0x64,0x01,0,0,0xE8,0xEE,0x3D,0xC2,0xFF,0x8B,0xF0,
          0xE9,0x3E,0x01,0,0});
 }
+std::vector<MemoryPatch> matchMapFilterPatches() {
+    // Restrict the original small-battlefield row before it builds the dialog.
+    // Native filter synchronization and matchmaking then consume the same six IDs.
+    constexpr uint32_t SITE = 0x53A001, STUB = 0x16E8E00;
+    Bytes code{0x9C,0x83,0x3F,0x01,0x75,0,
+        0x81,0xBF,0xB2,0x04,0,0,0x0E,0,0,0,0x74,0x0C,
+        0x81,0xBF,0xB2,0x04,0,0,0x06,0,0,0,0x75,0};
+    const auto append = [&](uint32_t value) {
+        for (unsigned i = 0; i < 4; ++i) code.push_back(static_cast<unsigned char>(value >> (8 * i)));
+    };
+    uint32_t offset = 0x4B2;
+    for (uint32_t value : {6u, 1003u, 1030u, 1021u, 1001u, 6003u, 1034u}) {
+        code.insert(code.end(), {0xC7,0x87}); append(offset); append(value); offset += 4;
+    }
+    // ceil(6 * .83) permits five exclusions, so at least one checkbox stays selected.
+    code.insert(code.end(), {0x9D,0x6A,0x53,0xEB,0x04});
+    const auto original = code.size();
+    code[5] = static_cast<unsigned char>(original - 6);
+    code[29] = static_cast<unsigned char>(original - 30);
+    code.insert(code.end(), {0x9D,0xFF,0x77,0x08,0x8B,0xC8,0xE9});
+    const auto resume = SITE + 5 - (STUB + static_cast<uint32_t>(code.size()) + 4);
+    for (unsigned i = 0; i < 4; ++i) code.push_back(static_cast<unsigned char>(resume >> (8 * i)));
+    Bytes jump{0xE9};
+    const auto relative = STUB - SITE - 5;
+    for (unsigned i = 0; i < 4; ++i) jump.push_back(static_cast<unsigned char>(relative >> (8 * i)));
+    // This zero-filled tail is part of the existing executable .text allocation.
+    return {{SITE, {0xFF,0x77,0x08,0x8B,0xC8}, jump}, {STUB, Bytes(code.size(), 0), code}};
+}
+std::vector<MemoryPatch> matchSpawnModePatches() {
+    // Kill-score matches assign native spawn points on the server. Map 1030 normally
+    // requires an area selection; use the client's existing SYSTEM initialization.
+    // Other maps and the getter's null-resource branch retain their original behavior.
+    constexpr uint32_t SITE = 0x721296, STUB = 0x16E8F00;
+    const Bytes code{0x81,0x38,0x06,0x04,0,0,0x75,0x06,0xB8,0x01,0,0,0,0xC3,
+                     0x8B,0x80,0xB8,0,0,0,0xC3};
+    Bytes jump{0xE9};
+    const auto relative = STUB - SITE - 5;
+    for (unsigned i = 0; i < 4; ++i) jump.push_back(static_cast<unsigned char>(relative >> (8 * i)));
+    return {padded(SITE, {0x8B,0x80,0xB8,0,0,0}, jump), {STUB, Bytes(code.size(), 0), code}};
+}
+std::vector<MemoryPatch> trainingEntryPatches() {
+    // Only the UI predecessor field for these two map rows is relaxed. Keep the
+    // level condition, other entries, resource tables and saved progress intact.
+    constexpr uint32_t SITE = 0x5A72F2, STUB = 0x16E8F40;
+    Bytes code{0x9C,0x83,0xBB,0x84,0,0,0,0x04,0x75,0,
+        0x83,0x7F,0xF8,0x07,0x75,0,
+        0x81,0xBB,0x8A,0,0,0,0x76,0x17,0,0,0x74,0,
+        0x81,0xBB,0x8A,0,0,0,0x79,0x17,0,0,0x75,0};
+    const auto unlocked = code.size();
+    code.insert(code.end(), {0x9D,0x6A,0,0xEB,0});
+    const auto original = code.size();
+    code.insert(code.end(), {0x9D,0xFF,0x77,0xFC});
+    const auto tail = code.size();
+    code[9] = static_cast<unsigned char>(original - 10);
+    code[15] = static_cast<unsigned char>(original - 16);
+    code[27] = static_cast<unsigned char>(unlocked - 28);
+    code[39] = static_cast<unsigned char>(original - 40);
+    code[unlocked + 4] = static_cast<unsigned char>(tail - unlocked - 5);
+    code.insert(code.end(), {0x8B,0xC8,0xE9});
+    const auto resume = SITE + 5 - (STUB + static_cast<uint32_t>(code.size()) + 4);
+    for (unsigned i = 0; i < 4; ++i) code.push_back(static_cast<unsigned char>(resume >> (8 * i)));
+    Bytes jump{0xE9};
+    const auto relative = STUB - SITE - 5;
+    for (unsigned i = 0; i < 4; ++i) jump.push_back(static_cast<unsigned char>(relative >> (8 * i)));
+    return {{SITE, {0xFF,0x77,0xFC,0x8B,0xC8}, jump}, {STUB, Bytes(code.size(), 0), code}};
+}
 }
 
 void applyMemoryPatches(Bytes& image, const std::vector<MemoryPatch>& patches) {
@@ -100,6 +166,9 @@ std::vector<MemoryPatch> clientMemoryPatches(const Bytes& image) {
         // Zero is a completed RTT sample; only negative pending samples should be skipped.
         {0x3B90A8, {0x0F,0x2F,0xC1,0x77,0x09}, {0x0F,0x2F,0xC1,0x73,0x09}}
     };
+    for (auto& patch : matchMapFilterPatches()) patches.push_back(std::move(patch));
+    for (auto& patch : matchSpawnModePatches()) patches.push_back(std::move(patch));
+    for (auto& patch : trainingEntryPatches()) patches.push_back(std::move(patch));
     // Remove the corresponding dynamic names as well as their direct call paths.
     scrub(patches, image, ascii("TerSafe"), 2);
     scrub(patches, image, ascii("GeTssAntiService"), 5);

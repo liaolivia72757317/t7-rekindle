@@ -91,7 +91,7 @@ s_weapon_cli：武器 → 分类
 
 - **判定窗口**：当前普通攻击接触判定覆盖过程阶段；所选表行的 `[碰撞时间]开始/结束` 均为 `0`。这两个 `0` 的原生语义尚未闭合，不应据此将判定窗口清零。
 - **输入恢复**：表内有“忽略消息起始／截止时间”等字段，例如上方向技能为 `249.6–640` ms；当前恢复打断和输入缓冲由业务状态机实现，并非逐项执行这些表字段。
-- **冲刺对照**：当前资源过程时长为 `2033` ms，原始 clip 为 `1333` ms；本项目将完整过程时长同步到客户端。表值优先、动画长度仅作回退，是本项目当前策略，不证明原服也采用同一策略。
+- **冲刺对照**：该武器的冲刺状态 `439` 使用动作类型 `13`，原始表过程时长为 `1200` ms，原始 clip 为 `1333` ms；动作类型 `32` 下的 `2033` ms 属于战技，不是冲刺参数。当前静态表按实际动画有效时长同步完整过程，动画解析不可用时才使用冲刺表时长；该时长策略不作为原服行为结论。
 - **动画裁剪**：冲刺被招架节点还包含约 `133` ms 的尾部裁剪。比较“原始长度”和“可见时长”时必须保留裁剪、混合与状态中断信息。
 
 ## 5. 证据等级与本轮验证
@@ -130,8 +130,8 @@ python -B -m pytest -q tests/python/test_battle_actions.py tests/python/test_bat
 
 ## 代码复核入口
 
-- [battle.py](../../src/Business/scripts/battle.py)：`phaseMs`、`reactionMs`、`syncState`、`parryReaction`、`releaseAction`。
-- [combat.py](../../src/Business/scripts/combat.py)：过程阶段接触判定及受击处理。
-- [dash_resources.py](../../src/Business/scripts/dash_resources.py)：表选行、冲刺时长优先级和回退。
-- [battle_flow.py](../../src/Business/scripts/codec/battle_flow.py)：两类状态同步消息字段。
-- [movement_animation.py](../../src/Business/scripts/movement_animation.py)：当前角色与主武器的 character 绑定。
+- [battle.py](../../tests/reference/Business/scripts/battle.py)：`phaseMs`、`reactionMs`、`syncState`、`parryReaction`、`releaseAction`。
+- [combat.py](../../tests/reference/Business/scripts/combat.py)：过程阶段接触判定及受击处理。
+- [dash_resources.py](../../tests/reference/Business/scripts/dash_resources.py)：表选行、冲刺时长优先级和回退。
+- [battle_flow.py](../../tests/reference/Business/scripts/codec/battle_flow.py)：两类状态同步消息字段。
+- [movement_animation.py](../../tests/reference/Business/scripts/movement_animation.py)：当前角色与主武器的 character 绑定。

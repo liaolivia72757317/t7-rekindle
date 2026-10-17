@@ -45,27 +45,31 @@ struct BladeMailbox {
     uint64_t previousMotionEpoch = 0;
     uint32_t defenceCount = 0;
     std::array<uint32_t, MAX_BLADE_BODIES> defenceRoots{}, defenceWorlds{}, defenceWeapons{};
+    uint32_t actorPointer = 0; // Game-thread entity pointer for native command-to-RID matching only.
+    uint32_t guardWeaponId = 0; // Active equipped main hand; live blade query, not a proxy resource.
 };
 struct ActorMailbox {
     uint32_t ready = 0, targetId = 0;
     std::array<float, 3> position{};
     float yaw = 0;
     std::array<TerrainMailbox, 2> terrain{};
-    uint32_t targetMask = 0;
+    uint64_t targetMask = 0;
     std::array<TerrainMailbox, MAX_WORLD_ACTORS> targetTerrain{};
     BladeMailbox blade{};
+    uint32_t forwardAttemptTick = 0; // Last observed native forward command since the prior frozen response.
 };
-static_assert(offsetof(ActorMailbox, targetTerrain) == 124, "actor mailbox layout");
-constexpr uint32_t ACTORS_DATA_OFFSET = 0x3E0000;
-constexpr uint32_t WORLD_CODE_OFFSET = 0x1000, WORLD_PAGE_SIZE = 0x400000;
+static_assert(offsetof(ActorMailbox, targetTerrain) == 128, "actor mailbox layout");
+constexpr uint32_t ACTORS_DATA_OFFSET = 0x500000;
+constexpr uint32_t WORLD_CODE_OFFSET = 0x1000, WORLD_PAGE_SIZE = 0x600000;
 constexpr uint32_t WORLD_CODE_END = 0x9000;
 constexpr uint32_t TERRAIN_CODE_OFFSET = 0x2000;
 constexpr uint32_t BLADE_POSE_CODE_OFFSET = 0x5000, BLADE_SWEEP_CODE_OFFSET = 0x6000;
 constexpr uint32_t BLADE_DATA_OFFSET = 0x18000;
 constexpr uint32_t TERRAIN_TARGET_ONLY_OFFSET = 244;
 constexpr uint32_t FRAME_DATA_OFFSET = 0x19000, CONTACT_CODE_OFFSET = 0x1A000;
+constexpr uint32_t WEAPON_GUARD_CODE_OFFSET = 0x1B000;
 constexpr uint32_t LIVE_ACTORS_OFFSET = 0x20000;
-constexpr uint32_t LIVE_CONTACTS_OFFSET = 0x40000, CONTACTS_DATA_OFFSET = 0x200000;
+constexpr uint32_t LIVE_CONTACTS_OFFSET = 0x100000, CONTACTS_DATA_OFFSET = 0x300000;
 constexpr uint32_t MAX_FRAME_CONTACTS = 8192, GET_TICK_COUNT_IAT_RVA = 0x16F6228;
 struct ContactFrameMailbox {
     uint32_t tick = 0, count = 0, dropped = 0, frames = 0;
@@ -96,13 +100,14 @@ Bytes buildWorldHook(uint32_t address, uint32_t imageBase, uint32_t threadId, co
                      const MovementAnimationProfile& animation = {}, const std::vector<CombatProfile>& profiles = {});
 Bytes buildBladePoseHook(uint32_t address, uint32_t imageBase);
 Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase);
+Bytes buildWeaponGuardHook(uint32_t address);
 Bytes buildContactFrameHook(uint32_t address);
 
 class ClientWorld final {
 public:
     void attach(HANDLE process, uint32_t address);
     void clear();
-    bool poll(WorldSnapshot& value);
+    bool poll(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD_ACTORS>& camps = {});
 private:
     void request();
     HANDLE process_ = nullptr;
@@ -110,6 +115,6 @@ private:
     ULONGLONG requestedAt_ = 0;
     bool pending_ = false;
     std::array<uint32_t, MAX_WORLD_ACTORS> targets_{};
-    std::array<uint32_t, MAX_WORLD_ACTORS> targetMasks_{};
+    std::array<uint64_t, MAX_WORLD_ACTORS> targetMasks_{};
 };
 }

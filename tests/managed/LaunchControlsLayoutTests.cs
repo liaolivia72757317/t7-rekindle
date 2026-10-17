@@ -24,11 +24,14 @@ namespace T7R.ManagedHarness
         {
             var bridge = new FakeLauncherBridge();
             var interaction = new FakeDesktopInteraction();
-            using (var model = new MainWindowViewModel(bridge, new SettingsService(Path.Combine(directory, "launch-controls")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(path.Length == 0
+            using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(directory, "launch-controls")),
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(path.Length == 0
                     ? new ClientDirectoryResult("", "", "目录检查失败：" + new string('长', 160) + "\n请重新选择游戏目录。")
-                    : LauncherTests.ValidDirectory(path)), interaction))
+                    : LauncherTests.ValidDirectory(path))),
+                interaction))
             {
                 LauncherTests.RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };

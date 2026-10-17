@@ -2,8 +2,10 @@
 #include "../../src/Runtime/launcher/MovementHookCode.h"
 #include "../../src/Runtime/launcher/MovementResources.h"
 #include "../../src/Runtime/launcher/StartupAnimation.h"
+#include "../../src/Runtime/launcher/TrainingHud.h"
 #include "../../src/Runtime/launcher/DebugClient.h"
 #include "StartupAnimationFixture.h"
+#include "TrainingHudFixture.h"
 #include "MovementTreeFixture.h"
 #include <atomic>
 #include <cstring>
@@ -13,7 +15,8 @@
 namespace {
 constexpr uint32_t BASE = 0x400000, IMAGE_SIZE = 0x6B8000, HEADER_SIZE = 0x200;
 struct CollisionCase { unsigned short actorId; bool selector38; };
-constexpr CollisionCase COLLISION_CASES[]{{0, true}, {1, true}, {2, true}, {12, true}, {20, true}, {21, true}, {65535, true}, {2, false}};
+constexpr CollisionCase COLLISION_CASES[]{{0, true}, {1, true}, {2, true}, {12, true}, {20, true}, {21, true},
+    {32, true}, {33, true}, {60, true}, {61, true}, {65535, true}, {2, false}, {60, false}};
 void require(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
@@ -60,6 +63,11 @@ struct Fixture {
         auto alternatePath = t7r::startupAnimationResourcePath();
         alternatePath.replace(0, 14, "..\\DATA\\BTREE\\");
         inputs.push_back({alternatePath, startupAnimationFixture()});
+        inputs.push_back({t7r::trainingHudResourcePath(), trainingHudFixture()});
+        auto trainingPath = t7r::trainingHudResourcePath();
+        trainingPath.replace(0, 14, "..\\DATA\\BTREE\\");
+        inputs.push_back({trainingPath, trainingHudFixture()});
+        inputs.push_back({gbk(L"../data/btree/流程_游戏中.btree"), trainingHudFixture()});
         inputs.push_back({gbk(L"../data/btree/流程_新手教学_片头动画.btree"), "tutorial movie remains untouched"});
         if (malformed) inputs[0].source = "<BTree>";
         t7r::Bytes image(HEADER_SIZE + IMAGE_SIZE - 0x1000, 0);
@@ -165,7 +173,7 @@ struct Fixture {
             const auto composite = BASE + 0x2600 + static_cast<uint32_t>(i) * 32;
             const auto position = BASE + 0x2800 + static_cast<uint32_t>(i) * 32;
             const auto result = BASE + 0x2A00 + static_cast<uint32_t>(i) * 32;
-            const auto omitted = item.selector38 && item.actorId >= 2 && item.actorId <= 20;
+            const auto omitted = item.selector38 && item.actorId >= 2 && item.actorId <= 60;
             require(readWord(process, composite + 0x14) == (omitted ? 1u : 2u), "wrong native position command ownership");
             require(readWord(process, composite + 0x18) == 0x12345678, "native MoveCommand was not retained");
             require(readWord(process, position + 4) == (omitted ? 1u : 0u), "omitted position command was not released exactly once");
@@ -177,12 +185,15 @@ struct Fixture {
         for (const auto& input : inputs) {
             const auto resource = t7r::movementResourceForPath(input.path);
             const auto startupAnimation = skipStartupAnimation && t7r::isStartupAnimationResourcePath(input.path);
-            const auto reserved = resource == t7r::MovementResource::None && !startupAnimation ? 0 : t7r::MOVEMENT_XML_RESERVE;
+            const auto trainingHud = t7r::isTrainingHudResourcePath(input.path);
+            const auto reserved = resource == t7r::MovementResource::None && !startupAnimation && !trainingHud
+                ? 0 : t7r::MOVEMENT_XML_RESERVE;
             require(readWord(process, input.result) == input.source.size() + reserved + 1, "XML reserve or saved ECX is wrong");
             require(readWord(process, input.result + 4) == input.source.size(), "original XML read length changed");
             require((readWord(process, input.result + 8) & 0xCD5) == (0x246 & 0xCD5), "hook changed arithmetic flags");
             require(readWord(process, input.result + 12) == input.buffer, "parse argument/stack was not preserved");
             const auto expected = startupAnimation ? t7r::skipStartupAnimation(input.source)
+                : trainingHud ? t7r::hideTrainingMatchHud(input.source)
                 : t7r::transformMovementResource(resource, input.source);
             auto actual = t7r::readClientMemory(process, input.buffer, expected.size() + 1);
             require(actual.back() == 0 && std::string(actual.begin(), actual.end() - 1) == expected, "runtime XML transform mismatch");

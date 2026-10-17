@@ -1,73 +1,36 @@
 # 战斗运行时与独立宿主
 
-`T7R.BattleServer` 是 Windows x64 / .NET Framework 4.8 控制台宿主，复用启动器的
-`Server`、嵌入式 CPython 和 `Business`，不创建游戏进程，不依赖 WPF 或 Java 登录。
+`T7R.BattleServer` 是 Windows x64／.NET Framework 4.8 无界面宿主，通过 `NativeBattleHost` 复用与启动器相同的 Rust 网关和战局。不加载 NativeBridge／Python，不创建游戏进程，也不依赖 WPF 或 Java 登录。
 
-当前实现是联机计划的宿主与传输基础，**尚不是可注册、可匹配的多人战斗节点**。
-Python 战斗状态仍采用现有单客户端模型。多人共享状态、身份映射、远端世界采样、
-LAN 房间和 Java 调度按[三模式实施计划](planning/battle-network-v1.md)继续接入。
+当前仍是单客户端战局模型，不是多人节点。无界面宿主没有原客户端采样，不能单独驱动完整人机对局；共享 MatchHost、LAN 和 Linux 节点见[目标架构](planning/target-architecture.md)。
 
 ## 构建与模块验证
 
-使用[开发工具链](development.md#1-准备工具链)，在仓库根目录执行：
-
 ```powershell
-python scripts/build.py --project battle
-python scripts/build.py --project battle-tests
+python scripts/build.py --project battle --artifacts artifacts/battle-check
+python scripts/build.py --project battle-tests --artifacts artifacts/battle-check
 ```
 
-- `battle` 构建 NativeBridge、Core、Battle、BattleServer 与 BattleHarness，不运行测试。
-- `battle-tests` 另外构建并运行战斗宿主的 C++ 测试和托管 harness；不运行项目级全量测试。
-- 两个入口均支持 `--configuration Debug`，不需要构建 WPF。
-- 测试使用 `artifacts/tmp/` 下生成的合成资源与独立状态目录，不启动游戏客户端。
+构建使用固定 Rust 工具链及现有 VS／.NET 工具链。模块测试使用合成 VFS、独立缓存与状态目录，覆盖默认 Rust 宿主的启动、端口、协议、重复启动、停止和资源失败，不需要 CPython SDK。
 
 ## 运行
 
 ```powershell
 & .\artifacts\bin\T7R.BattleServer\x64\Release\net48\T7R.BattleServer.exe `
   --package-root 'PACKAGE_ROOT' `
-  --client-directory 'TARGET\bin' `
+  --client-directory 'CLIENT_ROOT\Bin' `
   --state-root 'STATE_ROOT'
 ```
 
-将占位符替换为实际目录：
+`PACKAGE_ROOT` 包含同版本 `t7r_battle_ffi.dll`；控制台目录包含 `T7R.Core.dll`、`T7R.Battle.dll` 和 exe.config。客户端根目录需提供 `update.lst` 与原始 VFS。`STATE_ROOT` 保存独立 `battle-cache` 和 `player-profile.json`。
 
-| 参数 | 内容 |
-| --- | --- |
-| `--package-root` | 同版本 `T7R.NativeBridge.dll`、CPython 3.14.4 AMD64 运行时及完整 `Business` 的运行目录 |
-| `--client-directory` | 客户端 `bin` 目录；其上级目录提供 `vfs` 等原始资源，不启动其中的程序 |
-| `--state-root` | 可写状态目录，保存本宿主的资源 revision、业务 profile 和诊断 |
-
-运行目录的 Python 布局与启动器一致：根目录包含 `python314.dll` 及所需运行时 DLL，
-`python/` 包含标准库（`python314.zip` 或 `Lib/`）与扩展，`Business/` 包含
-`runtime/`、`scripts/` 和 `vendor/`。控制台自己的输出目录包含 `T7R.Core.dll`、
-`T7R.Battle.dll` 及 `.exe.config`。原始客户端和提取资源不随项目分发。
-
-启动成功后输出三个动态回环端口。`Ctrl+C` 停止宿主；参数、资源或运行时错误返回非零退出码。
-进程内最多一个活动 Python owner；多个独立宿主使用不同进程和状态目录。
-
-### 生命周期接口
-
-`T7RBattleHost.h` 新增独立句柄，不修改已有 `T7RNativeSession` ABI 或启动行为。
-
-| 接口 | 语义 |
-| --- | --- |
-| `t7r_battle_host_create` | 校验并复制绝对 UTF-8 路径，不启动运行时 |
-| `t7r_battle_host_start` | 等待 Python 资源预检和原生监听就绪；重复启动返回 `Busy` |
-| `t7r_battle_host_snapshot` | 返回状态、私有端口、连接数、计时器数和业务阶段 |
-| `t7r_battle_host_error` | 按 UTF-8 字节数读取错误，短缓冲区不截断 |
-| `t7r_battle_host_stop` | 幂等停止，关闭监听、等待工作线程退出 |
-| `t7r_battle_host_release` | 同步清理并销毁句柄；返回后才可卸载 DLL |
-
-`NativeBattleHost` 封装上述接口，用 SafeHandle 保持 DLL 到原生工作线程退出为止。
-这些调用是同步的，UI 集成应在工作线程执行。旧客户端 AUTH 只属于原协议握手，
-不代表平台登录或房间准入；三个原协议端口固定绑定 `127.0.0.1`，不直接对外发布。
+`NativeBattleHost.Start` 等待资源加载和三个回环端口就绪；重复启动报错。`GetSnapshot`／`GetError` 返回状态与诊断；`Stop`／`Dispose` 停止战局和网关并等待线程退出。`Ctrl+C` 停止控制台宿主，错误返回非零退出码。旧 `t7r_battle_host_*` C++／Python ABI 已删除，不保留转接层。
 
 ## BattleProtocol v1 帧基础
 
 `BattleFrame` 表达与实现无关的消息，`BattleConnection` 负责有界可靠传输。
 当前已有原协议三通道中继组件，尚未接入准入处理器、启动器和共享比赛状态；
-`Admit`、`WorldSample` 等消息体将在接入阶段定义。
+`Admit` 消息体与能力匹配已定义，见[公共契约](battle-contracts.md#帧与准入)；`WorldSample`、`PlayerIntent`、`MatchEnded` 和 `MatchAborted` 已有语义消息体及黄金样本，但准入处理器、接触证据、增量权威输出及实机接入仍待完成。
 
 所有整数使用大端序。长度前缀为 4 字节，值为其后内容长度，不含前缀自身。
 
@@ -84,7 +47,8 @@ python scripts/build.py --project battle-tests
 | 36 | 可变 | payload |
 
 消息编号：1 Admit、2 Admitted、3 OpenChannel、4 GameData、5 CloseChannel、
-6 WorldSample、7 MatchState、8 MatchEnded、9 Ping、10 Pong。
+6 WorldSample、7 MatchState、8 MatchEnded、9 Ping、10 Pong、
+11 PlayerIntent、12 MatchAborted。
 仅 OpenChannel、GameData、CloseChannel 携带非零原协议角色。
 
 - 帧体范围为 36 字节至 4 MiB，先检查长度再分配接收缓冲区。

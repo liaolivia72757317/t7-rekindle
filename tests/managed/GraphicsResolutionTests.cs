@@ -52,9 +52,10 @@ namespace T7R.ManagedHarness
         private static MainWindowViewModel Model(string root, string directory, FakeLauncherBridge bridge,
             Func<IReadOnlyList<string>> readResolutions) => new MainWindowViewModel(bridge,
                 new SettingsService(Path.Combine(root, "launcher")),
-                new UserSettings { ClientDirectory = Path.GetDirectoryName(directory) }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(),
-                isClientRunning: _ => false, readGraphicsResolutions: readResolutions);
+                new UserSettings { ClientDirectory = Path.GetDirectoryName(directory) },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))) { Running = _ => false, Resolutions = _ => ((Func<IReadOnlyList<string>>)(readResolutions))() },
+                new FakeDesktopInteraction());
 
         private static void TestOptions(string root)
         {

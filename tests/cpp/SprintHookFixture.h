@@ -14,7 +14,7 @@ constexpr uint32_t STATE_WRITES = KEYS + 32, JUMP_COMMANDS = KEYS + 36;
 constexpr uint32_t ANIMATION_EVENTS = KEYS + 40, ANIMATION_NAME = KEYS + 44;
 constexpr uint32_t ANIMATION_LENGTH = KEYS + 48, ANIMATION_CAPACITY = KEYS + 52;
 constexpr uint32_t COMMAND_SPEED = KEYS + 56, COMMAND_MAX_SPEED = KEYS + 60;
-constexpr uint32_t CLOCK_MODE = KEYS + 64;
+constexpr uint32_t CLOCK_MODE = KEYS + 64, MOVEMENT_HEADING = KEYS + 68;
 constexpr uint32_t ANIMATION = BASE + 0xC500;
 inline t7r::DashAttackProfile profile() {
     // Deliberately different from the current weapon: the hook must consume the supplied snapshot.
@@ -41,6 +41,8 @@ inline void prepare(HANDLE process) {
     t7r::WorldHookCode c;
     c.emit({0x55,0x8B,0xEC,0x8B,0x55,8,0x56,0x8B,0x71,0x7C});
     std::vector<size_t> done;
+    c.emit({0x81,0xFA}); c.word(BASE + 0x1781950); const auto notDirection = c.branch(0x85);
+    c.emit({0x8B,0x81}); c.word(0x94); done.push_back(c.jump()); c.bind(notDirection);
     for (const auto& field : std::array<std::array<uint32_t, 2>, 3>{{
         {0x1777D50,0x88}, {0x1783860,0x8C}, {0x17736BC,0x90}
     }}) {
@@ -93,9 +95,12 @@ inline void prepare(HANDLE process) {
     begin(); c.emit({0x8B,0x45,8,0xA3}); c.word(COMMAND_SPEED);
     c.emit({0x8B,0x45,12,0xA3}); c.word(COMMAND_MAX_SPEED);
     c.emit({0x8B,0x45,0x14,0x8B,0x00,0xA3}); c.word(DIRECTION);
+    c.emit({0xA1}); c.word(worldFixture::CONTROLLER + 0xAC); c.emit({0xA3}); c.word(MOVEMENT_HEADING);
     c.emit({0xFF,0x05}); c.word(MOVES); c.emit({0x5D,0xC2,16,0});
     t7r::writeClientMemory(process, BASE + 0x75D140, c.bytes);
-    begin(); c.store(DIRECTION, 0); c.emit({0xFF,0x05}); c.word(MOVES); c.emit({0x5D,0xC3});
+    begin(); c.store(DIRECTION, 0);
+    c.emit({0xA1}); c.word(worldFixture::CONTROLLER + 0xAC); c.emit({0xA3}); c.word(MOVEMENT_HEADING);
+    c.emit({0xFF,0x05}); c.word(MOVES); c.emit({0x5D,0xC3});
     t7r::writeClientMemory(process, BASE + 0x75D3B0, c.bytes);
     // The adjacent native entry queues a jump, not a stop command.
     begin(); c.emit({0xFF,0x05}); c.word(JUMP_COMMANDS); c.emit({0x5D,0xC3});
@@ -344,6 +349,44 @@ inline void verifyAirMovement(HANDLE process) {
     }
     writeWord(process, KEYS, 0); pump(process);
 }
+inline void verifyWeaponChange(HANDLE process) {
+    uint32_t tick = readWord(process, CLOCK);
+    auto time = [&](uint32_t delta) { tick += delta; writeWord(process, CLOCK, tick); pump(process); };
+    for (uint32_t keys : {1u, 5u, 9u}) {
+        writeWord(process, KEYS, 0); setFightState(process, 2); pump(process);
+        writeWord(process, KEYS, keys); pump(process); time(400);
+        setFightState(process, 1); expect(process, 3, false, "weapon change interrupted run warmup");
+        time(599); expect(process, 3, false, "weapon change armed running before the original deadline");
+        time(1); expect(process, 5, true, "weapon change reset or paused run warmup");
+        const auto events = readWord(process, EVENTS);
+        for (uint32_t state : {2u, 1u, 2u, 1u, 2u}) {
+            setFightState(process, state); time(200);
+            expect(process, 5, true, "weapon change interrupted an established run");
+            expectDirection(process, keys == 1 ? 1 : keys == 5 ? 8 : 2, true);
+            if (readWord(process, EVENTS) != events)
+                throw std::runtime_error("weapon change toggled the running flag");
+        }
+    }
+    // Starting movement while equipping uses the same uninterrupted warmup.
+    writeWord(process, KEYS, 0); setFightState(process, 1); pump(process); time(1000);
+    expect(process, 0, false, "stationary weapon change armed running");
+    writeWord(process, KEYS, 1); pump(process); time(500);
+    setFightState(process, 2); pump(process); time(499);
+    expect(process, 3, false, "weapon change completion shortened run warmup");
+    time(1); expect(process, 5, true, "weapon change completion restarted run warmup");
+    for (uint32_t keys : {0u, 2u, 4u, 17u}) {
+        setFightState(process, 1); writeWord(process, KEYS, keys);
+        expect(process, keys ? 3.f : 0.f, false, "weapon change ignored a movement interruption");
+        writeWord(process, KEYS, 1); pump(process); time(999);
+        expect(process, 3, false, "weapon change reused canceled run warmup");
+        time(1); expect(process, 5, true, "weapon change did not allow running to restart");
+    }
+    setFightState(process, 35); expect(process, 3, false, "hit during weapon change retained running");
+    setFightState(process, 2); pump(process); time(999);
+    expect(process, 3, false, "hit during weapon change kept elapsed run time");
+    time(1); expect(process, 5, true, "hit recovery did not rearm running");
+    writeWord(process, KEYS, 0); pump(process);
+}
 inline void verify(HANDLE process) {
     const auto config = profile();
     const float initialSpeed = static_cast<float>(config.speedMilli) / 1000.f;
@@ -364,6 +407,7 @@ inline void verify(HANDLE process) {
     verifyJump(process);
     verifyJumpAttack(process);
     verifyAirMovement(process);
+    verifyWeaponChange(process);
     tick = readWord(process, CLOCK);
     writeWord(process, KEYS, 1); expect(process, 3, false, "jog speed");
     time(999); expect(process, 3, false, "sprint armed too early");

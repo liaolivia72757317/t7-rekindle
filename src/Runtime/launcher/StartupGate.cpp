@@ -12,7 +12,7 @@ Bytes signature(uint32_t base, bool armed) {
     if (armed) bytes[0] = 0xCC;
     return bytes;
 }
-uint32_t readWord(HANDLE process, uintptr_t address) {
+uint32_t readUInt32(HANDLE process, uintptr_t address) {
     const auto bytes = readClientMemory(process, address, sizeof(uint32_t));
     uint32_t value = 0; std::memcpy(&value, bytes.data(), sizeof(value)); return value;
 }
@@ -60,8 +60,8 @@ void StartupGate::install(HANDLE process, uint32_t imageBase) {
 }
 void StartupGate::verifyObject(uint32_t object) const {
     if (!object || object > UINT32_MAX - 0x98
-        || readWord(process_, imageBase_ + SERVICE_RVA) != object
-        || readWord(process_, object) != imageBase_ + VTABLE_RVA
+        || readUInt32(process_, imageBase_ + SERVICE_RVA) != object
+        || readUInt32(process_, object) != imageBase_ + VTABLE_RVA
         || (object_ && object != object_))
         throw std::runtime_error("startup gate network object mismatch");
 }

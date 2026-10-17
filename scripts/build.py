@@ -12,6 +12,13 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+ARTIFACTS = None
+
+
+def artifact_root() -> Path:
+    return ARTIFACTS if ARTIFACTS is not None else ROOT / "artifacts"
+
+
 VSWHERE = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Microsoft Visual Studio/Installer/vswhere.exe"
 MSBUILD_CANDIDATES = (
     Path(r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"),
@@ -84,7 +91,7 @@ def run_msbuild(project: Path, platform: str, msbuild: Path, python_home: Path |
                 configuration: str = "Release") -> None:
     env = {key.upper(): value for key, value in os.environ.items()}
     command = [str(msbuild), str(project), "/nologo", "/m", f"/p:Configuration={configuration}",
-               f"/p:Platform={platform}", "/v:minimal"]
+               f"/p:Platform={platform}", f"/p:T7RArtifactsRoot={artifact_root()}/", "/v:minimal"]
     if project.suffix == ".csproj":
         command.extend(["/restore", "/p:RestoreLockedMode=true"])
     if python_home is not None:
@@ -93,11 +100,11 @@ def run_msbuild(project: Path, platform: str, msbuild: Path, python_home: Path |
 
 
 def prepare_runtime_fixture(python_home: Path) -> Path:
-    artifacts = ROOT / "artifacts/tmp"
+    artifacts = artifact_root() / "tmp"
     artifacts.mkdir(parents=True, exist_ok=True)
     fixture = Path(tempfile.mkdtemp(prefix="runtime-fixture-", dir=artifacts))
     try:
-        shutil.copytree(ROOT / "src/Business", fixture / "Business",
+        shutil.copytree(ROOT / "tests/reference/Business", fixture / "Business",
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         import importlib.util
         spec = importlib.util.spec_from_file_location('vfs_fixture', ROOT / 'tests/python/vfs_fixture.py')
@@ -106,7 +113,7 @@ def prepare_runtime_fixture(python_home: Path) -> Path:
         resources.writeClient(fixture / 'synthetic-client')
         previous_path = list(sys.path)
         try:
-            sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'src/Business/vendor'), str(ROOT / 'tests/python')]
+            sys.path[:0] = [str(ROOT / 'tests/reference'), str(ROOT / 'tests/reference/Business/vendor'), str(ROOT / 'tests/python')]
             from loadout_fixture import writeResources, writeStaticCombatProfiles, writeStaticDamageProfiles
             writeResources(fixture / 'synthetic-client')
             writeStaticCombatProfiles(fixture / 'Business/scripts/combat_profile_data.py')
@@ -154,7 +161,7 @@ def remove_tree(path: Path) -> None:
 
 
 def run_native_tests(python_home: Path, configuration: str = "Release") -> None:
-    binary = ROOT / "artifacts/native/bin/x64" / configuration
+    binary = artifact_root() / "native/bin/x64" / configuration
     fixture = prepare_runtime_fixture(python_home)
     environment = os.environ.copy()
     environment["PATH"] = str(python_home) + os.pathsep + environment.get("PATH", "")
@@ -168,33 +175,72 @@ def run_native_tests(python_home: Path, configuration: str = "Release") -> None:
         remove_tree(fixture)
 
 
-def run_battle_tests(python_home: Path, configuration: str = "Release") -> None:
-    binary = ROOT / 'artifacts/native/bin/x64' / configuration
-    fixture = prepare_runtime_fixture(python_home)
-    if fixture.resolve().parent != (ROOT / 'artifacts/tmp').resolve() or not fixture.name.startswith('runtime-fixture-'):
-        fail('battle fixture must be a generated directory inside artifacts/tmp')
-    environment = os.environ.copy()
-    environment['PATH'] = str(python_home) + os.pathsep + environment.get('PATH', '')
-    environment['LOCALAPPDATA'] = str(fixture / 'state')
-    try:
-        shutil.copy2(binary / 'T7R.NativeBridge.dll', fixture / 'T7R.NativeBridge.dll')
-        subprocess.run([str(binary / 'T7R.BattleHostTests.exe'), str(fixture)],
-                       cwd=ROOT, env=environment, check=True)
-        harness = ROOT / 'artifacts/bin/T7R.BattleHarness/x64' / configuration / 'net48/T7R.BattleHarness.exe'
-        subprocess.run([str(harness), str(fixture)], cwd=ROOT, env=environment, check=True)
-    finally:
-        remove_tree(fixture)
+def run_battle_tests(configuration: str = "Release") -> None:
+    artifacts = artifact_root()
+    (artifacts / 'tmp').mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='rust-host-', dir=artifacts / 'tmp') as temporary:
+        fixture = Path(temporary)
+        client = fixture / 'synthetic-client'
+        (client / 'Bin').mkdir(parents=True)
+        (client / 'vfs').mkdir()
+        (client / 'update.lst').write_text('1.0.0\n', encoding='utf-8')
+        shutil.copy2(ROOT / 'tests/fixtures/resources/client-cache-v1.vfs', client / 'vfs/data1.vfs')
+        rust = artifacts / 'rust/x86_64-pc-windows-msvc' / ('release' if configuration == 'Release' else 'debug') / 't7r_battle_ffi.dll'
+        shutil.copy2(rust, fixture / rust.name)
+        harness = artifacts / 'bin/T7R.BattleHarness/x64' / configuration / 'net48/T7R.BattleHarness.exe'
+        subprocess.run([str(harness), str(fixture)], cwd=ROOT, check=True)
+
+
+def run_rust(project: str, configuration: str) -> None:
+    cargo = shutil.which('cargo')
+    if not cargo:
+        fail('Cargo was not found; install the pinned Rust toolchain separately')
+    workspace = ROOT / 'src/BattleRust'
+    environment = dict(os.environ, CARGO_TARGET_DIR=str(artifact_root() / 'rust'))
+    profile = ['--release'] if configuration == 'Release' else []
+    if project == 'rust-tests':
+        commands = [[cargo, 'fmt', '--all', '--check'],
+                    [cargo, 'clippy', '--locked', '--workspace', '--all-targets', *profile, '--', '-D', 'warnings'],
+                    [cargo, 'test', '--locked', '--workspace', *profile]]
+    else:
+        commands = [[cargo, 'build', '--locked', '--workspace', *profile]]
+    for command in commands:
+        subprocess.run(command, cwd=workspace, env=environment, check=True)
+    if project == 'rust-bridge-tests':
+        msbuild = locate_msbuild(require_native=True)
+        run_msbuild(ROOT / 'tests/cpp/T7R.RustBridgeTests.vcxproj', 'x64', msbuild, None, configuration)
+        binary = artifact_root() / 'native/bin/x64' / configuration / 'T7R.RustBridgeTests.exe'
+        library = artifact_root() / 'rust/x86_64-pc-windows-msvc' / ('release' if configuration == 'Release' else 'debug') / 't7r_battle_ffi.dll'
+        subprocess.run([str(binary)], cwd=ROOT, env=dict(environment, T7R_BATTLE_FFI_DLL=str(library)), check=True)
+    if project == 'rust-gateway-tests':
+        msbuild = locate_msbuild(require_native=True)
+        check_managed_sdk(msbuild)
+        run_msbuild(ROOT / 'tests/cpp/T7R.RustGatewayFixture.vcxproj', 'x64', msbuild, None, configuration)
+        run_msbuild(ROOT / 'tests/battle/T7R.BattleHarness.csproj', 'x64', msbuild, None, configuration)
+        binary = artifact_root() / 'bin/T7R.BattleHarness/x64' / configuration / 'net48/T7R.BattleHarness.exe'
+        library = artifact_root() / 'native/bin/x64' / configuration / 'T7R.RustGatewayFixture.dll'
+        subprocess.run([str(binary), '--rust-gateway', str(library)], cwd=ROOT, check=True)
+        direct = artifact_root() / 'rust/x86_64-pc-windows-msvc' / ('release' if configuration == 'Release' else 'debug') / 't7r_battle_ffi.dll'
+        subprocess.run([str(binary), '--rust-gateway', str(direct)], cwd=ROOT, check=True)
 
 
 def main() -> None:
+    global ARTIFACTS
     parser = argparse.ArgumentParser()
-    parser.add_argument("--project", choices=("all", "native", "native-tests", "managed", "battle", "battle-tests"), default="all")
+    parser.add_argument("--artifacts", type=Path, help="independent build output root")
+    parser.add_argument("--project", choices=("all", "native", "native-tests", "managed", "battle", "battle-tests",
+                                              "rust", "rust-tests", "rust-bridge-tests", "rust-gateway-tests"), default="all")
     parser.add_argument("--configuration", choices=("Debug", "Release"), default="Release")
     args = parser.parse_args()
+    ARTIFACTS = args.artifacts.resolve() if args.artifacts else None
+    if args.project.startswith('rust'):
+        run_rust(args.project, args.configuration)
+        print(f"Rust build completed: {args.configuration}/x64")
+        return
     msbuild = locate_msbuild(require_native=args.project != "managed")
-    python_home = check_python() if args.project != "managed" else None
+    python_home = check_python() if args.project in ("all", "native-tests") else None
     if args.project in ("all", "native", "native-tests", "battle", "battle-tests"):
-        run_msbuild(ROOT / "src/Runtime/T7R.NativeBridge.vcxproj", "x64", msbuild, python_home, args.configuration)
+        run_msbuild(ROOT / "src/Runtime/T7R.NativeBridge.vcxproj", "x64", msbuild, None, args.configuration)
     if args.project in ("all", "native-tests"):
         run_msbuild(ROOT / "tests/cpp/T7R.NativeTests.vcxproj", "x64", msbuild, python_home, args.configuration)
         run_msbuild(ROOT / "tests/cpp/T7R.BridgeTests.vcxproj", "x64", msbuild, python_home, args.configuration)
@@ -210,8 +256,7 @@ def main() -> None:
         run_msbuild(ROOT / "src/BattleServer/T7R.BattleServer.csproj", "x64", msbuild, python_home, args.configuration)
         run_msbuild(ROOT / "tests/battle/T7R.BattleHarness.csproj", "x64", msbuild, python_home, args.configuration)
     if args.project in ("all", "battle-tests"):
-        run_msbuild(ROOT / "tests/cpp/T7R.BattleHostTests.vcxproj", "x64", msbuild, python_home, args.configuration)
-        run_battle_tests(python_home, args.configuration)
+        run_battle_tests(args.configuration)
     print(f"build completed: {args.configuration}/x64")
 
 

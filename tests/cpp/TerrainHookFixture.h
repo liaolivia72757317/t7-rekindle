@@ -69,13 +69,14 @@ inline void prepare(HANDLE process) {
 
 inline void verifyMultiTarget(HANDLE process, t7r::ClientWorld& reader) {
     // A pose change needs a full sampling/selection/query cycle, including the queued request.
-    auto sample = [&] { worldFixture::read(reader); worldFixture::read(reader); return worldFixture::read(reader); };
+    auto camps = worldFixture::camps();
+    auto sample = [&] { worldFixture::read(reader, camps); worldFixture::read(reader, camps); return worldFixture::read(reader, camps); };
     auto position = [&](uint32_t index, std::array<float, 3> value) {
         t7r::Bytes bytes(sizeof(value)); std::memcpy(bytes.data(), value.data(), bytes.size());
         t7r::writeClientMemory(process, worldFixture::CONTROLLER + index * 0x100 + 0x10, bytes);
     };
-    const std::array<uint32_t, 5> changed{0, 1, 2, 3, 11};
-    std::array<t7r::Bytes, 5> original, headings;
+    const std::array<uint32_t, 6> changed{0, 1, 2, 3, 11, 59};
+    std::array<t7r::Bytes, 6> original, headings;
     for (size_t i = 0; i < changed.size(); ++i) {
         const auto controller = worldFixture::CONTROLLER + changed[i] * 0x100;
         original[i] = t7r::readClientMemory(process, controller + 0x10, 12);
@@ -122,6 +123,17 @@ inline void verifyMultiTarget(HANDLE process, t7r::ClientWorld& reader) {
         if (value.actors[0].targetTerrain[i].ready)
             throw std::runtime_error("multi-target terrain accepted missing geometry as clear");
     writeWord(process, MAP + 0x1C, COLLISION);
+    // RID 60 uses the high half of the native target mask; camp comes from the roster.
+    position(59, {271.5f,150.5f,.25f});
+    camps[59] = 2;
+    value = sample();
+    if (!value.actors[59].ready || !value.actors[0].targetTerrain[59].ready
+        || !value.actors[0].targetTerrain[59].hit)
+        throw std::runtime_error("native target mask lost RID 60");
+    camps[59] = 1;
+    value = sample();
+    if (value.actors[0].targetTerrain[59].ready)
+        throw std::runtime_error("native target mask retained a same-camp RID 60");
     for (size_t i = 0; i < changed.size(); ++i) {
         const auto controller = worldFixture::CONTROLLER + changed[i] * 0x100;
         t7r::writeClientMemory(process, controller + 0x10, original[i]);

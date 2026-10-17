@@ -19,9 +19,12 @@ namespace T7R.ManagedHarness
         }
 
         private static MainWindowViewModel Model(string root, string binaryDirectory, FakeLauncherBridge bridge,
-            Func<string, bool> running = null) => new MainWindowViewModel(bridge, new SettingsService(Path.Combine(root, "launcher")),
-                new UserSettings { ClientDirectory = Path.GetDirectoryName(binaryDirectory) }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction(), isClientRunning: running ?? (_ => false));
+            Func<string, bool> running = null) => new MainWindowViewModel(bridge,
+                new SettingsService(Path.Combine(root, "launcher")),
+                new UserSettings { ClientDirectory = Path.GetDirectoryName(binaryDirectory) },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))) { Running = running ?? (_ => false) },
+                new FakeDesktopInteraction());
 
         private static void TestOffline(string root)
         {

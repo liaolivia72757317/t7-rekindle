@@ -43,6 +43,11 @@ def test_player_death_cancels_only_player_actions_and_counts_one_kill(multi):
         'ground-step', battle.ACTION_TIMER, combat.hitTimer(1), combat.hurtTimer(1)))
     sends = multi.result['send']
     dead = next(p for p in sends if p['reason'] == 'player-dead')
+    before_dead = sends[sends.index(dead) - 1]
+    assert before_dead['command'] == 2
+    assert before_dead['body'] == move_flow.encode_move_notify_active(
+        server_tick=multi.now - multi.session['instanceStartedAt'],
+        target_instance_id=1, active=0)
     assert battle_flow.decode_battle_dead_notify(dead['body']).entity_rid == 1
     assert sends.index(next(p for p in sends if p['reason'] == 'combat-kill')) < sends.index(dead)
     assert any(p['body'] == scene.wire.actorState(1000, 9) for p in sends)

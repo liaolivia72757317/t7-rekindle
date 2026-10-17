@@ -9,7 +9,7 @@ import pytest
 
 from Business.runtime import host_runtime
 from Business.scripts import actors, app, battle, body_collision, bot, combat, roster, scene, spawn_navigation, spawn_resource
-from Business.scripts.codec import battle_flow
+from Business.scripts.codec import battle_flow, move_flow
 from test_bot_roster import multi, sample, spawnXml
 from test_melee_combat import advance, swing
 from blade_fixture import contact, publish
@@ -83,6 +83,14 @@ def test_lethal_hit_stops_only_dead_bot_and_schedules_exactly_five_seconds(multi
     assert actors.PULSE_TIMER in multi.session['pending']
     notifications = [p for p in multi.result['send'] if p['command'] == 4 and p['body'][:2] == b'\0\x0a']
     assert len(notifications) == 1
+    sends = multi.result['send']
+    stops = [packet for packet in sends if packet['reason'] == 'bot-stop']
+    assert len(stops) == 1
+    stopped = move_flow.decode_move_bc_with_system_and_active(stops[0]['body'])
+    assert (stopped.target_instance_id, stopped.state) == (2, 1)
+    assert stopped.position == pytest.approx(value['position'])
+    assert sends.index(stops[0]) < next(i for i, packet in enumerate(sends)
+                                       if packet['reason'] == 'combat-kill') < sends.index(notifications[0])
     assert battle_flow.decode_battle_dead_notify(notifications[0]['body']).entity_rid == 2
     assert value['action']['state'] == 42
     results = [p for p in multi.result['send'] if p['command'] == 4 and p['body'][:2] == b'\0\x09']
@@ -247,7 +255,7 @@ def test_old_revision_requires_restart_and_current_spawning_state_can_reload(mul
 def test_death_state_and_deadline_survive_reload_and_vision_refresh_then_leave(multi, tmp_path):
     kill(multi)
     original = deepcopy(multi.state)
-    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / 'src/Business/scripts', tmp_path / 'revisions')
+    runtime = host_runtime.Runtime(Path(__file__).resolve().parents[2] / 'tests/reference/Business/scripts', tmp_path / 'revisions')
     try:
         runtime.prepare()
         assert host_runtime.decode(runtime.switch(host_runtime.encode(original))) == original

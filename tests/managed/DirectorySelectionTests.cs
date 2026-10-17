@@ -28,9 +28,12 @@ namespace T7R.ManagedHarness
             var second = ClientDirectorySearchTests.CreateClient(Path.Combine(parent, "b-game"));
             var interaction = new FakeDesktopInteraction { DirectorySelection = parent };
             var settings = new SettingsService(Path.Combine(directory, "browse-settings"));
-            using (var model = new MainWindowViewModel(new FakeLauncherBridge(), settings,
-                new UserSettings { ClientDirectory = parent, PlayerName = "玩家" }, null,
-                path => Task.FromResult(ClientDirectoryService.Inspect(path)), interaction))
+            using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
+                settings,
+                new UserSettings { ClientDirectory = parent, PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ClientDirectoryService.Inspect(path))),
+                interaction))
             {
                 RunTask(model.ValidationTask);
                 Assert(!model.IsDirectoryValid, "manual path validation unexpectedly searched descendants");
@@ -179,8 +182,12 @@ namespace T7R.ManagedHarness
         {
             var initial = new UserSettings { ClientDirectory = @"C:\Games\Current", PlayerName = "Player" };
             settings.Save(initial);
-            return new MainWindowViewModel(new FakeLauncherBridge(), settings, initial, null,
-                path => Task.FromResult(ValidDirectory(path)), interaction, locateDirectory);
+            return new MainWindowViewModel(new FakeLauncherBridge(),
+                settings,
+                initial,
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))) { Locate = locateDirectory },
+                interaction);
         }
     }
 }

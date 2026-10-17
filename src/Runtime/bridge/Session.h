@@ -1,10 +1,13 @@
 #pragma once
 
 #include "../launcher/Bootstrap.h"
-#include "../server/Server.h"
+#include "BattleCapture.h"
+#include "BattleGatewaySink.h"
+#include "../core/TitleRequest.h"
 #include "T7RNativeBridge.h"
 #include "../core/DiagnosticLog.h"
 #include <atomic>
+#include <array>
 #include <chrono>
 #include <condition_variable>
 #include <deque>
@@ -12,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -66,12 +70,15 @@ public:
         std::string packageRoot, Bootstrap::TestAdapter adapter,
         std::function<void()> afterOperation = {});
     bool waitForWorkerForTest(std::chrono::milliseconds timeout);
+    bool battleIngressCreatedForTest();
 #endif
     ~Session();
     void requestClose() noexcept;
 
     int32_t submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId,
-                   std::string playerName = u8"新玩家", bool skipStartupAnimation = false);
+                   std::string playerName = u8"新玩家", bool skipStartupAnimation = false,
+                   std::array<uint16_t, 3> gatewayPorts = {},
+                   std::vector<CombatProfile> profiles = {});
     int32_t cancel(uint64_t operationId);
     int32_t setOutputDevice(const GUID& identifier);
     int32_t setLogLevel(uint32_t level);
@@ -86,6 +93,9 @@ public:
     int32_t error(uint64_t operationId, std::string& result, uint32_t& errorCode) const;
     int32_t readLogs(uint64_t& cursor, uint8_t* buffer, uint32_t capacity,
                      uint32_t& required, uint32_t& flags);
+    int32_t attachBattle(const T7RBattleConfig& config, const std::filesystem::path& rustLibrary,
+                         uint64_t gatewayHandle);
+    int32_t detachBattle();
 
 private:
 #if defined(T7R_NATIVE_BRIDGE_TESTING)
@@ -98,6 +108,8 @@ private:
         std::string playerName;
         bool skipStartupAnimation;
         GUID outputDevice;
+        std::array<uint16_t, 3> gatewayPorts;
+        std::vector<CombatProfile> profiles;
     };
 
     explicit Session(std::string packageRoot, Bootstrap::TestAdapter adapter = {});
@@ -110,6 +122,8 @@ private:
     void executeStop(const Command& command);
     void monitorClient();
     void monitorWorld();
+    void stopCapture();
+    void failWorker(const std::string& message);
     void monitorGraphics();
     void monitorAudio();
     void monitorTitles();
@@ -151,7 +165,16 @@ private:
     TitleRequest titleRequest_;
     std::string titleError_;
     std::atomic<uint64_t> cancelOperation_{0};
-    std::unique_ptr<Server> server_;
+    std::unique_ptr<BattleCapture> capture_;
+    bool captureDisabled_ = false;
+    std::optional<std::chrono::steady_clock::time_point> windowProbeFailureSince_;
+    struct BattleAttachment {
+        T7RBattleConfig config{};
+        std::unique_ptr<BattleGatewaySink> sink;
+        std::unique_ptr<BattleSnapshotIngress> ingress;
+    };
+    std::mutex battleMutex_;
+    std::unique_ptr<BattleAttachment> battleAttachment_;
     Bootstrap bootstrap_;
     bool winsockStarted_ = false;
 };

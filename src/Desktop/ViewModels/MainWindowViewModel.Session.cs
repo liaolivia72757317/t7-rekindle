@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using T7R.Core;
+using T7R.Desktop.Services;
 
 namespace T7R.Desktop.ViewModels
 {
@@ -20,6 +21,8 @@ namespace T7R.Desktop.ViewModels
         private string _mainActionText = "启动游戏";
         private DateTime _operationStartedAt;
         private bool _hasRunningSession;
+        private Task _offlineCleanupTask;
+        private string _lastGatewayConnectionError;
 
         internal event Action GameSessionEnded;
 
@@ -38,10 +41,10 @@ namespace T7R.Desktop.ViewModels
         {
             var directory = ClientDirectory;
             var version = _validationVersion;
-            var outputDevice = ParseOutputDevice(SelectedOutputDeviceId);
+            var outputDevice = GameSettings.SelectedDevice;
             return ExecuteAsync(async token =>
             {
-                var result = await _inspectDirectory(directory);
+                var result = await _clientEnvironment.InspectAsync(directory);
                 await RefreshClientVersionAsync(result, version);
                 if (version == _validationVersion)
                 {
@@ -64,27 +67,35 @@ namespace T7R.Desktop.ViewModels
             var directory = ClientDirectory;
             var version = _validationVersion;
             var skipStartupAnimation = SkipStartupAnimation;
-            var outputDevice = ParseOutputDevice(SelectedOutputDeviceId);
+            var outputDevice = GameSettings.SelectedDevice;
             return ExecuteAsync(async token =>
             {
-                var result = await _inspectDirectory(directory);
+                var result = await _clientEnvironment.InspectAsync(directory);
                 await RefreshClientVersionAsync(result, version);
                 _directoryResult = result;
                 if (!result.IsValid) throw new InvalidOperationException(result.Message);
                 token.ThrowIfCancellationRequested();
                 SetProperty(ref _clientDirectory, result.Root, nameof(ClientDirectory));
                 if (!SaveValidatedFields()) throw new InvalidOperationException(SettingsFeedback);
+                if (_offlineCleanupTask != null)
+                {
+                    await _offlineCleanupTask;
+                    _offlineCleanupTask = null;
+                }
+                if (_bridge.GetRuntimeStatus().HasSession)
+                    throw new InvalidOperationException("Previous Rust battle cleanup is incomplete.");
                 _bridge.SetOutputDevice(outputDevice);
+                AppendLog(DiagnosticLogLevel.Info, "启动模式：Rust 战局");
                 var check = await _bridge.CheckAsync(result.Directory, token);
                 if (check.Status != OperationStatus.Succeeded) return check;
                 token.ThrowIfCancellationRequested();
-                _activeOutputDevice = outputDevice;
-                _outputDeviceConfirmed = false;
+                GameSettings.PrepareLaunch(outputDevice);
                 if (Account.IsRegistrationOpen) throw new InvalidOperationException("请先设置游戏名称，完成注册。");
                 var name = PlayerName.Trim();
                 string nameError = PlayerNameRules.Validate(name);
                 if (nameError.Length != 0) throw new InvalidOperationException(nameError);
                 SetProperty(ref _playerName, name, nameof(PlayerName));
+                _lastGatewayConnectionError = null;
                 return await _bridge.StartAsync(result.Directory, name, skipStartupAnimation, token);
             }, OperationKind.Start, "启动");
         }
@@ -95,7 +106,33 @@ namespace T7R.Desktop.ViewModels
             await StopSessionAsync();
         }
 
-        private Task StopSessionAsync() => ExecuteAsync(_ => _bridge.StopAsync(CancellationToken.None), OperationKind.Stop, "结束");
+        private Task StopSessionAsync() => ExecuteAsync(async _ =>
+        {
+            if (_offlineCleanupTask != null)
+            {
+                await _offlineCleanupTask;
+                _offlineCleanupTask = null;
+            }
+            var result = await _bridge.StopAsync(CancellationToken.None);
+            return result;
+        }, OperationKind.Stop, "结束");
+
+        private async Task CleanupExitedRuntimeAsync()
+        {
+            try
+            {
+                await _bridge.StopAsync(CancellationToken.None);
+                UpdatePresentation();
+            }
+            catch (Exception error)
+            {
+                _failureMessage = "Rust 战局清理失败：" + error.Message;
+                _lastAction = "运行";
+                AppendLog(DiagnosticLogLevel.Error, _failureMessage, error);
+                LogsExpanded = true;
+                UpdatePresentation();
+            }
+        }
 
         private async Task ExecuteAsync(Func<CancellationToken, Task<OperationSnapshot>> action, OperationKind kind, string name)
         {
@@ -198,6 +235,28 @@ namespace T7R.Desktop.ViewModels
                     _hasRunningSession = false;
                     IsHomeSelected = true;
                 }
+                var runtime = _bridge.GetRuntimeStatus();
+                var connectionError = runtime.ConnectionError;
+                if (!string.IsNullOrEmpty(connectionError)
+                    && !string.Equals(connectionError, _lastGatewayConnectionError, StringComparison.Ordinal))
+                {
+                    _lastGatewayConnectionError = connectionError;
+                    AppendLog(DiagnosticLogLevel.Error, "Rust 客户端连接失败：" + connectionError);
+                    LogsExpanded = true;
+                }
+                var gatewayFailure = runtime.Failure;
+                if (gatewayFailure != null && !_operationActive && _offlineCleanupTask == null)
+                {
+                    _failureMessage = "Rust 网关已停止：" + gatewayFailure.GetBaseException().Message;
+                    _lastAction = "运行";
+                    AppendLog(DiagnosticLogLevel.Error, _failureMessage, gatewayFailure);
+                    LogsExpanded = true;
+                    _offlineCleanupTask = CleanupExitedRuntimeAsync();
+                }
+                else if (gameEnded && !_operationActive && runtime.HasSession && _offlineCleanupTask == null)
+                {
+                    _offlineCleanupTask = CleanupExitedRuntimeAsync();
+                }
                 UpdatePresentation();
                 if (gameEnded) GameSessionEnded?.Invoke();
                 RefreshGameSettings();
@@ -256,8 +315,7 @@ namespace T7R.Desktop.ViewModels
             MainActionCommand?.NotifyCanExecuteChanged();
             CancelCommand?.NotifyCanExecuteChanged();
             StopCommand?.NotifyCanExecuteChanged();
-            NotifyGraphics();
-            NotifyAudio();
+            GameSettings.RefreshAvailability();
         }
 
         private void Present(string title, string description, string tone, string symbol, string action)
@@ -280,7 +338,15 @@ namespace T7R.Desktop.ViewModels
 
         public async Task<bool> RequestCloseAsync()
         {
-            if (CanClose) return true;
+            if (_offlineCleanupTask != null)
+            {
+                await _offlineCleanupTask;
+                _offlineCleanupTask = null;
+            }
+            if (_bridge.GetRuntimeStatus().HasSession && !_operationActive
+                && (_snapshot.State == SessionState.Idle || _snapshot.State == SessionState.Failed))
+                await StopSessionAsync();
+            if (CanClose && !_bridge.GetRuntimeStatus().HasSession) return true;
             if (!_interaction.Confirm("启动器正在托管游戏及本地服务。关闭会结束本次会话，未保存的游戏进度可能丢失。\n确认结束会话并关闭？")) return false;
             if (!_operationActive) await StopSessionAsync();
             else _operationCancellation?.Cancel();
@@ -292,7 +358,7 @@ namespace T7R.Desktop.ViewModels
                 if (!_operationActive && _snapshot.State == SessionState.Running) await StopSessionAsync();
             }
             if (IsBusy) ShowNotice("清理仍未完成，窗口将保持打开。请查看日志，等待清理或重试。", true);
-            return !IsBusy;
+            return !IsBusy && !_bridge.GetRuntimeStatus().HasSession;
         }
     }
 }

@@ -19,7 +19,7 @@ namespace T7R.ManagedHarness
 {
     internal static partial class AccountTests
     {
-        internal static void RunTitles() { RunTitlesAsync().GetAwaiter().GetResult(); TitleBridgeRoundTrip(); }
+        internal static void RunTitles() { NativeTitlePublicationTests.Run(); RunTitlesAsync().GetAwaiter().GetResult(); TitleBridgeRoundTrip(); }
         private static AccountTitles TitleData(int? equipped = 1008) => new AccountTitles(new[] {
             new AccountTitle(1007, "首测元老", "感谢最早参与测试的玩家", "获取：管理员授予；永久。", 0, true, true, "ADMIN", DateTimeOffset.UtcNow, null),
             new AccountTitle(1008, "内测精英", "感谢参与本次测试的玩家", "获取：2026年10月功能上线后登录；永久。", 1, true, true, "OCTOBER_2026_LOGIN", DateTimeOffset.UtcNow, null)
@@ -157,9 +157,13 @@ namespace T7R.ManagedHarness
             var account = Model(api, new MemoryStore(), new ManualDelay());
             var bridge = new FakeLauncherBridge { Snapshot = new SessionSnapshot { State = SessionState.Running } };
             try {
-                using (var model = new MainWindowViewModel(bridge, new SettingsService(directory), new UserSettings(), null,
-                    path => Task.FromResult(ClientDirectoryService.Inspect(path)), new FakeDesktopInteraction(),
-                    readOutputDevices: () => Array.Empty<OutputDeviceOption>(), account: account)) {
+                using (var model = new MainWindowViewModel(bridge,
+                new SettingsService(directory),
+                new UserSettings(),
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ClientDirectoryService.Inspect(path))) { Devices = () => Array.Empty<OutputDeviceOption>() },
+                new FakeDesktopInteraction(),
+                account: account)) {
                     var poll = typeof(MainWindowViewModel).GetMethod("PollTitles", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                     Action tick = () => { model.Refresh(); poll.Invoke(model, null); };
                     RunTask(account.LoginAsync()); tick();

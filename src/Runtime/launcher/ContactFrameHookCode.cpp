@@ -136,7 +136,7 @@ Bytes buildContactFrameHook(uint32_t address) {
     c.emit({0x83,0xC5,sizeof(BladeContactMailbox),0x43,0x83,0xFB,MAX_BLADE_CONTACTS});
     c.bind(c.branch(0x82), contactLoop);
     c.bind(noTrace); c.bind(noActor);
-    c.emit({0x81,0xC6}); c.word(sizeof(ActorMailbox)); c.emit({0x42,0x83,0xFA,21});
+    c.emit({0x81,0xC6}); c.word(sizeof(ActorMailbox)); c.emit({0x42,0x83,0xFA,static_cast<uint8_t>(MAX_WORLD_ACTORS + 1)});
     c.bind(c.branch(0x82), actorLoop);
     c.emit({0x61,0xC3});
     if (c.bytes.size() > LIVE_ACTORS_OFFSET - CONTACT_CODE_OFFSET)

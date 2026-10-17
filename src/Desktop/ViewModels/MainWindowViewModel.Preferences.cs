@@ -45,7 +45,7 @@ namespace T7R.Desktop.ViewModels
                     _bridge.SetLogLevel(value);
                     applied = true;
                     LogService.SetMinimumLevel(value);
-                    _settings.Save(settings);
+                    _settings.SaveLauncherSettings(settings);
                     _selectedLogLevel = value;
                     Notices.Resolve("preferences.save-failed");
                 }
@@ -91,7 +91,7 @@ namespace T7R.Desktop.ViewModels
                 {
                     var settings = CreateSettings(_savedDirectory, _savedName);
                     settings.SkipStartupAnimation = value;
-                    _settings.Save(settings);
+                    _settings.SaveLauncherSettings(settings);
                     _skipStartupAnimation = value;
                     Notices.Resolve("game-settings.save-failed");
                 }
@@ -119,7 +119,7 @@ namespace T7R.Desktop.ViewModels
                 var settings = CreateSettings(_savedDirectory, _savedName);
                 if (isStartup) settings.StartWithWindows = value;
                 else settings.MinimizeToTray = value;
-                _settings.Save(settings);
+                _settings.SaveLauncherSettings(settings);
                 Notices.Resolve("preferences.save-failed");
                 if (isStartup) _startWithWindows = value;
                 else _minimizeToTray = value;

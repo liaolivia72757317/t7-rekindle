@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 #if defined(_WIN32) && defined(T7R_NATIVE_BRIDGE_BUILD)
 #define T7RNB_CALL __cdecl
@@ -124,12 +125,45 @@ typedef struct T7RNativeStartOptions {
     uint32_t reserved;
 } T7RNativeStartOptions;
 
+// Private opt-in path. The caller owns three distinct loopback listeners for
+// the full client lifetime; NativeBridge never starts an embedded server here.
+typedef struct T7RNativeGatewayStartOptions {
+    T7RNativeStartOptions start;
+    uint16_t loginPort;
+    uint16_t logicPort;
+    uint16_t instancePort;
+    uint16_t reserved;
+} T7RNativeGatewayStartOptions;
+
+// Private, process-local copy of the validated Rust resource movement table.
+typedef struct T7RNativeCombatProfile {
+    int32_t heroId, weaponId;
+    float forwardSlow, lateralSlow, backwardSlow, forwardSprint;
+    uint32_t dashDurationMs, dashMoveMs, dashSpeedMilli;
+} T7RNativeCombatProfile;
+
+typedef struct T7RNativeGatewayProfileStartOptions {
+    T7RNativeGatewayStartOptions gateway;
+    const T7RNativeCombatProfile* profiles;
+    uint32_t profileCount;
+    uint32_t reserved;
+} T7RNativeGatewayProfileStartOptions;
+
 typedef struct T7RNativePath {
     uint32_t abiVersion;
     uint32_t structSize;
     const uint8_t* data;
     uint32_t length;
 } T7RNativePath;
+
+struct T7RBattleConfig;
+typedef struct T7RNativeBattleAttachArgs {
+    uint32_t abiVersion;
+    uint32_t structSize;
+    uint64_t gatewayHandle;
+    const T7RBattleConfig* config;
+    T7RNativePath rustLibrary;
+} T7RNativeBattleAttachArgs;
 
 typedef struct T7RNativeTitleRequest {
     uint32_t abiVersion, structSize;
@@ -180,8 +214,14 @@ typedef struct T7RNativeOperation {
 // bit clear and accepts only a Stop retry until all owned resources are gone.
 
 static_assert(sizeof(T7RNativePath) == 24, "T7RNativePath ABI changed");
+static_assert(sizeof(T7RNativeBattleAttachArgs) == 48, "T7RNativeBattleAttachArgs ABI changed");
 static_assert(sizeof(T7RNativeStartArgs) == 40, "T7RNativeStartArgs ABI changed");
 static_assert(sizeof(T7RNativeStartOptions) == 48, "T7RNativeStartOptions ABI changed");
+static_assert(sizeof(T7RNativeGatewayStartOptions) == 56, "T7RNativeGatewayStartOptions ABI changed");
+static_assert(sizeof(T7RNativeCombatProfile) == 36, "T7RNativeCombatProfile ABI changed");
+static_assert(sizeof(T7RNativeGatewayProfileStartOptions) == 72, "T7RNativeGatewayProfileStartOptions ABI changed");
+static_assert(offsetof(T7RNativeGatewayProfileStartOptions, profiles) == 56, "Gateway profile pointer ABI changed");
+static_assert(offsetof(T7RNativeGatewayProfileStartOptions, profileCount) == 64, "Gateway profile count ABI changed");
 static_assert(sizeof(T7RNativeCreateArgs) == 24, "T7RNativeCreateArgs ABI changed");
 static_assert(sizeof(T7RNativeSnapshot) == 120, "T7RNativeSnapshot ABI changed");
 static_assert(sizeof(T7RNativeOperation) == 32, "T7RNativeOperation ABI changed");
@@ -212,7 +252,14 @@ T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_check(T7RNativeSessionHandle s
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_start(T7RNativeSessionHandle session, const T7RNativePath* clientPath, uint64_t* operationId);
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_start_named(T7RNativeSessionHandle session, const T7RNativeStartArgs* args, uint64_t* operationId);
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_start_options(T7RNativeSessionHandle session, const T7RNativeStartOptions* args, uint64_t* operationId);
+T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_start_gateway(T7RNativeSessionHandle session, const T7RNativeGatewayStartOptions* args, uint64_t* operationId);
+T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_start_gateway_profiles(T7RNativeSessionHandle session, const T7RNativeGatewayProfileStartOptions* args, uint64_t* operationId);
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_submit_stop(T7RNativeSessionHandle session, uint64_t* operationId);
+// Private additive attachment for a battle already started on the same
+// process-local Rust gateway handle. The caller owns that match and must
+// detach before stopping it; all pointers are borrowed for this call only.
+T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_attach_battle(T7RNativeSessionHandle session, const T7RNativeBattleAttachArgs* args);
+T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_detach_battle(T7RNativeSessionHandle session);
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_cancel(T7RNativeSessionHandle session, uint64_t operationId);
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_get_snapshot(T7RNativeSessionHandle session, T7RNativeSnapshot* snapshot);
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_get_operation(T7RNativeSessionHandle session, uint64_t operationId, T7RNativeOperation* operation);

@@ -1,4 +1,5 @@
 #include "../../src/Runtime/bridge/T7RNativeBridge.h"
+#include "../../src/BattleRust/ffi/include/t7r_runtime.h"
 #include <windows.h>
 #include <cassert>
 #include <chrono>
@@ -54,6 +55,35 @@ int main() {
     T7RNativeCreateArgs create{T7RNB_ABI_VERSION, sizeof(T7RNativeCreateArgs),
                               reinterpret_cast<const uint8_t*>(root.data()), static_cast<uint32_t>(root.size()), 0};
     assert(t7r_native_create(&create, &session) == T7RNB_OK && session);
+
+    T7RBattleConfig battle{};
+    battle.abiVersion = T7R_BATTLE_CONFIG_ABI_VERSION;
+    battle.structSize = sizeof(battle);
+    battle.memberCount = 20;
+    for (uint32_t i = 0; i < battle.memberCount; ++i) {
+        battle.members[i].actorId = i + 1;
+        battle.members[i].clientRid = static_cast<uint16_t>(i + 1);
+        battle.members[i].camp = i < 10 ? 1 : 2;
+    }
+    const std::string rustLibrary = root + "\\t7r_battle_ffi.dll";
+    T7RNativeBattleAttachArgs attach{};
+    attach.abiVersion = T7RNB_ABI_VERSION;
+    attach.structSize = sizeof(attach);
+    attach.gatewayHandle = 1;
+    attach.config = &battle;
+    attach.rustLibrary = {T7RNB_ABI_VERSION, sizeof(T7RNativePath),
+        reinterpret_cast<const uint8_t*>(rustLibrary.data()), static_cast<uint32_t>(rustLibrary.size())};
+    assert(t7r_native_attach_battle(nullptr, &attach) == T7RNB_INVALID_HANDLE);
+    assert(t7r_native_attach_battle(session, nullptr) == T7RNB_INVALID_ARGUMENT);
+    attach.structSize = 8;
+    assert(t7r_native_attach_battle(session, &attach) == T7RNB_INVALID_ABI);
+    attach.structSize = sizeof(attach);
+    battle.abiVersion = 1;
+    assert(t7r_native_attach_battle(session, &attach) == T7RNB_INVALID_ABI);
+    battle.abiVersion = T7R_BATTLE_CONFIG_ABI_VERSION;
+    assert(t7r_native_attach_battle(session, &attach) == T7RNB_NOT_READY);
+    assert(t7r_native_detach_battle(nullptr) == T7RNB_INVALID_HANDLE);
+    assert(t7r_native_detach_battle(session) == T7RNB_OK);
 
     static_assert(sizeof(T7RNativeTitleRequest) == 32, "title request ABI");
     static_assert(offsetof(T7RNativeTitleRequest, requestId) == 8, "title request ID alignment");
@@ -166,6 +196,47 @@ int main() {
     assert(t7r_native_submit_start_options(session, &options, &operationId) == T7RNB_INVALID_ABI);
     assert(t7r_native_submit_start_options(session, nullptr, &operationId) == T7RNB_INVALID_ARGUMENT);
     assert(t7r_native_submit_start_options(session, &options, nullptr) == T7RNB_INVALID_ARGUMENT);
+    T7RNativeGatewayStartOptions gateway{};
+    gateway.start = options;
+    gateway.start.start.abiVersion = T7RNB_ABI_VERSION;
+    gateway.start.start.structSize = sizeof(gateway);
+    gateway.start.flags = 0;
+    gateway.loginPort = 21001; gateway.logicPort = 21002; gateway.instancePort = 21003;
+    assert(t7r_native_submit_start_gateway(nullptr, &gateway, &operationId) == T7RNB_INVALID_HANDLE);
+    gateway.instancePort = gateway.loginPort;
+    assert(t7r_native_submit_start_gateway(session, &gateway, &operationId) == T7RNB_INVALID_ARGUMENT && operationId == 0);
+    gateway.instancePort = 21003; gateway.start.start.structSize = sizeof(gateway) - 1;
+    assert(t7r_native_submit_start_gateway(session, &gateway, &operationId) == T7RNB_INVALID_ABI);
+    gateway.start.start.structSize = sizeof(gateway); gateway.reserved = 1;
+    assert(t7r_native_submit_start_gateway(session, &gateway, &operationId) == T7RNB_INVALID_ARGUMENT);
+    gateway.reserved = 0; gateway.loginPort = 0;
+    assert(t7r_native_submit_start_gateway(session, &gateway, &operationId) == T7RNB_INVALID_ARGUMENT);
+    assert(t7r_native_submit_start_gateway(session, nullptr, &operationId) == T7RNB_INVALID_ARGUMENT);
+    assert(t7r_native_submit_start_gateway(session, &gateway, nullptr) == T7RNB_INVALID_ARGUMENT);
+    T7RNativeCombatProfile movement{};
+    movement.heroId = 1101; movement.weaponId = 701;
+    movement.forwardSlow = 2.5f; movement.lateralSlow = 1.8f;
+    movement.backwardSlow = 1.f; movement.forwardSprint = 3.6f;
+    T7RNativeGatewayProfileStartOptions profiled{};
+    profiled.gateway = gateway;
+    profiled.gateway.loginPort = 21001;
+    profiled.gateway.start.start.structSize = sizeof(profiled);
+    profiled.profiles = &movement;
+    profiled.profileCount = 1;
+    T7RNativeGatewayProfileStartOptions invalidProfiled = profiled;
+    invalidProfiled.gateway.start.start.structSize = sizeof(gateway);
+    assert(t7r_native_submit_start_gateway_profiles(session, &invalidProfiled, &operationId) == T7RNB_INVALID_ABI);
+    invalidProfiled = profiled; invalidProfiled.profiles = nullptr;
+    assert(t7r_native_submit_start_gateway_profiles(session, &invalidProfiled, &operationId) == T7RNB_INVALID_ARGUMENT);
+    invalidProfiled = profiled; invalidProfiled.profileCount = 2049;
+    assert(t7r_native_submit_start_gateway_profiles(session, &invalidProfiled, &operationId) == T7RNB_INVALID_ARGUMENT);
+    invalidProfiled = profiled; invalidProfiled.reserved = 1;
+    assert(t7r_native_submit_start_gateway_profiles(session, &invalidProfiled, &operationId) == T7RNB_INVALID_ARGUMENT);
+    movement.forwardSprint = movement.forwardSlow;
+    assert(t7r_native_submit_start_gateway_profiles(session, &profiled, &operationId) == T7RNB_INVALID_ARGUMENT);
+    movement.forwardSprint = 3.6f;
+    assert(t7r_native_submit_start_gateway_profiles(session, nullptr, &operationId) == T7RNB_INVALID_ARGUMENT);
+    assert(t7r_native_submit_start_gateway_profiles(session, &profiled, nullptr) == T7RNB_INVALID_ARGUMENT);
     assert(t7r_native_submit_check(session, &path, &operationId) == T7RNB_OK && operationId != 0);
     T7RNativeOperation operation{};
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -254,7 +325,9 @@ int main() {
     T7RNativeSessionHandle active = nullptr;
     assert(t7r_native_create(&create, &active) == T7RNB_OK && active);
     uint64_t startId = 0;
-    assert(t7r_native_submit_start(active, &path, &startId) == T7RNB_OK && startId != 0);
+    assert(t7r_native_submit_start(active, &path, &startId) == T7RNB_INVALID_ARGUMENT && startId == 0);
+    gateway.loginPort = 21001;
+    assert(t7r_native_submit_start_gateway(active, &gateway, &startId) == T7RNB_OK && startId != 0);
     const auto activeRelease = std::chrono::steady_clock::now();
     assert(t7r_native_release(active) == T7RNB_OK);
     assert(std::chrono::steady_clock::now() - activeRelease < std::chrono::milliseconds(100));

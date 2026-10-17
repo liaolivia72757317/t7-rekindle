@@ -1,5 +1,5 @@
-#include "../../src/Runtime/server/Server.h"
-#include "../../src/Runtime/server/Journal.h"
+#include "../../tests/reference/native-server/Server.h"
+#include "../../tests/reference/native-server/Journal.h"
 #include "../../src/Runtime/launcher/Bootstrap.h"
 #include "../../src/Runtime/bridge/Session.h"
 #include <winsock2.h>
@@ -28,6 +28,9 @@ bool verifyResourcePreflight(const t7r::fs::path& packageRoot);
 bool verifyAudioSession(const t7r::fs::path& packageRoot);
 
 bool verifyLobbyNews();
+bool verifyBattleCapture();
+bool verifySessionMonitoring();
+bool verifySessionBattleAttachment(const t7r::fs::path& packageRoot);
 
 namespace {
 bool verifyJobAssignmentOrder() {
@@ -275,7 +278,7 @@ bool verifySessionAssembly(const t7r::fs::path& packageRoot) {
     const auto clientDirectory = t7r::utf8(
         (packageRoot / "synthetic-client" / "Bin").wstring());
     uint64_t startId = 0;
-    if (session->submit(T7RNB_OPERATION_START, clientDirectory, startId) != T7RNB_OK
+    if (session->submit(T7RNB_OPERATION_START, clientDirectory, startId, "Player", false, {21001, 21002, 21003}) != T7RNB_OK
         || !waitForOperation(session, startId, T7RNB_OPERATION_SUCCEEDED)
         || !state->launched) {
         session->requestClose();
@@ -311,9 +314,92 @@ bool verifySessionAssembly(const t7r::fs::path& packageRoot) {
     session->requestClose();
     return valid && session->waitForWorkerForTest(std::chrono::seconds(5));
 }
+
+bool verifyExternalGatewaySession(const t7r::fs::path& packageRoot) {
+    struct FakeState {
+        int launches = 0;
+        int stops = 0;
+        bool running = false;
+        bool failNextLaunch = false;
+    };
+    auto state = std::make_shared<FakeState>();
+    constexpr std::array<uint16_t, 3> ports{21001, 21002, 21003};
+    t7r::Bootstrap::TestAdapter adapter;
+    adapter.launch = [state, ports](const t7r::fs::path&, const t7r::Config& config,
+                             const t7r::DiagnosticLogCallback&, const std::function<bool()>&,
+                             const std::function<void()>& adapting) {
+        if (config.bindAddress != "127.0.0.1" || config.advertisedAddress != "127.0.0.1"
+            || config.ports[0] != ports[0] || config.ports[1] != ports[1]
+            || config.ports[2] != ports[2] || config.lobbyNewsPath.empty()
+            || config.combatProfiles.size() != 1
+            || config.combatProfiles[0].heroId != 1101
+            || config.combatProfiles[0].movement.weaponId != 701
+            || config.combatProfiles[0].movement.forwardSlow != 2.5f
+            || config.combatProfiles[0].dash.moveMs != 967)
+            throw std::runtime_error("external gateway launch configuration changed before client launch");
+        ++state->launches;
+        if (state->failNextLaunch) {
+            state->failNextLaunch = false;
+            throw std::runtime_error("synthetic client launch failed");
+        }
+        state->running = true;
+        if (adapting) adapting();
+    };
+    adapter.running = [state] { return state->running; };
+    adapter.stop = [state] { ++state->stops; state->running = false; };
+    auto session = t7r::bridge::Session::createForTest(
+        t7r::utf8(packageRoot.wstring()), std::move(adapter));
+    const auto directory = t7r::utf8((packageRoot / "synthetic-client" / "Bin").wstring());
+    uint64_t invalidId = 0;
+    bool valid = session->submit(T7RNB_OPERATION_START, directory, invalidId, "Player", false,
+                                 {ports[0], ports[0], ports[2]}) == T7RNB_INVALID_ARGUMENT;
+    t7r::CombatProfile combat;
+    combat.heroId = 1101;
+    combat.movement.enabled = true;
+    combat.movement.weaponId = 701;
+    combat.movement.forwardSlow = 2.5f;
+    combat.movement.lateralSlow = 1.8f;
+    combat.movement.backwardSlow = 1.f;
+    combat.movement.forwardSprint = 3.6f;
+    combat.dash.enabled = true;
+    combat.dash.weaponId = 701;
+    combat.dash.durationMs = 1333;
+    combat.dash.moveMs = 967;
+    combat.dash.speedMilli = 2585;
+    for (int round = 0; round < 3 && valid; ++round) {
+        state->failNextLaunch = round == 1;
+        uint64_t startId = 0;
+        valid = session->submit(T7RNB_OPERATION_START, directory, startId, "Player", false, ports,
+                                {combat}) == T7RNB_OK
+            && waitForOperation(session, startId,
+                round == 1 ? T7RNB_OPERATION_FAILED : T7RNB_OPERATION_SUCCEEDED);
+        t7r::bridge::Snapshot snapshot;
+        valid = valid && session->snapshot(snapshot) == T7RNB_OK
+            && snapshot.state == (round == 1 ? T7RNB_STATE_FAILED : T7RNB_STATE_RUNNING);
+        for (size_t index = 0; index < ports.size() && valid; ++index)
+            valid = snapshot.ports[index] == (round == 1 ? 0 : ports[index]);
+        if (valid && round != 1) {
+            uint64_t stopId = 0;
+            valid = session->submit(T7RNB_OPERATION_STOP, {}, stopId) == T7RNB_OK
+                && waitForOperation(session, stopId, T7RNB_OPERATION_SUCCEEDED)
+                && session->snapshot(snapshot) == T7RNB_OK
+                && snapshot.state == T7RNB_STATE_IDLE
+                && snapshot.ports[0] == 0 && snapshot.ports[1] == 0 && snapshot.ports[2] == 0;
+        }
+    }
+    session->requestClose();
+    return valid && state->launches == 3 && state->stops == 2
+        && session->waitForWorkerForTest(std::chrono::seconds(5));
+}
 }
 
 int wmain(int argc, wchar_t** argv) {
+    if (argc == 2 && std::wstring(argv[1]) == L"--session-monitoring")
+        return verifySessionMonitoring() ? 0 : 1;
+    if (argc == 3 && std::wstring(argv[1]) == L"--gateway-start")
+        return verifyExternalGatewaySession(t7r::fs::path(argv[2])) ? 0 : 1;
+    if (argc == 3 && std::wstring(argv[1]) == L"--battle-attachment")
+        return verifySessionBattleAttachment(t7r::fs::path(argv[2])) ? 0 : 1;
     if (argc == 3 && std::wstring(argv[1]) == L"--title-runtime")
         return verifyTitleRuntime(argv[2]) ? 0 : 1;
     if (argc == 3 && std::wstring(argv[1]) == L"--server-context")
@@ -348,6 +434,8 @@ int wmain(int argc, wchar_t** argv) {
         return verifyAudioSession(t7r::fs::path(argv[2])) ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--frame-hooks")
         return verifyGraphicsHookExecution() ? 0 : 1;
+    if (argc == 2 && std::wstring(argv[1]) == L"--battle-capture")
+        return verifyBattleCapture() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--title-tests")
         return verifyGraphicsHookExecution(false, true) ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--combat-profiles")
@@ -557,6 +645,7 @@ int wmain(int argc, wchar_t** argv) {
         if (!verifyNamedSessionExit(t7r::fs::path(argv[1]), 0xC0000005, false)) result = 31;
         if (!verifyWindowCloseCleanup(t7r::fs::path(argv[1]), false)) result = 40;
         if (!verifyWindowCloseCleanup(t7r::fs::path(argv[1]), true)) result = 41;
+        if (!verifySessionMonitoring()) result = 44;
         if (!verifyFailureCleanup(t7r::fs::path(argv[1]), true)) result = 26;
         if (!verifyFailureCleanup(t7r::fs::path(argv[1]), false)) result = 27;
         if (!verifyOperationPublication(t7r::fs::path(argv[1]), T7RNB_OPERATION_SUCCEEDED)) result = 32;

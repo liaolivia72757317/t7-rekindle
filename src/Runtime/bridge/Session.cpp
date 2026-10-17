@@ -2,8 +2,6 @@
 #include "../core/Common.h"
 #include "../core/DiagnosticLog.h"
 #include "../core/PlayerName.h"
-#include "../server/PythonHost.h"
-#include "../server/RunDirectory.h"
 #include <algorithm>
 #include <cstring>
 #include <fstream>
@@ -13,8 +11,6 @@ namespace t7r::bridge {
 namespace {
 constexpr size_t MAX_LOG_RECORDS = 512;
 constexpr size_t MAX_LOG_BYTES = 1024 * 1024;
-// The supported client also returns 0x1234 after its exit confirmation.
-constexpr DWORD CLIENT_NORMAL_EXIT_CODE = 0x1234;
 
 fs::path localDataRoot() {
     wchar_t buffer[32768]{};
@@ -27,6 +23,14 @@ fs::path localDataRoot() {
 }
 
 uint32_t errorCodeFor(const std::exception&) { return T7RNB_ERROR_OPERATION; }
+fs::path requestedCapturePath() {
+    wchar_t value[32768]{};
+    const auto length = GetEnvironmentVariableW(L"T7R_BATTLE_CAPTURE_PATH", value, static_cast<DWORD>(std::size(value)));
+    if (!length) return {};
+    if (length >= std::size(value)) throw std::runtime_error("battle capture path exceeds limit");
+    return fs::path(value);
+}
+
 }
 
 std::shared_ptr<Session> Session::create(std::string packageRoot) {
@@ -59,6 +63,10 @@ Session::Session(std::string packageRoot, Bootstrap::TestAdapter adapter)
 bool Session::waitForWorkerForTest(std::chrono::milliseconds timeout) {
     std::unique_lock<std::mutex> lock(mutex_);
     return changed_.wait_for(lock, timeout, [this] { return workerExited_; });
+}
+bool Session::battleIngressCreatedForTest() {
+    std::lock_guard<std::mutex> lock(battleMutex_);
+    return battleAttachment_ && battleAttachment_->ingress;
 }
 #endif
 
@@ -112,10 +120,19 @@ int32_t Session::setOutputDevice(const GUID& identifier) {
 }
 
 int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& operationId,
-                        std::string playerName, bool skipStartupAnimation) {
+                        std::string playerName, bool skipStartupAnimation,
+                        std::array<uint16_t, 3> gatewayPorts,
+                        std::vector<CombatProfile> profiles) {
     if (kind != T7RNB_OPERATION_CHECK && kind != T7RNB_OPERATION_START && kind != T7RNB_OPERATION_STOP)
         return T7RNB_INVALID_ARGUMENT;
     if (kind == T7RNB_OPERATION_START && !validPlayerName(playerName)) return T7RNB_INVALID_ARGUMENT;
+    const bool externalGateway = gatewayPorts[0] || gatewayPorts[1] || gatewayPorts[2];
+    if (externalGateway && (kind != T7RNB_OPERATION_START || !gatewayPorts[0] || !gatewayPorts[1]
+        || !gatewayPorts[2] || gatewayPorts[0] == gatewayPorts[1]
+        || gatewayPorts[0] == gatewayPorts[2] || gatewayPorts[1] == gatewayPorts[2]))
+        return T7RNB_INVALID_ARGUMENT;
+    if (kind == T7RNB_OPERATION_START && !externalGateway) return T7RNB_INVALID_ARGUMENT;
+    if (!profiles.empty() && !externalGateway) return T7RNB_INVALID_ARGUMENT;
     if (kind != T7RNB_OPERATION_STOP) {
         try {
             auto path = fs::path(wide(clientDirectory));
@@ -153,7 +170,8 @@ int32_t Session::submit(uint32_t kind, std::string clientDirectory, uint64_t& op
         snapshot_.phase = "cancelling-before-stop";
     }
     operations_[operationId] = {operationId, kind, T7RNB_OPERATION_QUEUED, 0, {}};
-    commands_.push_back({operationId, kind, std::move(clientDirectory), std::move(playerName), skipStartupAnimation, outputDevice_});
+    commands_.push_back({operationId, kind, std::move(clientDirectory), std::move(playerName),
+                         skipStartupAnimation, outputDevice_, gatewayPorts, std::move(profiles)});
     if (!active) {
         snapshot_.operation = kind;
         snapshot_.operationId = operationId;
@@ -259,74 +277,132 @@ int32_t Session::readLogs(uint64_t& cursor, uint8_t* buffer, uint32_t capacity,
     return T7RNB_OK;
 }
 
+int32_t Session::attachBattle(const T7RBattleConfig& config, const std::filesystem::path& rustLibrary,
+                              uint64_t gatewayHandle) {
+    if (config.abiVersion != T7R_BATTLE_CONFIG_ABI_VERSION || config.structSize != sizeof(config)
+        || config.memberCount == 0 || config.memberCount > MAX_WORLD_ACTORS || !rustLibrary.is_absolute() || !gatewayHandle)
+        return T7RNB_INVALID_ARGUMENT;
+    for (uint32_t i = 0; i < config.memberCount; ++i) {
+        const auto& member = config.members[i];
+        if (member.actorId == 0 || member.actorId > MAX_WORLD_ACTORS || member.clientRid == 0
+            || member.clientRid > MAX_WORLD_ACTORS || member.camp < 1 || member.camp > 2)
+            return T7RNB_INVALID_ARGUMENT;
+    }
+    {
+        std::lock_guard<std::mutex> stateLock(mutex_);
+        if (closing_ || snapshot_.state != T7RNB_STATE_RUNNING || snapshot_.operation != T7RNB_OPERATION_NONE)
+            return T7RNB_NOT_READY;
+        std::lock_guard<std::mutex> battleLock(battleMutex_);
+        if (battleAttachment_) return T7RNB_BUSY;
+    }
+    std::unique_ptr<BattleGatewaySink> sink;
+    try { sink = std::make_unique<BattleGatewaySink>(rustLibrary, gatewayHandle); }
+    catch (const std::exception& error) {
+        log(std::string("Rust battle attachment failed: ") + error.what(), DiagnosticLogLevel::Error);
+        return T7RNB_FAILED;
+    }
+    std::lock_guard<std::mutex> stateLock(mutex_);
+    if (closing_ || snapshot_.state != T7RNB_STATE_RUNNING || snapshot_.operation != T7RNB_OPERATION_NONE)
+        return T7RNB_NOT_READY;
+    std::lock_guard<std::mutex> battleLock(battleMutex_);
+    if (battleAttachment_) return T7RNB_BUSY;
+    auto attachment = std::make_unique<BattleAttachment>();
+    attachment->config = config;
+    attachment->sink = std::move(sink);
+    battleAttachment_ = std::move(attachment);
+    return T7RNB_OK;
+}
+
+int32_t Session::detachBattle() {
+    std::unique_ptr<BattleAttachment> attachment;
+    {
+        std::lock_guard<std::mutex> lock(battleMutex_);
+        attachment = std::move(battleAttachment_);
+    }
+    if (!attachment || !attachment->ingress) return T7RNB_OK;
+    try { attachment->ingress->flush(); }
+    catch (const std::exception& error) {
+        log(std::string("Rust battle final watermark failed: ") + error.what(), DiagnosticLogLevel::Error);
+        return T7RNB_FAILED;
+    }
+    return T7RNB_OK;
+}
+
 void Session::workerLoop() {
-    try {
-        auto nextMonitor = std::chrono::steady_clock::now();
-        while (true) {
-            Command command{};
-            bool hasCommand = false;
-            {
-                std::unique_lock<std::mutex> lock(mutex_);
-                const auto interval = snapshot_.state == T7RNB_STATE_RUNNING ? 5 : 50;
-                hasCommand = changed_.wait_for(lock, std::chrono::milliseconds(interval),
-                    [this] { return closing_ || !commands_.empty(); });
-                if (!hasCommand && snapshot_.state == T7RNB_STATE_RUNNING && !closing_) {
-                    lock.unlock();
-                    const auto now = std::chrono::steady_clock::now();
-                    if (now >= nextMonitor) {
-                        monitorClient();
-                        monitorTitles();
-                        nextMonitor = now + std::chrono::milliseconds(50);
-                    }
-                    monitorWorld();
-                    continue;
-                }
-                // wait_for returns false on a timeout.  There is no command
-                // to move in that case; remain idle instead of touching an
-                // empty deque.
-                if (!hasCommand) continue;
-                if (closing_ && commands_.empty()) break;
-                command = std::move(commands_.front());
-                commands_.pop_front();
-                auto& operation = operations_.at(command.id);
-                operation.status = T7RNB_OPERATION_RUNNING;
-                snapshot_.operation = command.kind;
-                snapshot_.operationId = command.id;
-                snapshot_.errorCode = 0;
-                snapshot_.flags &= ~1u;
-                snapshot_.state = command.kind == T7RNB_OPERATION_CHECK ? T7RNB_STATE_CHECKING
-                    : command.kind == T7RNB_OPERATION_START ? T7RNB_STATE_STARTING_RUNTIME : T7RNB_STATE_STOPPING_CLIENT;
-                snapshot_.phase = "queued";
-            }
-            try {
-                execute(command);
-                bool cancellationWon;
+    while (true) {
+        try {
+            auto nextMonitor = std::chrono::steady_clock::now();
+            while (true) {
+                Command command{};
+                bool hasCommand = false;
                 {
-                    // cancel() uses the same lock: accepting cancellation and
-                    // publishing success must have one atomic ordering.
-                    std::lock_guard<std::mutex> lock(mutex_);
-                    cancellationWon = cancelled(command.id) && command.kind != T7RNB_OPERATION_STOP;
-                    if (!cancellationWon) finishOperationLocked(command.id, T7RNB_OPERATION_SUCCEEDED);
+                    std::unique_lock<std::mutex> lock(mutex_);
+                    const auto interval = snapshot_.state == T7RNB_STATE_RUNNING ? 5 : 50;
+                    hasCommand = changed_.wait_for(lock, std::chrono::milliseconds(interval),
+                        [this] { return closing_ || !commands_.empty(); });
+                    if (!hasCommand && snapshot_.state == T7RNB_STATE_RUNNING && !closing_) {
+                        lock.unlock();
+                        const auto now = std::chrono::steady_clock::now();
+                        if (now >= nextMonitor) {
+                            monitorClient();
+                            monitorTitles();
+                            nextMonitor = now + std::chrono::milliseconds(50);
+                        }
+                        monitorWorld();
+                        continue;
+                    }
+                    // wait_for returns false on a timeout.  There is no command
+                    // to move in that case; remain idle instead of touching an
+                    // empty deque.
+                    if (!hasCommand) continue;
+                    if (closing_ && commands_.empty()) break;
+                    command = std::move(commands_.front());
+                    commands_.pop_front();
+                    auto& operation = operations_.at(command.id);
+                    operation.status = T7RNB_OPERATION_RUNNING;
+                    snapshot_.operation = command.kind;
+                    snapshot_.operationId = command.id;
+                    snapshot_.errorCode = 0;
+                    snapshot_.flags &= ~1u;
+                    snapshot_.state = command.kind == T7RNB_OPERATION_CHECK ? T7RNB_STATE_CHECKING
+                        : command.kind == T7RNB_OPERATION_START ? T7RNB_STATE_STARTING_RUNTIME : T7RNB_STATE_STOPPING_CLIENT;
+                    snapshot_.phase = "queued";
                 }
-                if (cancellationWon) {
-                    // Cancellation can race with the final instruction of a
-                    // command.  Route that race through the same cleanup
-                    // path as an in-flight cancellation; otherwise a Start
-                    // could be reported cancelled while its client remains
-                    // running.
-                    setFailure(command.id, T7RNB_ERROR_CANCELLED, "operation cancelled");
+                try {
+                    execute(command);
+                    bool cancellationWon;
+                    {
+                        // cancel() uses the same lock: accepting cancellation and
+                        // publishing success must have one atomic ordering.
+                        std::lock_guard<std::mutex> lock(mutex_);
+                        cancellationWon = cancelled(command.id) && command.kind != T7RNB_OPERATION_STOP;
+                        if (!cancellationWon) finishOperationLocked(command.id, T7RNB_OPERATION_SUCCEEDED);
+                    }
+                    if (cancellationWon) {
+                        // Cancellation can race with the final instruction of a
+                        // command.  Route that race through the same cleanup
+                        // path as an in-flight cancellation; otherwise a Start
+                        // could be reported cancelled while its client remains
+                        // running.
+                        setFailure(command.id, T7RNB_ERROR_CANCELLED, "operation cancelled");
+                    }
+                } catch (const std::exception& error) {
+                    setFailure(command.id, errorCodeFor(error), error.what());
+                } catch (...) {
+                    setFailure(command.id, T7RNB_INTERNAL_ERROR, "non-standard native exception");
                 }
-            } catch (const std::exception& error) {
-                setFailure(command.id, errorCodeFor(error), error.what());
-            } catch (...) {
-                setFailure(command.id, T7RNB_INTERNAL_ERROR, "non-standard native exception");
-            }
 #if defined(T7R_NATIVE_BRIDGE_TESTING)
-            if (afterOperationForTest_) afterOperationForTest_();
+                if (afterOperationForTest_) afterOperationForTest_();
 #endif
+            }
+        } catch (const std::exception& error) {
+            failWorker(std::string("session worker failed: ") + error.what());
+            continue;
+        } catch (...) {
+            failWorker("session worker failed: non-standard native exception");
+            continue;
         }
-    } catch (...) {
-        cleanup();
+        break;
     }
     cleanup();
     {
@@ -356,84 +432,6 @@ void Session::finishOperationLocked(uint64_t operationId, uint32_t status) {
     changed_.notify_all();
 }
 
-void Session::monitorClient() {
-    if (server_ && !server_->running()) {
-        std::string detail = "runtime stopped unexpectedly";
-        try {
-            auto runtime = server_->snapshot();
-            if (!runtime.error.empty()) detail += ": " + runtime.error;
-        } catch (const std::exception& error) {
-            detail += ": " + std::string(error.what());
-        }
-        setFailure(0, T7RNB_ERROR_OPERATION, detail);
-        return;
-    }
-    bool alive = true, windowClosed = false;
-    try {
-        alive = bootstrap_.running();
-        if (alive && bootstrap_.windowClosed()) {
-            // Preserve a natural exit or debug failure that raced the window observation.
-            alive = bootstrap_.running();
-            windowClosed = alive;
-        }
-    } catch (const std::exception& error) {
-        setFailure(0, T7RNB_ERROR_OPERATION, std::string("owned client status failed: ") + error.what());
-        return;
-    }
-    if (alive && !windowClosed) {
-        monitorGraphics(); monitorAudio();
-        return;
-    }
-    DWORD exitCode = 0;
-    try { if (!windowClosed) exitCode = bootstrap_.exitCode(); }
-    catch (const std::exception& error) {
-        setFailure(0, T7RNB_ERROR_OPERATION, error.what());
-        return;
-    }
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        snapshot_.state = T7RNB_STATE_STOPPING_CLIENT;
-        snapshot_.phase = windowClosed ? "client-window-closed" : "client-exited";
-    }
-    if (windowClosed) log("owned game window closed; stopping remaining session processes");
-    auto cleanupError = cleanup();
-    const bool normalExit = windowClosed || exitCode == 0 || exitCode == CLIENT_NORMAL_EXIT_CODE;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (cleanupError.empty()) {
-            snapshot_.state = normalExit ? T7RNB_STATE_IDLE : T7RNB_STATE_FAILED;
-            snapshot_.errorCode = normalExit ? 0 : T7RNB_ERROR_CLIENT_EXIT;
-            snapshot_.flags |= 1u;
-            snapshot_.phase = windowClosed ? "client-window-closed" : normalExit ? "client-exited" : "client-exited-error";
-        } else {
-            snapshot_.state = T7RNB_STATE_FAILED_CLEANING;
-            snapshot_.flags &= ~1u;
-            snapshot_.errorCode = T7RNB_ERROR_CLEANUP;
-            snapshot_.phase = "failed-cleaning";
-        }
-    }
-    const auto reason = windowClosed ? std::string("owned game window closed")
-                                    : "owned client exited; exitCode=" + std::to_string(exitCode);
-    log(reason + (cleanupError.empty() ? "; runtime stopped" : "; cleanup=" + cleanupError),
-        cleanupError.empty() && normalExit ? DiagnosticLogLevel::Info : DiagnosticLogLevel::Error);
-}
-
-void Session::monitorWorld() {
-    if (!server_ || !server_->needsWorld()) return;
-    try {
-        WorldSnapshot world;
-        if (bootstrap_.pollWorld(world)) server_->updateWorld(world);
-    } catch (const std::exception& error) {
-        try {
-            if (!bootstrap_.running()) { monitorClient(); return; }
-        } catch (const std::exception& statusError) {
-            setFailure(0, T7RNB_ERROR_OPERATION, std::string("owned client status failed: ") + statusError.what());
-            return;
-        }
-        setFailure(0, T7RNB_ERROR_OPERATION, std::string("world snapshot failed: ") + error.what());
-    }
-}
-
 void Session::execute(const Command& command) {
     if (command.kind == T7RNB_OPERATION_CHECK) executeCheck(command);
     else if (command.kind == T7RNB_OPERATION_START) executeStart(command);
@@ -446,28 +444,6 @@ void Session::executeCheck(const Command& command) {
     config.outputDevice = command.outputDevice;
     config.ports[0] = 1; config.ports[1] = 2; config.ports[2] = 3;
     bootstrap_.check(fs::path(wide(command.clientDirectory)), config, [this](DiagnosticLogLevel level, std::string line) { log(line, level); });
-    if (cancelled(command.id)) throw std::runtime_error("check cancelled");
-    RunDirectory run(localDataRoot() / "data");
-    std::exception_ptr failure;
-    try {
-        PythonHost python(fs::path(wide(packageRoot_)), run.path() / "revisions");
-        try {
-            if (cancelled(command.id)) throw std::runtime_error("check cancelled");
-            const auto resources = python.checkResources(fs::path(wide(command.clientDirectory)));
-            for (const auto& diagnostic : resources.diagnostics) log(diagnostic.message, diagnostic.level);
-        } catch (...) { failure = std::current_exception(); }
-        try {
-            for (const auto& line : python.closeRevision()) log(line, DiagnosticLogLevel::Warn);
-        } catch (const std::exception& error) {
-            log(std::string("resource check revision cleanup: ") + error.what(), DiagnosticLogLevel::Error);
-            if (!failure) failure = std::current_exception();
-        }
-    } catch (...) { if (!failure) failure = std::current_exception(); }
-    try { run.finish(); }
-    catch (const std::exception& error) {
-        log(std::string("resource check history retention: ") + error.what(), DiagnosticLogLevel::Warn);
-    }
-    if (failure) std::rethrow_exception(failure);
     if (cancelled(command.id)) throw std::runtime_error("check cancelled");
     log("client preflight passed");
 }
@@ -494,19 +470,27 @@ void Session::executeStart(const Command& command) {
     config.clientDirectory = fs::path(wide(command.clientDirectory));
     config.skipStartupAnimation = command.skipStartupAnimation;
     config.outputDevice = command.outputDevice;
-    config.ports[0] = config.ports[1] = config.ports[2] = 0;
+    const auto packageRoot = fs::path(wide(packageRoot_));
+    config.lobbyNewsPath = packageRoot / "news/index.html";
+    for (size_t index = 0; index < command.gatewayPorts.size(); ++index)
+        config.ports[index] = command.gatewayPorts[index];
+    config.combatProfiles = command.profiles;
+    windowProbeFailureSince_.reset();
+    captureDisabled_ = false;
+    try {
+        const auto capturePath = requestedCapturePath();
+        if (!capturePath.empty())
+            capture_ = std::make_unique<BattleCapture>(capturePath, config.clientDirectory, packageRoot);
+    } catch (const std::exception& error) {
+        log(std::string("battle capture disabled: ") + error.what(), DiagnosticLogLevel::Warn);
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.state = T7RNB_STATE_STARTING_RUNTIME;
         snapshot_.phase = "runtime-ready-wait";
     }
-    server_ = std::make_unique<Server>();
-    const auto packageRoot = fs::path(wide(packageRoot_));
-    config.lobbyNewsPath = packageRoot / "Business/news/index.html";
-    server_->start(config, packageRoot, localDataRoot(), [this, id = command.id] { return cancelled(id); }, logFilter_,
-        [this](DiagnosticLogLevel level, std::string line) { log(line, level); });
     if (cancelled(command.id)) throw std::runtime_error("start cancelled");
-    auto actual = server_->boundConfig();
+    const auto& actual = config;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.ports[0] = actual.ports[0]; snapshot_.ports[1] = actual.ports[1]; snapshot_.ports[2] = actual.ports[2];
@@ -521,17 +505,13 @@ void Session::executeStart(const Command& command) {
         },
         [this](std::string line) { log(line, DiagnosticLogLevel::Warn); }, logFilter_->allows(DiagnosticLogLevel::Debug));
     if (cancelled(command.id)) throw std::runtime_error("start cancelled");
-    if (!server_->running()) {
-        auto runtime = server_->snapshot();
-        throw std::runtime_error(runtime.error.empty() ? "runtime stopped during client launch" : runtime.error);
-    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.state = T7RNB_STATE_RUNNING;
         snapshot_.phase = "running";
         snapshot_.revision = ++revisionCounter_;
     }
-    log("session running");
+    log("session running with Rust gateway");
 }
 
 void Session::executeStop(const Command& command) {
@@ -542,23 +522,19 @@ void Session::executeStop(const Command& command) {
         snapshot_.phase = "client-stop";
     }
     bootstrap_.stop();
+    stopCapture();
+    if (detachBattle() != T7RNB_OK)
+        throw std::runtime_error("Rust battle final watermark failed");
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.state = T7RNB_STATE_STOPPING_RUNTIME;
         snapshot_.phase = "runtime-stop";
-    }
-    std::vector<std::string> journalLines;
-    if (server_) {
-        server_->stop();
-        journalLines = server_->lines();
-        server_.reset();
     }
     if (winsockStarted_) { WSACleanup(); winsockStarted_ = false; }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.ports[0] = snapshot_.ports[1] = snapshot_.ports[2] = 0;
     }
-    for (const auto& line : journalLines) logRecord(line);
 }
 
 void Session::setFailure(uint64_t operationId, uint32_t code, const std::string& message) {
@@ -572,6 +548,7 @@ void Session::setFailure(uint64_t operationId, uint32_t code, const std::string&
     }
     log(wasCancelled ? "operation cancelled: " + message : "operation failed: " + message, wasCancelled ? DiagnosticLogLevel::Info : DiagnosticLogLevel::Error);
     auto cleanupError = cleanup();
+    if (!cleanupError.empty()) log("session cleanup failed: " + cleanupError, DiagnosticLogLevel::Error);
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto found = operations_.find(operationId);
@@ -611,14 +588,14 @@ std::string Session::cleanup() noexcept {
     try { bootstrap_.stop(); }
     catch (const std::exception& error) { errors = error.what(); }
     catch (...) { errors = "non-standard client cleanup error"; }
+    stopCapture();
+    try { if (detachBattle() != T7RNB_OK) throw std::runtime_error("Rust battle final watermark failed"); }
+    catch (const std::exception& error) { if (!errors.empty()) errors += "; "; errors += error.what(); }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         snapshot_.state = T7RNB_STATE_STOPPING_RUNTIME;
         snapshot_.phase = "runtime-stop";
     }
-    try { if (server_) { server_->stop(); server_.reset(); } }
-    catch (const std::exception& error) { if (!errors.empty()) errors += "; "; errors += error.what(); }
-    catch (...) { if (!errors.empty()) errors += "; "; errors += "non-standard server cleanup error"; }
     if (winsockStarted_) { WSACleanup(); winsockStarted_ = false; }
     {
         std::lock_guard<std::mutex> lock(mutex_);

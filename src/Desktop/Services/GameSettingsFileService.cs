@@ -24,6 +24,21 @@ namespace T7R.Desktop.Services
     {
         internal static GameSettingsFileSnapshot Read(string binaryDirectory) => Load(binaryDirectory).Read();
 
+        internal static uint[] ReadMatchMaps(string binaryDirectory)
+        {
+            var document = Load(binaryDirectory);
+            return MatchMapSelection.Normalize(MatchMapSelection.All
+                .Where(id => !document.MapFiltered(id)).ToArray());
+        }
+
+        internal static void SaveMatchMaps(string binaryDirectory, uint[] ids)
+        {
+            var selected = MatchMapSelection.Normalize(ids);
+            var document = Load(binaryDirectory);
+            foreach (var id in MatchMapSelection.All) document.SetMapFiltered(id, !selected.Contains(id));
+            if (!TryWrite(document)) throw new IOException("游戏配置已变化，地图选择未恢复，请重试启动。");
+        }
+
         internal static bool SaveGraphics(string directory, GraphicsSettingsValues expected, GraphicsSettingsValues values,
             out GameSettingsFileSnapshot current)
         {
@@ -92,6 +107,13 @@ namespace T7R.Desktop.Services
             current = document.Read();
             if (!matches(current)) return false;
             update(document);
+            var saved = TryWrite(document);
+            current = Read(directory);
+            return saved;
+        }
+
+        private static bool TryWrite(Document document)
+        {
             var temporary = document.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
@@ -102,11 +124,9 @@ namespace T7R.Desktop.Services
                 }
                 if (!File.ReadAllBytes(document.Path).SequenceEqual(document.Original))
                 {
-                    current = Read(directory);
                     return false;
                 }
                 File.Replace(temporary, document.Path, document.Path + ".bak", true);
-                current = Read(directory);
                 return true;
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
@@ -118,6 +138,7 @@ namespace T7R.Desktop.Services
             private readonly XmlElement _header, _record;
             private readonly Encoding _encoding;
             private readonly Dictionary<string, string> _numericNames = new Dictionary<string, string>();
+            private readonly string _numericPrefix;
             public string Path { get; }
             public byte[] Original { get; }
 
@@ -129,6 +150,7 @@ namespace T7R.Desktop.Services
                 var text = _encoding.GetString(Original).TrimStart('\uFEFF');
                 var prefix = "__t7r_numeric_";
                 while (text.Contains(prefix)) prefix = "_" + prefix;
+                _numericPrefix = prefix;
                 // PropertySheet accepts numeric field names that XML rejects; restore them when saving.
                 text = Regex.Replace(text, @"(<\/?)([0-9][A-Za-z0-9_.-]*)(?=[\s/>])", match =>
                 {
@@ -179,6 +201,23 @@ namespace T7R.Desktop.Services
                 return new GameSettingsFileSnapshot(graphics, audio);
             }
 
+            private string MapKey(uint id)
+            {
+                var name = "0_" + id.ToString(CultureInfo.InvariantCulture);
+                var key = _numericPrefix + name;
+                _numericNames[key] = name;
+                return key;
+            }
+
+            public bool MapFiltered(uint id)
+            {
+                var key = MapKey(id);
+                if (!bool.TryParse(Get(key, "bool", "false"), out var filtered)) throw Invalid(key);
+                return filtered;
+            }
+
+            public void SetMapFiltered(uint id, bool filtered) => Set(MapKey(id), "bool", Boolean(filtered));
+
             private string Get(string key, string type, string fallback = null)
             {
                 var header = Element(_header, key, false);
@@ -213,7 +252,7 @@ namespace T7R.Desktop.Services
                 {
                     var header = Add(_header, key);
                     header.SetAttribute("Type", type);
-                    header.SetAttribute("Value", "0");
+                    header.SetAttribute("Value", type == "bool" ? "false" : "0");
                 }
                 (Element(_record, key, false) ?? Add(_record, key)).SetAttribute("Value", value);
             }

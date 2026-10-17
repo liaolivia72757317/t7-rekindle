@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <_RustProfile Condition="'$(Configuration)' == 'Release'">release</_RustProfile>
+    <_RustProfile Condition="'$(_RustProfile)' == ''">debug</_RustProfile>
+    <_RustReleaseFlag Condition="'$(Configuration)' == 'Release'">--release</_RustReleaseFlag>
+  </PropertyGroup>
+  <Target Name="BuildRustRuntime" BeforeTargets="BeforeBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec WorkingDirectory="$(RepositoryRoot)src\BattleRust"
+          Command="cargo build --locked -p t7r-battle-ffi $(_RustReleaseFlag) --target-dir &quot;$(T7RArtifactsRoot)rust&quot;" />
+  </Target>
+  <Target Name="CopyRustRuntime" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Copy SourceFiles="$(T7RArtifactsRoot)rust\x86_64-pc-windows-msvc\$(_RustProfile)\t7r_battle_ffi.dll"
+          DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

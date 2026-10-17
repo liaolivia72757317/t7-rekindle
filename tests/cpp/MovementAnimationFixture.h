@@ -97,7 +97,7 @@ inline void verifyTurn(HANDLE process) {
     const auto moves = readWord(process, MOVES), events = readWord(process, ANIMATION_EVENTS);
     auto sample = [&](uint32_t keys, float heading, float speed, bool turning) {
         writeWord(process, KEYS, keys); writeFloat(process, HEADING, heading);
-        writeWord(process, TURN_REQUEST, 1); writeWord(process, worldFixture::FRAME_GATE, 2);
+        writeWord(process, TURN_REQUEST, 1); worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             if (GetTickCount64() >= deadline) throw std::runtime_error("turn animation sample timeout");
@@ -142,7 +142,7 @@ inline void verify(HANDLE process, uint32_t mailbox) {
     const auto eventCount = readWord(process, ANIMATION_EVENTS);
     auto frame = [&](float velocity, float physical, float animation) {
         writeFloat(process, VELOCITY, velocity); writeWord(process, CLOCK, tick);
-        writeWord(process, worldFixture::FRAME_GATE, 2);
+        worldFixture::requestFrame(process);
         const auto deadline = GetTickCount64() + 3000;
         while (readWord(process, worldFixture::FRAME_GATE) != 1) {
             if (GetTickCount64() > deadline) throw std::runtime_error("animation frame timeout");
@@ -171,6 +171,21 @@ inline void verify(HANDLE process, uint32_t mailbox) {
             frame(4, 5, (slow + config.forwardSprint) * .5f);
             frame(5, 5, config.forwardSprint);
         }
+    }
+    for (uint32_t keys : {1u, 5u, 9u}) {
+        writeWord(process, KEYS, 0); setFightState(process, 2, tick); frame(0, 0, 0);
+        writeWord(process, KEYS, keys);
+        const auto slow = keys == 1 ? config.forwardSlow : config.lateralSlow;
+        const auto began = tick;
+        frame(3, 3, slow);
+        tick += 400; setFightState(process, 1, tick); frame(3, 3, slow);
+        tick += 599; frame(3, 3, slow);
+        ++tick; frame(3, 5, slow); frame(5, 5, config.forwardSprint);
+        setFightState(process, 2, tick); frame(5, 5, config.forwardSprint);
+        setFightState(process, 1, tick); frame(5, 5, config.forwardSprint);
+        if (readWord(process, mailbox + t7r::SPRINT_DATA_OFFSET + 12) != began)
+            throw std::runtime_error("weapon change altered the run timer origin");
+        setFightState(process, 2, tick); frame(5, 5, config.forwardSprint);
     }
     for (uint32_t keys : {2u, 6u, 10u, 4u, 8u}) {
         writeWord(process, KEYS, keys);

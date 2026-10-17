@@ -21,8 +21,10 @@ namespace T7R.ManagedHarness
         {
             using (var model = new MainWindowViewModel(new FakeLauncherBridge(),
                 new SettingsService(Path.Combine(directory, "about-layout")),
-                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" }, null,
-                path => Task.FromResult(ValidDirectory(path)), new FakeDesktopInteraction()))
+                new UserSettings { ClientDirectory = @"C:\Games\T7", PlayerName = "玩家" },
+                null,
+                new FakeClientEnvironment(path => Task.FromResult(ValidDirectory(path))),
+                new FakeDesktopInteraction()))
             {
                 RunTask(model.ValidationTask);
                 var window = new MainWindow { DataContext = model };

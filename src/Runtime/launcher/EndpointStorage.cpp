@@ -129,7 +129,7 @@ EndpointAddresses runStorageWorker(HANDLE process, const EndpointAllocator& allo
     if (exitCode) throw std::runtime_error("client endpoint allocation failed; partial allocations released");
     return output;
 }
-uint32_t readWord(HANDLE process, uintptr_t address) {
+uint32_t readUInt32(HANDLE process, uintptr_t address) {
     const auto bytes = readClientMemory(process, address, 4);
     uint32_t value = 0; std::memcpy(&value, bytes.data(), 4); return value;
 }
@@ -141,12 +141,12 @@ EndpointAllocator clientEndpointAllocator(HANDLE process, uint32_t imageBase) {
     if (!imageBase || imageBase > UINT32_MAX - OBJECT_RVA - 16)
         throw std::runtime_error("endpoint allocator image outside x86 range");
     const auto object = imageBase + OBJECT_RVA, vtable = imageBase + VTABLE_RVA;
-    if (readWord(process, object) != vtable || readWord(process, object + 4) != 16
-        || readWord(process, vtable + 4) != imageBase + ALLOCATE_RVA
-        || readWord(process, vtable + 8) != imageBase + FREE_RVA)
+    if (readUInt32(process, object) != vtable || readUInt32(process, object + 4) != 16
+        || readUInt32(process, vtable + 4) != imageBase + ALLOCATE_RVA
+        || readUInt32(process, vtable + 8) != imageBase + FREE_RVA)
         throw std::runtime_error("client endpoint allocator identity mismatch");
     return {object, imageBase + ALLOCATE_RVA, imageBase + FREE_RVA,
-            readWord(process, imageBase + 0x016F67F8), readWord(process, imageBase + 0x016F67F4)};
+            readUInt32(process, imageBase + 0x016F67F8), readUInt32(process, imageBase + 0x016F67F4)};
 }
 EndpointAddresses allocateEndpointStorage(HANDLE process, const EndpointAllocator& allocator,
                                          const Config& config, unsigned selectorParity) {

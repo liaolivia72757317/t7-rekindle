@@ -10,11 +10,18 @@ constexpr uint32_t GROUP = DATA + 0x240, HEADING = DATA + 0x280, MOVE = DATA + 0
 constexpr uint32_t JUMP = DATA + 0x300, POSITION = DATA + 0x340;
 constexpr uint32_t REQUEST = DATA, JUMPS = DATA + 4, CROUCHES = DATA + 8, CORRECTIONS = DATA + 12;
 constexpr uint32_t COMPOSITE_RVA = 0x3CFBF0, COMMAND_CALL_RVA = 0x3CFC09;
+constexpr uint32_t HEADING_REQUEST = DATA + 16, HEADING_SENDS = DATA + 20, MOVES_AT_HEADING = DATA + 24;
+constexpr uint32_t GAME_DIRECTION = DATA + 0x500, HEADING_SENDER = DATA + 0x580, DIRECTION_INPUT = DATA + 0x600;
+constexpr uint32_t HEADING_GROUP = DATA + 0x700, HEADING_CHILD = DATA + 0x740, HEADING_SCALE = DATA + 0x744;
+constexpr uint32_t SEND_HEADING_RVA = 0x475F50;
 inline void prepare(HANDLE process) {
     t7r::WorldHookCode c;
     c.emit({0x9C,0x60,0x83,0x3D}); c.word(REQUEST); c.emit({0}); const auto idle = c.branch(0x84);
     c.emit({0x68}); c.word(worldFixture::MOVABLE); c.emit({0xB9}); c.word(GROUP);
-    c.call(BASE + COMPOSITE_RVA); c.store(REQUEST, 0); c.bind(idle); c.emit({0x61,0x9D,0xC3});
+    c.call(BASE + COMPOSITE_RVA); c.store(REQUEST, 0); c.bind(idle);
+    c.emit({0x83,0x3D}); c.word(HEADING_REQUEST); c.emit({0}); const auto noHeading = c.branch(0x84);
+    c.emit({0x6A,0,0xB9}); c.word(HEADING_SENDER); c.call(BASE + SEND_HEADING_RVA);
+    c.store(HEADING_REQUEST, 0); c.bind(noHeading); c.emit({0x61,0x9D,0xC3});
     t7r::writeClientMemory(process, DISPATCH, c.bytes);
     // Native composite traversal calls each child separately, including mixed corrections.
     t7r::writeClientMemory(process, BASE + COMPOSITE_RVA,
@@ -39,6 +46,106 @@ inline void prepare(HANDLE process) {
     writeWord(process, BASE + 0x17782E8 + 8, DATA + 0x440);
     writeWord(process, BASE + 0x17782B8 + 8, DATA + 0x4C0);
     writeWord(process, GROUP + 0x10, CHILDREN);
+
+    writeWord(process, GAME_DIRECTION, BASE + 0x1781904);
+    // GeGameDirectionImpl -> GePlayerMountBladeDirInput -> active GeMBInputOfflineInfantry.
+    writeWord(process, GAME_DIRECTION + 0x38, DIRECTION_INPUT);
+    writeWord(process, DIRECTION_INPUT, BASE + 0x1781D90);
+    writeWord(process, DIRECTION_INPUT + 0xA4, HEADING_SENDER);
+    writeWord(process, HEADING_SENDER, BASE + 0x17825EC);
+    writeWord(process, HEADING_SENDER + 8, DIRECTION_INPUT);
+    writeWord(process, HEADING_GROUP + 0x10, HEADING_CHILD);
+    writeWord(process, HEADING_GROUP + 0x14, HEADING_CHILD + 4);
+    writeWord(process, HEADING_CHILD, HEADING);
+    writeWord(process, HEADING_SCALE, 0x42652EE0); // Native radians-to-degrees quantization.
+    // Cache the desired heading before dispatch. The air-input hook can discard
+    // the command even though subsequent unchanged-camera updates are deduplicated.
+    c.bytes = {0x55,0x8B,0xEC,0x56,0x8B,0xF1,0x8B,0x46,8};
+    c.emit({0xF3,0x0F,0x10,0x80}); c.word(0xCC);
+    c.emit({0xF3,0x0F,0x59,0x05}); c.word(HEADING_SCALE);
+    c.emit({0xF3,0x0F,0x2C,0xC0,0x3B,0x46,0x10}); const auto changed = c.branch(0x85);
+    c.emit({0x80,0x7D,8,1}); const auto unchanged = c.branch(0x85);
+    c.bind(changed); c.emit({0x89,0x46,0x10,0xFF,0x05}); c.word(HEADING_SENDS);
+    c.emit({0xA1}); c.word(sprintFixture::MOVES); c.emit({0xA3}); c.word(MOVES_AT_HEADING);
+    c.emit({0x8B,0x46,8,0x8B,0x80}); c.word(0xCC); c.emit({0xA3}); c.word(HEADING + 8);
+    c.emit({0x68}); c.word(worldFixture::MOVABLE); c.emit({0xB9}); c.word(HEADING_GROUP);
+    c.call(BASE + COMPOSITE_RVA); c.bind(unchanged); c.emit({0x5E,0x5D,0xC2,4,0});
+    t7r::writeClientMemory(process, BASE + SEND_HEADING_RVA, c.bytes);
+}
+inline void verifyLandingHeading(HANDLE process) {
+    using worldFixture::MOVABLE;
+    using worldFixture::CONTROLLER;
+    writeWord(process, worldFixture::FRAME_GATE, 1); Sleep(30);
+    const auto owner = readWord(process, MOVABLE + 8), heading = readWord(process, CONTROLLER + 0xAC);
+    const auto direction = readWord(process, worldFixture::ENTITY + 0x94);
+    const auto clockMode = readWord(process, sprintFixture::CLOCK_MODE);
+    writeWord(process, MOVABLE + 8, worldFixture::ENTITY);
+    writeWord(process, worldFixture::ENTITY + 0x94, GAME_DIRECTION);
+    writeWord(process, sprintFixture::CLOCK_MODE, 1);
+    sprintFixture::setFightState(process, 2);
+    auto frame = [&] {
+        writeWord(process, HEADING_REQUEST, 1);
+        worldFixture::requestFrame(process);
+        const auto deadline = GetTickCount64() + 3000;
+        while (readWord(process, worldFixture::FRAME_GATE) != 1) {
+            if (GetTickCount64() >= deadline) throw std::runtime_error("landing heading frame timeout");
+            Sleep(1);
+        }
+    };
+    auto takeoff = [&](uint32_t keys, bool running) {
+        writeWord(process, MOVABLE + 0x20, 0); writeWord(process, CONTROLLER + 8, 1);
+        writeWord(process, sprintFixture::KEYS, 0); frame();
+        writeWord(process, DIRECTION_INPUT + 0xCC, 0x3E800000); // Initial heading: 0.25 radians.
+        writeWord(process, HEADING_SENDER + 0x10, 0xFFFFFFFF);
+        writeWord(process, sprintFixture::KEYS, keys); frame();
+        if (running) {
+            writeWord(process, sprintFixture::CLOCK, readWord(process, sprintFixture::CLOCK) + 1000); frame();
+        }
+        writeWord(process, MOVABLE + 0x20, 0x10001); frame();
+    };
+    for (uint32_t keys : {1u,5u,9u,0u}) for (bool running : {false,true}) {
+        takeoff(1, running);
+        const auto moves = readWord(process, sprintFixture::MOVES), jumps = readWord(process, JUMPS);
+        const auto target = running ? 0xBFC00000u : 0x3FC00000u;
+        writeWord(process, DIRECTION_INPUT + 0xCC, target); frame();
+        const auto sent = readWord(process, HEADING_SENDS);
+        writeWord(process, sprintFixture::KEYS, keys); frame(); frame();
+        if (readWord(process, CONTROLLER + 0xAC) != 0x3E800000
+            || readWord(process, HEADING_SENDS) != sent || readWord(process, sprintFixture::MOVES) != moves)
+            throw std::runtime_error("airborne camera turn was applied or unchanged input was replayed");
+        writeWord(process, MOVABLE + 0x20, 0); frame();
+        if (readWord(process, CONTROLLER + 0xAC) != target || readWord(process, HEADING_SENDS) != sent + 1
+            || readWord(process, sprintFixture::MOVEMENT_HEADING) != target
+            || readWord(process, MOVES_AT_HEADING) != moves || readWord(process, sprintFixture::MOVES) != moves + 1)
+            throw std::runtime_error("landing did not resync the stationary camera before restoring movement");
+        sprintFixture::expectDirection(process, keys == 5 ? 8 : keys == 9 ? 2 : keys ? 1 : 0, running && keys);
+        if (readWord(process, CONTROLLER + 0x24) != (keys ? (running ? 0x40A00000u : 0x40400000u) : 0u)
+            || readWord(process, sprintFixture::DIRECTION) != (keys == 5 ? 0x7466656Cu : keys == 9 ? 0x68676972u : keys ? 0x7075u : 0u))
+            throw std::runtime_error("landing heading changed held-key movement or released-key stop");
+        frame(); frame();
+        if (readWord(process, HEADING_SENDS) != sent + 1 || readWord(process, sprintFixture::MOVES) != moves + 1
+            || readWord(process, JUMPS) != jumps)
+            throw std::runtime_error("landing repeatedly resent heading/movement or replayed jump");
+    }
+    // Missing or unrelated direction components must not receive the offline call.
+    for (const auto& missing : std::array<std::pair<uint32_t, uint32_t>, 6>{{
+        {worldFixture::ENTITY + 0x94,0}, {GAME_DIRECTION,BASE + 0x1781908},
+        {GAME_DIRECTION + 0x38,0}, {DIRECTION_INPUT,BASE + 0x1781D94},
+        {DIRECTION_INPUT + 0xA4,0}, {HEADING_SENDER,BASE + 0x17824B4}
+    }}) {
+        takeoff(1, false);
+        writeWord(process, DIRECTION_INPUT + 0xCC, 0x3FC00000); frame();
+        const auto sent = readWord(process, HEADING_SENDS), moves = readWord(process, sprintFixture::MOVES);
+        const auto original = readWord(process, missing.first); writeWord(process, missing.first, missing.second);
+        writeWord(process, MOVABLE + 0x20, 0); frame();
+        if (readWord(process, HEADING_SENDS) != sent || readWord(process, sprintFixture::MOVES) != moves + 1)
+            throw std::runtime_error("landing used an unrelated direction controller or lost movement");
+        writeWord(process, missing.first, original);
+    }
+    writeWord(process, sprintFixture::KEYS, 0); frame();
+    writeWord(process, worldFixture::ENTITY + 0x94, direction);
+    writeWord(process, MOVABLE + 8, owner); writeWord(process, CONTROLLER + 0xAC, heading);
+    writeWord(process, sprintFixture::CLOCK_MODE, clockMode); writeWord(process, worldFixture::FRAME_GATE, 0);
 }
 inline void verify(HANDLE process) {
     using worldFixture::MOVABLE;

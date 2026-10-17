@@ -16,7 +16,6 @@ int32_t Session::titleRequest(TitleRequest& result) const {
     return T7RNB_OK;
 }
 void Session::monitorTitles() {
-    if (!server_ || !server_->running()) return;
     try {
         for (;;) {
             TitleUpdate update;
@@ -32,12 +31,12 @@ void Session::monitorTitles() {
                 bootstrap_.pollTitleDescriptions();
                 if (!bootstrap_.titleCatalogueApplied()) break;
             }
-            server_->publishTitles(update.epoch, update.json, update.requestId, update.success);
-            std::lock_guard<std::mutex> lock(mutex_); titleUpdates_.pop_front();
+            std::lock_guard<std::mutex> lock(mutex_);
+            titleRequest_ = {update.requestId, update.epoch, 0, 0};
+            titleUpdates_.pop_front();
         }
         bootstrap_.pollTitleDescriptions();
-        const auto request = server_->titleRequest();
-        std::lock_guard<std::mutex> lock(mutex_); titleRequest_ = request; titleError_.clear();
+        std::lock_guard<std::mutex> lock(mutex_); titleError_.clear();
     } catch (const std::exception& error) {
         if (titleError_ != error.what()) {
             titleError_ = error.what();

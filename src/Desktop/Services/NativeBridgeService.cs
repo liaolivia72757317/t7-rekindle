@@ -10,6 +10,19 @@ using T7R.Core;
 
 namespace T7R.Desktop.Services
 {
+    public sealed class RuntimeSessionStatus
+    {
+        public RuntimeSessionStatus(bool hasSession, string connectionError = null, Exception failure = null)
+        {
+            HasSession = hasSession;
+            ConnectionError = connectionError ?? string.Empty;
+            Failure = failure;
+        }
+        public bool HasSession { get; }
+        public string ConnectionError { get; }
+        public Exception Failure { get; }
+    }
+
     public interface INativeBridge
     {
         void SetLogLevel(DiagnosticLogLevel level);
@@ -20,6 +33,7 @@ namespace T7R.Desktop.Services
         Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, bool skipStartupAnimation, CancellationToken cancellationToken);
         Task<OperationSnapshot> StopAsync(CancellationToken cancellationToken);
         SessionSnapshot GetSnapshot();
+        RuntimeSessionStatus GetRuntimeStatus();
         GraphicsSettingsSnapshot GetGraphicsSettings();
         void ApplyGraphicsSettings(ulong revision, GraphicsSettingsValues values);
         AudioSettingsSnapshot GetAudioSettings();
@@ -39,9 +53,15 @@ namespace T7R.Desktop.Services
         private NativeSessionHandle _session;
         private bool _disposed;
 
-        public NativeBridgeService(string packageRoot)
+        public NativeBridgeService(string packageRoot) : this(packageRoot, null) { }
+
+        internal NativeBridgeService(string packageRoot, string localDataRoot)
         {
+            _runtimeDataRoot = localDataRoot == null ? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "T7-Rekindle") : Path.GetFullPath(localDataRoot);
             NativeAbiLayout.Validate();
+            ValidateGatewayStartLayout();
+            ValidateBattleAttachmentLayout();
             _packageRoot = Path.GetFullPath(packageRoot ?? throw new ArgumentNullException(nameof(packageRoot)));
             var bridgePath = Path.Combine(_packageRoot, NativeBridgeContract.LibraryName);
             _module = LoadLibraryEx(bridgePath, IntPtr.Zero, LoadLibrarySearchDllLoadDir | LoadLibrarySearchSystem32);
@@ -104,36 +124,6 @@ namespace T7R.Desktop.Services
                 }
                 throw;
             }
-        }
-
-        public Task<OperationSnapshot> CheckAsync(string clientDirectory, CancellationToken cancellationToken)
-        {
-            return SubmitAndWaitAsync(OperationKind.Check, clientDirectory, cancellationToken);
-        }
-
-        public Task<OperationSnapshot> StartAsync(string clientDirectory, CancellationToken cancellationToken)
-        {
-            return SubmitAndWaitAsync(OperationKind.Start, clientDirectory, cancellationToken);
-        }
-
-        public Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, CancellationToken cancellationToken)
-        {
-            var error = PlayerNameRules.Validate(playerName);
-            if (error.Length != 0) throw new ArgumentException(error, nameof(playerName));
-            return SubmitAndWaitAsync(OperationKind.Start, clientDirectory, cancellationToken, playerName.Trim());
-        }
-
-        public Task<OperationSnapshot> StopAsync(CancellationToken cancellationToken)
-        {
-            return SubmitAndWaitAsync(OperationKind.Stop, null, cancellationToken);
-        }
-
-        public Task<OperationSnapshot> StartAsync(string clientDirectory, string playerName, bool skipStartupAnimation,
-            CancellationToken cancellationToken)
-        {
-            var error = PlayerNameRules.Validate(playerName);
-            if (error.Length != 0) throw new ArgumentException(error, nameof(playerName));
-            return SubmitAndWaitAsync(OperationKind.Start, clientDirectory, cancellationToken, playerName.Trim(), skipStartupAnimation);
         }
 
         public SessionSnapshot GetSnapshot()
@@ -392,6 +382,7 @@ namespace T7R.Desktop.Services
 
         public void Dispose()
         {
+            if (_offlineBattle != null) StopAsync(CancellationToken.None).GetAwaiter().GetResult();
             lock (_sync)
             {
                 if (_disposed)
@@ -404,7 +395,7 @@ namespace T7R.Desktop.Services
                 _session = null;
                 // t7r_native_release is deliberately non-blocking: the native
                 // worker may still execute code inside this DLL while it finishes
-                // client/Python/socket cleanup.  Keep the module loaded until the
+                // client cleanup.  Keep the module loaded until the
                 // host process exits instead of unloading code out from under it.
             }
         }
@@ -667,6 +658,10 @@ namespace T7R.Desktop.Services
                 SubmitStart = Resolve<SubmitPathDelegate>(module, "t7r_native_submit_start");
                 SubmitStartNamed = Resolve<SubmitStartNamedDelegate>(module, "t7r_native_submit_start_named");
                 SubmitStartOptions = Resolve<SubmitStartOptionsDelegate>(module, "t7r_native_submit_start_options");
+                SubmitStartGateway = Resolve<SubmitGatewayStartDelegate>(module, "t7r_native_submit_start_gateway");
+                SubmitStartGatewayProfiles = Resolve<SubmitGatewayProfileStartDelegate>(module, "t7r_native_submit_start_gateway_profiles");
+                AttachBattle = Resolve<AttachBattleDelegate>(module, "t7r_native_attach_battle");
+                DetachBattle = Resolve<DetachBattleDelegate>(module, "t7r_native_detach_battle");
                 SubmitStop = Resolve<SubmitStopDelegate>(module, "t7r_native_submit_stop");
                 Cancel = Resolve<CancelDelegate>(module, "t7r_native_cancel");
                 GetSnapshot = Resolve<GetSnapshotDelegate>(module, "t7r_native_get_snapshot");
