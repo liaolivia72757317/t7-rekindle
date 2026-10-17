@@ -1,0 +1,4317 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "idle-attack",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "aggressive",
+        "tempo": 85,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-aggressive-85",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "aggressive",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-aggressive-100",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "aggressive",
+        "tempo": 115,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-aggressive-115",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 85,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-balanced-85",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-balanced-100",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 115,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-balanced-115",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "defensive",
+        "tempo": 85,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-defensive-85",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "defensive",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-defensive-100",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "defensive",
+        "tempo": 115,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-defensive-115",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "berserker",
+        "tempo": 85,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-berserker-85",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "berserker",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-berserker-100",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "berserker",
+        "tempo": 115,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "profile-berserker-115",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 1000,
+        "phaseObservedSince": 1000
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300560-0",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 851,
+        "phaseObservedSince": 851
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300560-149",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 850,
+        "phaseObservedSince": 850
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300560-150",
+      "expected": {
+        "kind": "parry",
+        "reason": "parry",
+        "intent": 300580,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 1000,
+        "phaseObservedSince": 1000
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300550,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300550-0",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 851,
+        "phaseObservedSince": 851
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300550,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300550-149",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 850,
+        "phaseObservedSince": 850
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300550,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300550-150",
+      "expected": {
+        "kind": "parry",
+        "reason": "parry",
+        "intent": 300610,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 1000,
+        "phaseObservedSince": 1000
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300570,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300570-0",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 851,
+        "phaseObservedSince": 851
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300570,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300570-149",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 850,
+        "phaseObservedSince": 850
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300570,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300570-150",
+      "expected": {
+        "kind": "parry",
+        "reason": "parry",
+        "intent": 300600,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 1000,
+        "phaseObservedSince": 1000
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300540,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300540-0",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 851,
+        "phaseObservedSince": 851
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300540,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300540-149",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 850,
+        "phaseObservedSince": 850
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300540,
+          "index": 0,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-300540-150",
+      "expected": {
+        "kind": "parry",
+        "reason": "parry",
+        "intent": 300590,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 1000,
+        "phaseObservedSince": 1000
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 700250,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-700250-0",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 851,
+        "phaseObservedSince": 851
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 700250,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-700250-149",
+      "expected": {
+        "kind": "wait",
+        "reason": "observe-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 850,
+        "phaseObservedSince": 850
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 700250,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": 2000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "threat-700250-150",
+      "expected": {
+        "kind": "parry",
+        "reason": "parry",
+        "intent": 300600,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300580,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "guard-300580",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300590,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "guard-300590",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300560,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300600,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "guard-300600",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300610,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "guard-300610",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300560,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300130,
+          "index": 1,
+          "seq": 1,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "guard-300130",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 300560,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "avoid-repeat-300560",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 300550,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "avoid-repeat-300550",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 300570,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "avoid-repeat-300570",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 300540,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "avoid-repeat-300540",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300550,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 0,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-0",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-1",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 2,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-2",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 3,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-3",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": true,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "hurt",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "parried",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-parried",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "parry-success",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-parry-success",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "terrain-rebound",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "locked-terrain-rebound",
+      "expected": {
+        "kind": "wait",
+        "reason": "action-locked",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 2,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "late-None",
+      "expected": {
+        "kind": "wait",
+        "reason": "late-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 2,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": 1000
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "late-1000",
+      "expected": {
+        "kind": "wait",
+        "reason": "late-threat",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 2,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": 1001
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "late-1001",
+      "expected": {
+        "kind": "parry",
+        "reason": "parry",
+        "intent": 300580,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 2000,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 3,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": 1099
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "counter-1099",
+      "expected": {
+        "kind": "wait",
+        "reason": "ready",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 2000,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 3,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": 1100
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "counter-1100",
+      "expected": {
+        "kind": "attack",
+        "reason": "counterattack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 2000,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 3,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": 1200
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "counter-1200",
+      "expected": {
+        "kind": "attack",
+        "reason": "counterattack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 2000,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 1,
+          "seq": 0,
+          "reaction": "parried",
+          "released": false
+        },
+        "due": 1500
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "counter-parried",
+      "expected": {
+        "kind": "attack",
+        "reason": "counterattack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 2000,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 1,
+          "seq": 0,
+          "reaction": "terrain-rebound",
+          "released": false
+        },
+        "due": 1500
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "counter-terrain-rebound",
+      "expected": {
+        "kind": "attack",
+        "reason": "counterattack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "aggressive",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 300560,
+          "index": 1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "pressure",
+      "expected": {
+        "kind": "attack",
+        "reason": "pressure",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "blocked",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "contact-blocked",
+      "expected": {
+        "kind": "wait",
+        "reason": "contact-unavailable",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "unavailable",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "contact-unavailable",
+      "expected": {
+        "kind": "wait",
+        "reason": "contact-unavailable",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 1001,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0.0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "wait-ready",
+      "expected": {
+        "kind": "wait",
+        "reason": "ready",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.8,
+          0.5,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "position-[1.8, 0.5, 0.2]",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.8,
+          -0.5,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "position-[1.8, -0.5, 0.2]",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300550,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0,
+          0.6
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "position-[1.5, 0, 0.6]",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0,
+          -0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "position-[1.5, 0, -0.2]",
+      "expected": {
+        "kind": "attack",
+        "reason": "attack",
+        "intent": 300540,
+        "seed": 3663386889
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          2.3,
+          0,
+          0.2
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "position-[2.3, 0, 0.2]",
+      "expected": {
+        "kind": "wait",
+        "reason": "contact-unavailable",
+        "intent": 0,
+        "seed": 0
+      }
+    },
+    {
+      "context": {
+        "now": 1000,
+        "profile": "balanced",
+        "tempo": 100,
+        "seed": 5,
+        "reactAt": 0,
+        "lastAttack": 0,
+        "observedSince": 0,
+        "phaseObservedSince": 0
+      },
+      "source": {
+        "position": [
+          0.0,
+          0.0,
+          0.2
+        ],
+        "heading": 0.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "target": {
+        "position": [
+          1.5,
+          0,
+          1.3
+        ],
+        "heading": 180.0,
+        "contact": "clear",
+        "hurt": false,
+        "action": {
+          "intent": 0,
+          "index": -1,
+          "seq": 0,
+          "reaction": "",
+          "released": false
+        },
+        "due": null
+      },
+      "windups": [
+        360,
+        360,
+        400,
+        360
+      ],
+      "name": "position-[1.5, 0, 1.3]",
+      "expected": {
+        "kind": "wait",
+        "reason": "contact-unavailable",
+        "intent": 0,
+        "seed": 0
+      }
+    }
+  ],
+  "spawns": {
+    "1": [
+      [
+        0.0,
+        0.0,
+        0.2
+      ],
+      [
+        2.0,
+        0.0,
+        0.2
+      ],
+      [
+        4.0,
+        0.0,
+        0.2
+      ],
+      [
+        6.0,
+        0.0,
+        0.2
+      ],
+      [
+        8.0,
+        0.0,
+        0.2
+      ],
+      [
+        10.0,
+        0.0,
+        0.2
+      ],
+      [
+        12.0,
+        0.0,
+        0.2
+      ],
+      [
+        14.0,
+        0.0,
+        0.2
+      ],
+      [
+        16.0,
+        0.0,
+        0.2
+      ],
+      [
+        18.0,
+        0.0,
+        0.2
+      ]
+    ],
+    "2": [
+      [
+        0.0,
+        20.0,
+        0.2
+      ],
+      [
+        2.0,
+        20.0,
+        0.2
+      ],
+      [
+        4.0,
+        20.0,
+        0.2
+      ],
+      [
+        6.0,
+        20.0,
+        0.2
+      ],
+      [
+        8.0,
+        20.0,
+        0.2
+      ],
+      [
+        10.0,
+        20.0,
+        0.2
+      ],
+      [
+        12.0,
+        20.0,
+        0.2
+      ],
+      [
+        14.0,
+        20.0,
+        0.2
+      ],
+      [
+        16.0,
+        20.0,
+        0.2
+      ],
+      [
+        18.0,
+        20.0,
+        0.2
+      ]
+    ]
+  },
+  "profiles": [
+    {
+      "actorId": 2,
+      "camp": 2,
+      "ordinal": 0,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "aggressive",
+        "tempo": 95,
+        "lane": -1,
+        "patrolAnchor": [
+          -2.0,
+          12.0,
+          0.2
+        ],
+        "routeSeed": 1013891931,
+        "rhythmSeed": 2670719543
+      }
+    },
+    {
+      "actorId": 3,
+      "camp": 2,
+      "ordinal": 1,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "balanced",
+        "tempo": 103,
+        "lane": 0,
+        "patrolAnchor": [
+          11.0,
+          8.0,
+          0.2
+        ],
+        "routeSeed": 3668335914,
+        "rhythmSeed": 2045209670
+      }
+    },
+    {
+      "actorId": 4,
+      "camp": 2,
+      "ordinal": 2,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "defensive",
+        "tempo": 103,
+        "lane": 1,
+        "patrolAnchor": [
+          20.0,
+          11.0,
+          0.2
+        ],
+        "routeSeed": 2027804413,
+        "rhythmSeed": 3684493201
+      }
+    },
+    {
+      "actorId": 5,
+      "camp": 2,
+      "ordinal": 3,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "berserker",
+        "tempo": 95,
+        "lane": -1,
+        "patrolAnchor": [
+          -3.0,
+          13.0,
+          0.2
+        ],
+        "routeSeed": 387272780,
+        "rhythmSeed": 3025428768
+      }
+    },
+    {
+      "actorId": 6,
+      "camp": 2,
+      "ordinal": 4,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "aggressive",
+        "tempo": 107,
+        "lane": 1,
+        "patrolAnchor": [
+          19.0,
+          9.0,
+          0.2
+        ],
+        "routeSeed": 3041716767,
+        "rhythmSeed": 370006899
+      }
+    },
+    {
+      "actorId": 7,
+      "camp": 2,
+      "ordinal": 5,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "balanced",
+        "tempo": 103,
+        "lane": -1,
+        "patrolAnchor": [
+          -1.0,
+          12.0,
+          0.2
+        ],
+        "routeSeed": 1401185262,
+        "rhythmSeed": 4039463554
+      }
+    },
+    {
+      "actorId": 8,
+      "camp": 2,
+      "ordinal": 6,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "defensive",
+        "tempo": 99,
+        "lane": 0,
+        "patrolAnchor": [
+          10.0,
+          8.0,
+          0.2
+        ],
+        "routeSeed": 4055629233,
+        "rhythmSeed": 1392168157
+      }
+    },
+    {
+      "actorId": 9,
+      "camp": 2,
+      "ordinal": 7,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "berserker",
+        "tempo": 91,
+        "lane": 1,
+        "patrolAnchor": [
+          17.0,
+          10.0,
+          0.2
+        ],
+        "routeSeed": 2415097600,
+        "rhythmSeed": 749880940
+      }
+    },
+    {
+      "actorId": 10,
+      "camp": 2,
+      "ordinal": 8,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "aggressive",
+        "tempo": 91,
+        "lane": 0,
+        "patrolAnchor": [
+          11.0,
+          13.0,
+          0.2
+        ],
+        "routeSeed": 774566099,
+        "rhythmSeed": 2372649407
+      }
+    },
+    {
+      "actorId": 11,
+      "camp": 2,
+      "ordinal": 9,
+      "seed": 12345,
+      "expected": {
+        "camp": 2,
+        "profile": "balanced",
+        "tempo": 98,
+        "lane": 1,
+        "patrolAnchor": [
+          21.0,
+          11.0,
+          0.2
+        ],
+        "routeSeed": 3428977314,
+        "rhythmSeed": 1864580046
+      }
+    },
+    {
+      "actorId": 12,
+      "camp": 1,
+      "ordinal": 0,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "defensive",
+        "tempo": 98,
+        "lane": -1,
+        "patrolAnchor": [
+          18.0,
+          7.0,
+          0.2
+        ],
+        "routeSeed": 1788445813,
+        "rhythmSeed": 3386422553
+      }
+    },
+    {
+      "actorId": 13,
+      "camp": 1,
+      "ordinal": 1,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "berserker",
+        "tempo": 98,
+        "lane": 0,
+        "patrolAnchor": [
+          9.0,
+          9.0,
+          0.2
+        ],
+        "routeSeed": 147922372,
+        "rhythmSeed": 2878352552
+      }
+    },
+    {
+      "actorId": 14,
+      "camp": 1,
+      "ordinal": 2,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "aggressive",
+        "tempo": 102,
+        "lane": 1,
+        "patrolAnchor": [
+          -1.0,
+          8.0,
+          0.2
+        ],
+        "routeSeed": 2802358167,
+        "rhythmSeed": 71935739
+      }
+    },
+    {
+      "actorId": 15,
+      "camp": 1,
+      "ordinal": 3,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "balanced",
+        "tempo": 98,
+        "lane": -1,
+        "patrolAnchor": [
+          19.0,
+          6.0,
+          0.2
+        ],
+        "routeSeed": 1161826662,
+        "rhythmSeed": 3858833418
+      }
+    },
+    {
+      "actorId": 16,
+      "camp": 1,
+      "ordinal": 4,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "defensive",
+        "tempo": 94,
+        "lane": 1,
+        "patrolAnchor": [
+          -2.0,
+          10.0,
+          0.2
+        ],
+        "routeSeed": 3816270633,
+        "rhythmSeed": 1077320261
+      }
+    },
+    {
+      "actorId": 17,
+      "camp": 1,
+      "ordinal": 5,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "berserker",
+        "tempo": 90,
+        "lane": -1,
+        "patrolAnchor": [
+          18.0,
+          7.0,
+          0.2
+        ],
+        "routeSeed": 2175739128,
+        "rhythmSeed": 586028436
+      }
+    },
+    {
+      "actorId": 18,
+      "camp": 1,
+      "ordinal": 6,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "aggressive",
+        "tempo": 94,
+        "lane": 0,
+        "patrolAnchor": [
+          10.0,
+          10.0,
+          0.2
+        ],
+        "routeSeed": 535215691,
+        "rhythmSeed": 3165097767
+      }
+    },
+    {
+      "actorId": 19,
+      "camp": 1,
+      "ordinal": 7,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "balanced",
+        "tempo": 94,
+        "lane": 1,
+        "patrolAnchor": [
+          -1.0,
+          9.0,
+          0.2
+        ],
+        "routeSeed": 3189651482,
+        "rhythmSeed": 492767606
+      }
+    },
+    {
+      "actorId": 20,
+      "camp": 1,
+      "ordinal": 8,
+      "seed": 12345,
+      "expected": {
+        "camp": 1,
+        "profile": "defensive",
+        "tempo": 94,
+        "lane": 0,
+        "patrolAnchor": [
+          10.0,
+          6.0,
+          0.2
+        ],
+        "routeSeed": 1549119981,
+        "rhythmSeed": 4279533697
+      }
+    }
+  ]
+}

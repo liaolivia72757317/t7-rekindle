@@ -1,0 +1,2 @@
+# name tick rid yaw body-hex; original-client Python codec
+turn-toward 300 202 -9 00380000012c0100cafff700000000

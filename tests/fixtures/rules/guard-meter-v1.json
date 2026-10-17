@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "exhaustion",
+      "events": [
+        {
+          "kind": "consume",
+          "at": 1000,
+          "amount": 1,
+          "meter": {
+            "value": 4,
+            "at": 1000,
+            "lastBlockAt": 1000
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 1100,
+          "amount": 1,
+          "meter": {
+            "value": 3.0,
+            "at": 1100,
+            "lastBlockAt": 1100
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 1200,
+          "amount": 1,
+          "meter": {
+            "value": 2.0,
+            "at": 1200,
+            "lastBlockAt": 1200
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 1300,
+          "amount": 1,
+          "meter": {
+            "value": 1.0,
+            "at": 1300,
+            "lastBlockAt": 1300
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 1400,
+          "amount": 1,
+          "meter": {
+            "value": 2,
+            "at": 1400,
+            "lastBlockAt": 1400
+          },
+          "changed": true,
+          "exhausted": true
+        }
+      ]
+    },
+    {
+      "name": "watermark",
+      "events": [
+        {
+          "kind": "consume",
+          "at": 1000,
+          "amount": 2,
+          "meter": {
+            "value": 3,
+            "at": 1000,
+            "lastBlockAt": 1000
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 3499,
+          "amount": 0,
+          "meter": {
+            "value": 3.0,
+            "at": 3499,
+            "lastBlockAt": 1000
+          },
+          "changed": false,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 3750,
+          "amount": 0,
+          "meter": {
+            "value": 3.5,
+            "at": 3750,
+            "lastBlockAt": 1000
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 3750,
+          "amount": 1,
+          "meter": {
+            "value": 2.5,
+            "at": 3750,
+            "lastBlockAt": 3750
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 6250,
+          "amount": 0,
+          "meter": {
+            "value": 2.5,
+            "at": 6250,
+            "lastBlockAt": 3750
+          },
+          "changed": false,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 7000,
+          "amount": 0,
+          "meter": {
+            "value": 4.0,
+            "at": 7000,
+            "lastBlockAt": 3750
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 9000,
+          "amount": 0,
+          "meter": {
+            "value": 5,
+            "at": 9000,
+            "lastBlockAt": 3750
+          },
+          "changed": true,
+          "exhausted": false
+        }
+      ]
+    },
+    {
+      "name": "late-contact",
+      "events": [
+        {
+          "kind": "consume",
+          "at": 4000,
+          "amount": 2,
+          "meter": {
+            "value": 3,
+            "at": 4000,
+            "lastBlockAt": 4000
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 7000,
+          "amount": 0,
+          "meter": {
+            "value": 4.0,
+            "at": 7000,
+            "lastBlockAt": 4000
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 4100,
+          "amount": 1,
+          "meter": {
+            "value": 3.0,
+            "at": 7000,
+            "lastBlockAt": 4100
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 6999,
+          "amount": 0,
+          "meter": {
+            "value": 3.0,
+            "at": 7000,
+            "lastBlockAt": 4100
+          },
+          "changed": false,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 7250,
+          "amount": 0,
+          "meter": {
+            "value": 3.5,
+            "at": 7250,
+            "lastBlockAt": 4100
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "restore",
+          "at": 5000,
+          "amount": 0,
+          "meter": {
+            "value": 5,
+            "at": 7250,
+            "lastBlockAt": 4100
+          },
+          "changed": true,
+          "exhausted": false
+        }
+      ]
+    },
+    {
+      "name": "fractional",
+      "events": [
+        {
+          "kind": "consume",
+          "at": 1000.25,
+          "amount": 2.5,
+          "meter": {
+            "value": 2.5,
+            "at": 1000.25,
+            "lastBlockAt": 1000.25
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 3625.75,
+          "amount": 0,
+          "meter": {
+            "value": 2.751,
+            "at": 3625.75,
+            "lastBlockAt": 1000.25
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "consume",
+          "at": 3625.75,
+          "amount": 20,
+          "meter": {
+            "value": 2,
+            "at": 3625.75,
+            "lastBlockAt": 3625.75
+          },
+          "changed": true,
+          "exhausted": true
+        },
+        {
+          "kind": "restore",
+          "at": 3625.75,
+          "amount": 0,
+          "meter": {
+            "value": 4.0,
+            "at": 3625.75,
+            "lastBlockAt": 3625.75
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "restore",
+          "at": 3625.75,
+          "amount": 0,
+          "meter": {
+            "value": 5,
+            "at": 3625.75,
+            "lastBlockAt": 3625.75
+          },
+          "changed": true,
+          "exhausted": false
+        }
+      ]
+    },
+    {
+      "name": "epsilon",
+      "events": [
+        {
+          "kind": "consume",
+          "at": 1,
+          "amount": 4.9999999995,
+          "meter": {
+            "value": 2,
+            "at": 1,
+            "lastBlockAt": 1
+          },
+          "changed": true,
+          "exhausted": true
+        },
+        {
+          "kind": "consume",
+          "at": 2,
+          "amount": 0,
+          "meter": {
+            "value": 2.0,
+            "at": 2,
+            "lastBlockAt": 2
+          },
+          "changed": false,
+          "exhausted": false
+        },
+        {
+          "kind": "reset",
+          "at": 0,
+          "amount": 0,
+          "meter": {
+            "value": 5,
+            "at": 0,
+            "lastBlockAt": 0
+          },
+          "changed": true,
+          "exhausted": false
+        },
+        {
+          "kind": "advance",
+          "at": 0,
+          "amount": 0,
+          "meter": {
+            "value": 5,
+            "at": 0,
+            "lastBlockAt": 0
+          },
+          "changed": false,
+          "exhausted": false
+        }
+      ]
+    }
+  ]
+}
