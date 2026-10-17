@@ -352,6 +352,10 @@ void Session::workerLoop() {
                         const auto now = std::chrono::steady_clock::now();
                         if (now >= nextMonitor) {
                             monitorClient();
+                            {
+                                std::lock_guard<std::mutex> stateLock(mutex_);
+                                if (snapshot_.state != T7RNB_STATE_RUNNING) continue;
+                            }
                             monitorTitles();
                             nextMonitor = now + std::chrono::milliseconds(50);
                         }

@@ -121,6 +121,37 @@ void guardDebugSamplingFailure(const fs::path& root) {
     fixture.stop();
 }
 
+void guardDebugClientExit(const fs::path& root, bool windowClosed) {
+    Fixture fixture(root);
+    std::atomic<bool> exiting{false};
+    std::atomic<unsigned> polls{0}, stoppedPolls{0};
+    auto adapter = fixture.adapter();
+    adapter.running = [&] { return fixture.alive && (windowClosed || !exiting); };
+    adapter.windowClosed = [&] { return windowClosed && exiting; };
+    adapter.exitCode = [] { return DWORD{0}; };
+    adapter.pollWorld = [&](WorldSnapshot&) {
+        ++polls;
+        if (!fixture.alive) ++stoppedPolls;
+        return false;
+    };
+    fixture.start(std::move(adapter));
+    require(fixture.session->setGuardDebug(true) == T7RNB_OK, "guard debug enable rejected");
+    require(waitUntil([&] { return polls > 0; }), "guard debug did not sample the running client");
+    exiting = true;
+    require(waitUntil([&] { return fixture.snapshot().state == T7RNB_STATE_IDLE; }), "client exit not observed");
+    Sleep(100);
+    require(stoppedPolls == 0, "guard debug sampled after client cleanup");
+    require(fixture.logs().find("guard debug drawing disabled:") == std::string::npos,
+        "client exit disabled the guard debug preference");
+    exiting = false;
+    const auto beforeRestart = polls.load();
+    uint64_t operation = 0;
+    require(fixture.session->submit(T7RNB_OPERATION_START, utf8((root / "client/Bin").wstring()), operation,
+        "Player", false, {1, 2, 3}) == T7RNB_OK, "guard debug restart rejected");
+    require(waitUntil([&] { return polls > beforeRestart; }), "guard debug did not resume after client restart");
+    fixture.stop();
+}
+
 void captureFailure(const fs::path& root, bool invalidPath) {
     const auto capture = invalidPath ? fs::path(L"relative-capture.jsonl") : root / "capture.jsonl";
     require(SetEnvironmentVariableW(L"T7R_BATTLE_CAPTURE_PATH", capture.c_str()), "capture environment setup");
@@ -165,6 +196,7 @@ bool verifySessionMonitoring() {
         windowProbe(root, false); windowProbe(root, true);
         workerFailure(root, true); workerFailure(root, false); workerFailure(root, true, true);
         guardDebugSamplingFailure(root);
+        guardDebugClientExit(root, false); guardDebugClientExit(root, true);
         captureFailure(root, true); captureFailure(root, false);
         cleanup();
         return true;

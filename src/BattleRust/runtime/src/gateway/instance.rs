@@ -251,14 +251,25 @@ impl InstanceIngress {
                 },
                 bytes,
             )
-            .map_err(|error| match error {
-                QueueError::Full(_) => {
-                    io::Error::new(io::ErrorKind::WouldBlock, "instance output queue full")
+            .or_else(|error| match error {
+                // The reader marks clean EOF/protocol close before dropping the queue.
+                // Consume late output while the launcher finishes stopping the battle.
+                QueueError::Closed(_)
+                    if self.return_state.load(Ordering::Acquire) & INSTANCE_DISCONNECTED != 0 =>
+                {
+                    Ok(())
                 }
-                QueueError::Closed(_) => {
-                    io::Error::new(io::ErrorKind::BrokenPipe, "instance output disconnected")
+                QueueError::Full(_) => Err(io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "instance output queue full",
+                )),
+                QueueError::Closed(_) => Err(io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "instance output disconnected",
+                )),
+                QueueError::Oversized(_) => {
+                    Err(invalid("instance output batch exceeds queue budget"))
                 }
-                QueueError::Oversized(_) => invalid("instance output batch exceeds queue budget"),
             })
     }
 

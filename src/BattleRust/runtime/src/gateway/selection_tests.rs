@@ -11,6 +11,8 @@ use std::{
 const RETRIES: &str =
     include_str!("../../../../../tests/fixtures/protocol/instance-hero-retry-uplink-v1.txt");
 
+#[path = "disconnect_tests.rs"]
+mod disconnect_tests;
 #[path = "initial_selection_tests.rs"]
 mod initial_tests;
 #[path = "refresh_connection_tests.rs"]
