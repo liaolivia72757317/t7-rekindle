@@ -244,6 +244,7 @@ impl ActionState {
                 weapon_id: profile.weapon_id,
                 began_at_ms: at,
                 held_ms: self.snapshot.held_ms,
+                strike_duration_ms: duration_ms,
                 contact_start_ms: start,
                 contact_end_ms: end,
             });

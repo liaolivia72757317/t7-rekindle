@@ -82,6 +82,7 @@ public:
     int32_t cancel(uint64_t operationId);
     int32_t setOutputDevice(const GUID& identifier);
     int32_t setLogLevel(uint32_t level);
+    int32_t setGuardDebug(bool enabled);
     int32_t snapshot(Snapshot& result) const;
     int32_t graphics(GraphicsSnapshot& result) const;
     int32_t applyGraphics(uint64_t revision, const GraphicsValues& values);
@@ -122,6 +123,7 @@ private:
     void executeStop(const Command& command);
     void monitorClient();
     void monitorWorld();
+    void monitorGuardDebug(const WorldSnapshot* world = nullptr);
     void stopCapture();
     void failWorker(const std::string& message);
     void monitorGraphics();
@@ -165,6 +167,7 @@ private:
     TitleRequest titleRequest_;
     std::string titleError_;
     std::atomic<uint64_t> cancelOperation_{0};
+    std::atomic<bool> showGuardDebug_{false};
     std::unique_ptr<BattleCapture> capture_;
     bool captureDisabled_ = false;
     std::optional<std::chrono::steady_clock::time_point> windowProbeFailureSince_;

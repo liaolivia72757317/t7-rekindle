@@ -16,6 +16,13 @@ namespace T7R.ManagedHarness
             if (level == RejectedLogLevel) throw new InvalidOperationException("fixture log level failure");
             LogLevel = level;
         }
+        public bool ShowGuardDebug { get; private set; }
+        public bool? RejectedGuardDebug { get; set; }
+        public void SetGuardDebug(bool enabled)
+        {
+            if (enabled == RejectedGuardDebug) throw new InvalidOperationException("fixture guard debug failure");
+            ShowGuardDebug = enabled;
+        }
         public Guid OutputDevice { get; private set; }
         public int OutputDeviceSetCount { get; private set; }
         public void SetOutputDevice(Guid identifier) { OutputDevice = identifier; OutputDeviceSetCount++; }

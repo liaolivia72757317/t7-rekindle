@@ -118,105 +118,81 @@ inline void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox) {
         {guard + 0x60C,guard + 0x510}, {OBSTACLES + 3 * 16,1}, {OBSTACLES + 3 * 16 + 8,guard + 0x600}
     }) writeWord(process, field[0], field[1]);
     number(process, OBSTACLES + 3 * 16 + 4, 270.4f);
-    value = sample().actors[0].blade;
     const auto defenceSlot = 2 + t7r::DEFENCE_CONTACT_OFFSET;
-    require(value.contacts[2].contact.hit && value.contacts[defenceSlot].contact.hit
-        && value.contacts[defenceSlot].targetId == 2 && value.contacts[defenceSlot].defenceWeaponId == 1030411
-        && value.contacts[defenceSlot].along < value.contacts[2].along,
-        "native guard geometry was merged with or replaced by the body contact");
-    require(std::any_of(last.contacts.begin(), last.contacts.end(), [](const auto& event) {
-        return event.hit.targetId == 2 && event.hit.defenceWeaponId == 1030411 && event.targetState == 223;
-    }), "defence journal slot lost its target RID, weapon or state");
-    for (uint32_t state : {231u,232u,233u,234u,235u,241u,247u,253u}) {
-        writeWord(process, defender + 0x738, state);
-        require(sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-            "guard feedback or chamber prepare lost the native weapon root");
-    }
-    for (uint32_t state : {237u,243u,249u,255u,305u,35u}) {
-        writeWord(process, defender + 0x738, state);
-        require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-            "held attack or inactive defence admitted a defensive root");
-    }
-    writeWord(process, defender + 0x738, 223);
-    writeWord(process, defender + 0x920, 0);
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "sheathed weapon admitted as defence");
-    writeWord(process, defender + 0x920, 1); writeWord(process, guard + 0x508, terrainFixture::WORLD + 0x100);
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "foreign-world guard root admitted");
-    writeWord(process, guard + 0x508, terrainFixture::WORLD);
-    // Ordinary equipped weapons can have an empty native physics collection.
-    // Their live blade, not a resource named "defence", must provide the contact.
-    writeWord(process, guard + 0x34, 0);
-    vector(process, defender + 0xC88, {270.4f,149.5f,1});
-    vector(process, defender + 0xD88, {270.4f,150.5f,1});
+    const auto controller = worldFixture::CONTROLLER + 0x100;
+    const auto oldPosition = last.actors[1].position;
+    vector(process, controller + 0x10, {271.15f,150,0}); number(process, controller + 0xAC, 3.141592654f);
     value = sample().actors[0].blade;
-    require(value.contacts[defenceSlot].contact.hit && value.contacts[2].contact.hit
-        && value.contacts[defenceSlot].defenceWeaponId == 1030411
-        && value.contacts[defenceSlot].along < value.contacts[2].along,
-        "empty native physics collection lost live weapon interception");
-    require(std::abs(value.contacts[defenceSlot].contact.position[0] - 270.38f) < .001f,
-        "weapon contact did not use the first capsule entry");
+    require(value.contacts[2].contact.hit && value.contacts[defenceSlot].contact.hit
+        && value.contacts[defenceSlot].guardVolume && value.contacts[defenceSlot].defenceWeaponId == 1030411
+        && value.contacts[defenceSlot].region == 0 && value.contacts[defenceSlot].bodyIndex == -1
+        && std::abs(value.contacts[defenceSlot].along - .35f) < .001f,
+        "front volume must precede the body and replace main-hand native roots");
+    require(std::any_of(last.contacts.begin(), last.contacts.end(), [](const auto& event) {
+        return event.hit.targetId == 2 && event.hit.guardVolume && event.hit.defenceWeaponId == 1030411;
+    }), "guard origin lost in the game-thread journal");
+    writeWord(process, guard + 0x34, 0);
     for (uint32_t state : {223u,224u,225u,226u,231u,232u,233u,234u,235u,241u,247u,253u}) {
         writeWord(process, defender + 0x738, state);
-        require(sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-            "live weapon guard or chamber geometry missing");
+        require(sample().actors[0].blade.contacts[defenceSlot].contact.hit, "guard/prepare volume missing");
     }
-    for (uint32_t state : {35u,237u,238u,305u,309u,111u}) {
+    for (uint32_t state : {35u,237u,238u,243u,249u,255u,305u,309u,111u}) {
         writeWord(process, defender + 0x738, state);
-        require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-            "inactive guard or shield substituted a live main-hand segment");
+        require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "inactive guard or shield acquired a proxy");
     }
     writeWord(process, defender + 0x738, 223);
-    vector(process, defender + 0xC88, {270.4f,149.5f,1.1f});
-    vector(process, defender + 0xD88, {270.4f,150.5f,1.1f});
-    value = sample().actors[0].blade;
-    require(!value.contacts[defenceSlot].contact.hit && value.contacts[2].contact.hit,
-        "guard pose or nearby weapon substituted for an actual intersection");
-    vector(process, defender + 0xC88, {270.4f,149.5f,1});
-    vector(process, defender + 0xD88, {270.4f,150.5f,1});
     writeWord(process, defender + 0x920, 0);
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-        "inactive live weapon admitted as defence");
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "inactive weapon acquired a volume");
     writeWord(process, defender + 0x920, 1);
     writeWord(process, defender + 0xBB0, 0);
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-        "missing live weapon pose reused a previous contact");
-    writeWord(process, defender + 0xBB0, defender + 0xD00);
-    for (const auto& ends : std::array<std::array<float,2>,2>{{{270.3f,270.6f},{270.6f,270.3f}}}) {
-        vector(process, defender + 0xC88, {ends[0],150,1});
-        vector(process, defender + 0xD88, {ends[1],150,1});
-        value = sample().actors[0].blade;
-        require(value.contacts[defenceSlot].contact.hit
-            && std::abs(value.contacts[defenceSlot].along - .28f) < .001f,
-            "parallel blade missed the first end-cap contact");
-    }
-    vector(process, defender + 0xC88, {269.5f,150,1});
-    vector(process, defender + 0xD88, {270.5f,150,1});
-    value = sample().actors[0].blade;
-    require(value.contacts[defenceSlot].contact.hit && value.contacts[defenceSlot].along == 0
-        && value.contacts[defenceSlot].contact.normal == std::array<float,3>{-1,0,0},
-        "initial blade overlap produced a late contact or degenerate normal");
+    require(sample().actors[0].blade.contacts[defenceSlot].contact.hit, "volume incorrectly required a ribbon");
+    writeWord(process, defender + 0xBB0, defender + 0xC00);
+    vector(process, defender + 0xC88, {NAN,150,1});
+    require(sample().actors[0].blade.contacts[defenceSlot].contact.hit, "invalid defender blade removed character geometry");
     vector(process, defender + 0xC88, {270.4f,149.5f,1});
     vector(process, defender + 0xD88, {270.4f,150.5f,1});
-    writeWord(process, defender + 0x798, 1030622); writeWord(process, defender + 0x810, 1030622);
-    require(sample().actors[0].blade.contacts[defenceSlot].defenceWeaponId == 1030622,
-        "changing equipped weapon retained the old defence ID or substituted a proxy");
-    writeWord(process, defender + 0x798, 1030411); writeWord(process, defender + 0x810, 1030411);
-    vector(process, defender + 0xD88, {270.4f,149.5f,1});
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "zero-length guard blade accepted");
-    vector(process, defender + 0xD88, {270.4f,150.5f,1});
-    number(process, defender + 0xD88, std::numeric_limits<float>::quiet_NaN());
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "non-finite guard blade accepted");
-    vector(process, defender + 0xD88, {270.4f,150.5f,1});
-    // Both endpoint frames miss; only a strand moving across the guard can hit.
-    blade({270,150,1}, {270,151,1}); sample();
-    value = blade({271,150,1}, {271,151,1});
-    require(value.contacts[defenceSlot].contact.hit && value.spanMs > 0
-        && value.contacts[defenceSlot].time > .37f && value.contacts[defenceSlot].time < .39f
-        && value.contacts[2].contact.hit && value.contacts[defenceSlot].time < value.contacts[2].time,
-        "cross-frame weapon interception lost its first-entry time or body candidate");
-    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit,
-        "stationary blade replayed a previous guard contact");
+    vector(process, controller + 0x10, {271.15f,152,0});
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "out-of-volume attack intercepted");
+    vector(process, controller + 0x10, {270.5f,150.65f,0}); number(process, controller + 0xAC, 1.570796327f);
+    require(sample().actors[0].blade.contacts[defenceSlot].contact.hit, "rotated volume missed");
+    vector(process, controller + 0x10, {271.15f,150,0}); number(process, controller + 0xAC, 3.141592654f);
+    blade({270.5f,150,1}, {271,150,1});
+    value = sample().actors[0].blade;
+    require(value.contacts[defenceSlot].contact.hit && value.contacts[defenceSlot].along == 0,
+        "initial volume overlap missed");
+    blade({270,149.8f,1}, {270,150.2f,1}); sample();
+    value = blade({271,149.8f,1}, {271,150.2f,1});
+    require(value.contacts[defenceSlot].contact.hit && value.contacts[defenceSlot].time > .34f
+        && value.contacts[defenceSlot].time < .36f && value.contacts[defenceSlot].time < value.contacts[2].time,
+        "swept volume contact tunneled or followed body contact");
+    require(!sample().actors[0].blade.contacts[defenceSlot].contact.hit, "stationary blade replayed an old contact");
+    const auto sourcePhase = static_cast<uint32_t>(last.actors[0].phaseAt);
+    const auto targetPhase = static_cast<uint32_t>(last.actors[1].phaseAt);
+    const auto clock = GetTickCount() - 50;
+    writeWord(process, sprintFixture::CLOCK_MODE, 1);
+    writeWord(process, object(0) + 0x748, clock - 500);
+    for (uint32_t activation : {50u, 75u}) {
+        const auto start = GetTickCount() - 50;
+        writeWord(process, sprintFixture::CLOCK, start);
+        writeWord(process, defender + 0x748, start);
+        blade({270,149.8f,1}, {270,150.2f,1}); sample();
+        writeWord(process, defender + 0x748, start + activation);
+        writeWord(process, sprintFixture::CLOCK, start + 100);
+        value = blade({271,149.8f,1}, {271,150.2f,1});
+        require(last.ready && value.ready, "guard activation fixture needs a fresh blade snapshot");
+        if (activation == 50) {
+            if (!value.contacts[defenceSlot].contact.hit || std::abs(value.contacts[defenceSlot].time - .5f) >= .001f)
+                throw std::runtime_error("guard activation did not clip the temporal strand: hit="
+                    + std::to_string(value.contacts[defenceSlot].contact.hit) + "; time="
+                    + std::to_string(value.contacts[defenceSlot].time) + "; spanMs=" + std::to_string(value.spanMs)
+                    + "; sampledAt=" + std::to_string(last.sampledAt) + "; targetPhaseAt=" + std::to_string(last.actors[1].phaseAt));
+        }
+        else require(!value.contacts[defenceSlot].contact.hit, "guard replayed a crossing before activation");
+    }
+    writeWord(process, sprintFixture::CLOCK_MODE, 0);
+    writeWord(process, object(0) + 0x748, sourcePhase); writeWord(process, defender + 0x748, targetPhase);
     blade({270,150,1}, {271,150,1}); sample();
+    vector(process, controller + 0x10, oldPosition); number(process, controller + 0xAC, 2.5f);
     writeWord(process, guard + 0x34, guard + 0x100);
     writeWord(process, defender + 0x738, 309); writeWord(process, defender + 0x810, 1090311);
     value = sample().actors[0].blade;

@@ -49,7 +49,10 @@ namespace T7R.Battle
             if (source.ActorId == 0 || source.ClientRid == 0 || source.Entity == 0 || source.ActorId == target.ActorId
                 || (target.ActorId == 0) != (target.ClientRid == 0) || target.ActorId != 0 && target.Entity == 0
                 || target.ActorId != 0 && impact.DefenceWeaponId == 0 && impact.Region == BattleHitRegion.None
-                || target.ActorId == 0 && impact.DefenceWeaponId != 0)
+                || target.ActorId == 0 && impact.DefenceWeaponId != 0
+                || (impact.Flags & BattleContactFlags.GuardVolume) != 0
+                    && (target.ActorId == 0 || impact.DefenceWeaponId == 0 || impact.Region != BattleHitRegion.None
+                        || impact.BodyIndex != -1 || timing.TargetIntent == BattleIntent.Shield))
                 throw new ArgumentException("Invalid contact evidence.");
         }
     }
@@ -69,11 +72,12 @@ namespace T7R.Battle
         public BattleContactBatch(BattleSourceStamp stamp, ulong worldBatchId, uint dropped,
             BattleSampledContact[] events, ushort version)
         {
-            if ((version < 1 || version > 4) || stamp == null || worldBatchId == 0
+            if ((version < 1 || version > 5) || stamp == null || worldBatchId == 0
                 || dropped != 0 || events == null || events.Length > 8192)
                 throw new ArgumentException("Invalid or incomplete contact batch.");
             foreach (var value in events)
                 if (value == null || value.Timing.OccurredAtMs > stamp.AtMs
+                    || version < 5 && (value.Impact.Flags & BattleContactFlags.GuardVolume) != 0
                     || version < 4 && value.Timing.TargetPhaseAtMs < 0
                     || value.Timing.TargetObservedAtMs.HasValue != (version >= 2)
                     || value.Timing.SourceObservedAtMs.HasValue != (version >= 3))
@@ -155,7 +159,7 @@ namespace T7R.Battle
                 throw new InvalidDataException("Invalid contact batch header.");
             int count = (int)Read(bytes, 48, 2);
             ushort version = (ushort)Read(bytes, 0, 2);
-            if ((version < 1 || version > 4) || Read(bytes, 2, 2) != 0)
+            if ((version < 1 || version > 5) || Read(bytes, 2, 2) != 0)
                 throw new InvalidDataException("Invalid contact version or reserved field.");
             int size = 280 + (Math.Min(version, (ushort)3) - 1) * 8;
             if (count > 8192 || bytes.Length != 52 + count * size)

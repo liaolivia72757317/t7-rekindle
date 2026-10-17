@@ -122,6 +122,10 @@ fn public_contact_versions_preserve_observation_bounds() {
             include_str!("../../../../tests/fixtures/protocol/battle-contacts-v4.txt"),
             4,
         ),
+        (
+            include_str!("../../../../tests/fixtures/protocol/battle-contacts-v5.txt"),
+            5,
+        ),
     ] {
         let line = text.lines().find(|l| l.starts_with("contacts ")).unwrap();
         let bytes: Vec<_> = line
@@ -134,6 +138,7 @@ fn public_contact_versions_preserve_observation_bounds() {
             .skip(40)
             .collect();
         let sample = t7r_battle_runtime::semantic_adapter::ContactSample::decode(&bytes).unwrap();
+        assert_eq!(sample.events[0].event.guard_volume, version == 5);
         assert_eq!(sample.events[0].event.occurred_at_ms, 999.5);
         assert_eq!(
             sample.events[0].event.source_observed_at_ms,
@@ -145,7 +150,7 @@ fn public_contact_versions_preserve_observation_bounds() {
         );
         assert_eq!(
             sample.events[0].event.target_phase_at_ms,
-            if version == 4 {
+            if version >= 4 {
                 -4999.
             } else if version >= 2 {
                 1000.5

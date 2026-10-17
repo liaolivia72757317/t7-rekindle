@@ -22,7 +22,7 @@ namespace T7R.BattleHarness
                 if (parts[0] == "contacts") CheckContact(bytes, batch);
                 for (int length = 0; length < bytes.Length; ++length)
                     Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeContactBatch(bytes.Take(length).ToArray()));
-                var unknown = (byte[])bytes.Clone(); unknown[1] = 5;
+                var unknown = (byte[])bytes.Clone(); unknown[1] = 6;
                 Program.Throws<InvalidDataException>(() => BattleSemanticCodec.DecodeContactBatch(unknown));
             }
         }

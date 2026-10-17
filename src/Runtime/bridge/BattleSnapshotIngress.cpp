@@ -227,7 +227,7 @@ BattleSnapshotIngress::ObservedContact BattleSnapshotIngress::contact(const Blad
     value.bodyIndex = static_cast<int8_t>(event.hit.bodyIndex);
     value.material = static_cast<int8_t>(event.hit.contact.material);
     value.flags = static_cast<uint8_t>((event.velocityReady ? 1 : 0) | (event.airborne ? 2 : 0)
-                                      | (event.targetAirborne ? 4 : 0));
+                                      | (event.targetAirborne ? 4 : 0) | (event.hit.guardVolume ? 8 : 0));
     point(value.sourcePosition, event.sourcePosition); point(value.targetPosition, event.targetPosition);
     point(value.sourceVelocity, event.sourceVelocity); point(value.targetVelocity, event.targetVelocity);
     point(value.weaponVelocity, event.weaponVelocity); point(value.position, event.hit.contact.position);
@@ -361,7 +361,7 @@ void BattleSnapshotIngress::publishContacts(uint64_t throughAtMs, std::chrono::s
     const auto batchId = semanticContactBatchId_ + 1;
     std::vector<uint8_t> payload;
     payload.reserve(52 + ready.size() * 296);
-    put(payload, 4, 2); put(payload, 0, 2);
+    put(payload, 5, 2); put(payload, 0, 2);
     put(payload, epoch_, 8); put(payload, sourceId_, 8);
     put(payload, batchId, 8); put(payload, throughAtMs, 8);
     put(payload, worldBatchId_, 8); put(payload, 0, 4);

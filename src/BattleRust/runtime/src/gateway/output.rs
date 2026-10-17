@@ -749,6 +749,7 @@ mod surface_tests {
         };
         let current = ClientOutputState::new(&config);
         let evidence = ContactEvent {
+            guard_volume: false,
             actor_id: 1,
             target_id: 0,
             source_entity: 101,

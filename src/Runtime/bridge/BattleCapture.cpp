@@ -27,8 +27,12 @@ void point(std::ostringstream& line, const std::array<float, 3>& value) {
 
 std::string header() {
     std::ostringstream line;
+    line.imbue(std::locale::classic());
     line << "{\"schemaVersion\":1,\"type\":\"captureStart\",\"sourceId\":1,"
-            "\"clock\":\"GetTickCount64\",\"ridMap\":[";
+            "\"clock\":\"GetTickCount64\",\"guardGeometry\":{\"shape\":\"frontObb\",\"forwardOffset\":"
+         << GUARD_FORWARD_OFFSET << ",\"heightOffset\":" << GUARD_HEIGHT_OFFSET << ",\"halfExtents\":";
+    point(line, GUARD_HALF_EXTENTS);
+    line << "},\"ridMap\":[";
     for (uint32_t rid = 1; rid <= MAX_WORLD_ACTORS; ++rid) {
         if (rid != 1) line << ',';
         line << "{\"actorId\":" << rid << ",\"clientRid\":" << rid << '}';
@@ -85,6 +89,7 @@ std::string batchLine(const WorldSnapshot& world, uint64_t batchId, uint64_t cap
              << ",\"sweepTime\":" << event.hit.time << ",\"along\":" << event.hit.along
              << ",\"bodyIndex\":" << event.hit.bodyIndex << ",\"region\":" << event.hit.region
              << ",\"defenceWeaponId\":" << event.hit.defenceWeaponId
+             << ",\"contactOrigin\":\"" << (event.hit.guardVolume ? "guardVolume" : "native") << "\""
              << ",\"material\":" << event.hit.contact.material << ",\"position\":";
         point(line, event.hit.contact.position);
         line << ",\"normal\":"; point(line, event.hit.contact.normal);

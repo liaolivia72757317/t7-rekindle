@@ -6,6 +6,7 @@
 #include "DebugClient.h"
 #include "StartupGate.h"
 #include "ClientFrameRuntime.h"
+#include "GuardDebugDraw.h"
 #include "OutputDevice.h"
 #include "ClientWindowMonitor.h"
 #include <functional>
@@ -35,6 +36,7 @@ public:
     void launch(const fs::path& directory, const Config& config, const DiagnosticLogCallback& log,
                 const std::function<bool()>& cancelled = {}, const std::function<void()>& adapting = {},
                 const std::function<void(std::string)>& warning = {}, bool traceAudio = false);
+    void updateGuardDebug(bool enabled, const WorldSnapshot* world = nullptr);
     bool running() const;
     bool windowClosed();
     DWORD exitCode() const;
@@ -55,6 +57,7 @@ private:
     LobbyNews lobbyNews_;
     StartupGate startupGate_;
     ClientFrameRuntime frameRuntime_;
+    GuardDebugDraw guardDebug_;
     ClientWindowMonitor windowMonitor_;
     OutputDevice outputDevice_;
     uint32_t clientImageBase_ = 0;

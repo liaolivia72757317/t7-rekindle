@@ -49,6 +49,26 @@ def write(tmp_path, rows):
     return path
 
 
+@pytest.mark.parametrize("field,value", [(None, None), ("region", 2), ("bodyIndex", 0),
+                                        ("defenceWeaponId", 0), ("targetId", 0),
+                                        ("contactOrigin", "unknown"), ("targetState", 309)])
+def test_guard_volume_origin_and_geometry(tmp_path, field, value):
+    header = start()
+    header["guardGeometry"] = {"shape": "frontObb", "forwardOffset": 0.65,
+                               "heightOffset": 1.05, "halfExtents": [0.15, 0.6, 0.9]}
+    event = contact()
+    event.update(targetId=1, targetEntity=101, defenceWeaponId=701, contactOrigin="guardVolume", targetState=223)
+    if field:
+        event[field] = value
+    rows = [header, sample(contacts=[event]), {"schemaVersion": 1, "type": "captureEnd", "complete": True}]
+    path = write(tmp_path, rows)
+    if field:
+        with pytest.raises(CaptureError):
+            validate_capture(path)
+    else:
+        assert validate_capture(path)["contacts"] == 1
+
+
 def test_complete_capture_accepts_selection_stall_and_contact_watermark(tmp_path):
     rows = [start(), sample(contacts=[contact()]),
             sample(2, 1, 1010, 1020, ready=False),

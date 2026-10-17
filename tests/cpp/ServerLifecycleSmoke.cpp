@@ -22,7 +22,7 @@ bool verifyWindowCloseCleanup(const t7r::fs::path& packageRoot, bool failCleanup
 bool verifyOperationPublication(const t7r::fs::path& packageRoot, uint32_t expectedStatus);
 bool verifyMovementOverlay();
 bool verifyMovementHookExecution();
-bool verifyGraphicsHookExecution(bool combatOnly = false, bool titlesOnly = false);
+bool verifyGraphicsHookExecution(bool combatOnly = false, bool titlesOnly = false, bool guardOnly = false);
 bool verifyGraphicsSession(const t7r::fs::path& packageRoot);
 bool verifyResourcePreflight(const t7r::fs::path& packageRoot);
 bool verifyAudioSession(const t7r::fs::path& packageRoot);
@@ -432,6 +432,8 @@ int wmain(int argc, wchar_t** argv) {
     }
     if (argc == 3 && std::wstring(argv[1]) == L"--audio-session")
         return verifyAudioSession(t7r::fs::path(argv[2])) ? 0 : 1;
+    if (argc == 2 && std::wstring(argv[1]) == L"--guard-debug-tests")
+        return verifyGraphicsHookExecution(false, false, true) ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--frame-hooks")
         return verifyGraphicsHookExecution() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--battle-capture")

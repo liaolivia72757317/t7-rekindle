@@ -490,6 +490,7 @@ fn damage_and_animation_keep_batch_order_and_distinct_wire_clocks() {
         previous_health: 100,
         weapon_id: 701,
         evidence: Box::new(ContactEvent {
+            guard_volume: false,
             actor_id: 1,
             target_id: 2,
             source_entity: 101,
@@ -614,6 +615,7 @@ fn damage_and_animation_keep_batch_order_and_distinct_wire_clocks() {
     };
     evidence.defence_weapon_id = 703;
     let parry = Output::Parry {
+        outcome: crate::battle_session::ParryOutcome::Blocked,
         attacker: 1,
         target: 2,
         weapon_id: 701,
@@ -655,6 +657,7 @@ fn fatal_batch_projects_original_kill_score_death_order_transactionally() {
         previous_health: 100,
         weapon_id: 701,
         evidence: Box::new(ContactEvent {
+            guard_volume: false,
             actor_id: 1,
             target_id: 2,
             source_entity: 101,

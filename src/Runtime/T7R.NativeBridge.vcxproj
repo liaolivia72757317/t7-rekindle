@@ -46,6 +46,9 @@
     <ClCompile Include="launcher\OutputDevice.cpp" />
     <ClCompile Include="launcher\GraphicsSettings.cpp" />
     <ClCompile Include="launcher\ClientFrameRuntime.cpp" />
+    <ClCompile Include="launcher\GuardDebugDraw.cpp" />
+    <ClCompile Include="launcher\GuardDebugGeometry.cpp" />
+    <ClCompile Include="launcher\GuardDebugHookCode.cpp" />
     <ClCompile Include="launcher\GraphicsValues.cpp" />
     <ClCompile Include="launcher\GraphicsHookCode.cpp" />
     <ClCompile Include="launcher\AudioSettings.cpp" />

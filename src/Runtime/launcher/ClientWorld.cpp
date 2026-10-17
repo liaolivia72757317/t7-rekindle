@@ -48,6 +48,9 @@ BladeTrace bladeTrace(const BladeMailbox& raw) {
     if (length < .01f || length > 8.f) return value;
     value.ready = true; value.base = raw.base; value.tip = raw.tip;
     value.length = length; value.spanMs = raw.spanMs;
+    if (raw.sweepSteps <= 201 && validPosition(raw.sweepBase) && validPosition(raw.sweepTip)) {
+        value.sweepSteps = raw.sweepSteps; value.sweepBase = raw.sweepBase; value.sweepTip = raw.sweepTip;
+    }
     for (size_t i = 0; i < raw.contacts.size(); ++i) {
         const auto& source = raw.contacts[i];
         if (source.contact.status == 0) continue;
@@ -59,7 +62,7 @@ BladeTrace bladeTrace(const BladeMailbox& raw) {
             i > GROUND_CONTACT_SLOT ? i - DEFENCE_CONTACT_OFFSET : i);
         hit.time = source.time; hit.along = source.along;
         hit.bodyIndex = source.bodyIndex; hit.region = source.region;
-        hit.defenceWeaponId = source.defenceWeaponId;
+        hit.defenceWeaponId = source.defenceWeaponId; hit.guardVolume = source.guardVolume != 0;
     }
     return value;
 }
@@ -129,12 +132,14 @@ bool ClientWorld::poll(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD
                 || !std::isfinite(source.hit.along) || source.hit.along < 0 || source.hit.along > 1
                 || !validPosition(source.sourcePosition) || !validPosition(source.targetPosition)
                 || !std::isfinite(source.sourceYaw) || !std::isfinite(source.targetYaw)
+                || source.hit.guardVolume > 1
+                || source.hit.guardVolume && (source.targetId == 0 || source.hit.defenceWeaponId == 0 || source.hit.region != 0 || source.hit.bodyIndex != -1)
                 || source.hit.region > 3 || source.hit.bodyIndex < -1 || source.hit.bodyIndex > 127
                 || source.sourceVelocityReady > 1 || source.targetVelocityReady > 1 || source.airborne > 1 || source.targetAirborne > 1)
                 throw std::runtime_error("invalid native contact journal entry");
             BladeContactEvent event;
             event.hit = {contact, source.targetId, source.hit.time, source.hit.along,
-                         source.hit.bodyIndex, source.hit.region, source.hit.defenceWeaponId};
+                         source.hit.bodyIndex, source.hit.region, source.hit.defenceWeaponId, source.hit.guardVolume != 0};
             event.actorId = source.actorId; event.entity = source.entity; event.targetEntity = source.targetEntity;
             event.state = source.state; event.sequence = source.sequence; event.instanceStartedAt = source.epoch;
             event.targetState = source.targetState; event.targetSequence = source.targetSequence;
@@ -175,6 +180,7 @@ bool ClientWorld::poll(WorldSnapshot& value, const std::array<uint8_t, MAX_WORLD
         actor.phaseAt = sampleTime(source.blade.phaseTick, now);
         actor.forwardAttemptAt = source.forwardAttemptTick ? sampleTime(source.forwardAttemptTick, now) : 0;
         if (!actor.ready) continue;
+        actor.guard = source.blade.guard; actor.guardWeaponId = source.blade.guardWeaponId;
         actor.position = source.position; actor.heading = heading; actor.targetId = source.targetId;
         actor.blade = bladeTrace(source.blade);
         for (size_t probe = 0; probe < 2; ++probe) actor.terrain[probe] = terrainContact(source.terrain[probe]);

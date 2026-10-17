@@ -96,6 +96,7 @@ pub struct Gateway {
     mailbox: Arc<Mutex<PlatformMailbox>>,
     diagnostics: Arc<Mutex<Diagnostics>>,
     worker: Option<Worker>,
+    trace: Option<Arc<GatewayTrace>>,
     battle: Option<BoundBattle>,
     last_battle_epoch: u64,
     instance_tx: watch::Sender<Option<Arc<InstanceIngress>>>,
@@ -112,6 +113,7 @@ impl Gateway {
             mailbox: Arc::new(Mutex::new(PlatformMailbox::new(0))),
             diagnostics: Arc::new(Mutex::new(Diagnostics::default())),
             worker: None,
+            trace: None,
             battle: None,
             last_battle_epoch: 0,
             instance_tx,
@@ -197,6 +199,7 @@ impl Gateway {
         let work_mailbox = mailbox.clone();
         let work_diagnostics = diagnostics.clone();
         let instance_rx = self.instance_tx.subscribe();
+        let output_trace = trace.clone();
         let thread = thread::Builder::new()
             .name("t7r-client-gateway".into())
             .spawn(move || {
@@ -231,6 +234,7 @@ impl Gateway {
         self.mailbox = mailbox;
         self.diagnostics = diagnostics;
         self.worker = Some(Worker { stop, thread });
+        self.trace = output_trace;
         self.snapshot()
     }
 
@@ -246,6 +250,7 @@ impl Gateway {
             Ok(())
         };
         self.ports = [0; 3];
+        self.trace = None;
         self.prepared_resources = None;
         self.mailbox.lock().map_err(poison)?.clear();
         if let Err(error) = &result {
@@ -640,10 +645,14 @@ impl Gateway {
         if let Some(battle) = self.battle.as_mut() {
             battle.set_client_output(client_output);
         }
-        Ok(self
+        let outputs = self
             .battle
             .as_mut()
-            .and_then(BoundBattle::take_pending_output))
+            .and_then(BoundBattle::take_pending_output);
+        if let (Some(trace), Some(outputs)) = (&self.trace, &outputs) {
+            trace.guard_decisions(epoch, outputs)?;
+        }
+        Ok(outputs)
     }
 
     pub fn send_battle_client_messages(

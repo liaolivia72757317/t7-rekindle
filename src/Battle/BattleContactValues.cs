@@ -4,7 +4,7 @@ namespace T7R.Battle
 {
     public enum BattleHitRegion : byte { None, Head, Torso, Limb }
     [Flags]
-    public enum BattleContactFlags : byte { None = 0, VelocityReady = 1, SourceAirborne = 2, TargetAirborne = 4 }
+    public enum BattleContactFlags : byte { None = 0, VelocityReady = 1, SourceAirborne = 2, TargetAirborne = 4, GuardVolume = 8 }
 
     public sealed class BattleContactParticipant
     {
@@ -40,7 +40,7 @@ namespace T7R.Battle
             ulong phaseAtMs, double targetPhaseAtMs, double occurredAtMs,
             ulong? targetObservedAtMs, ulong? sourceObservedAtMs, ushort version)
         {
-            if (version < 1 || version > 4 || sequence == 0 || targetIntent > BattleIntent.Dash || targetPhase > BattleActionPhase.Hurt
+            if (version < 1 || version > 5 || sequence == 0 || targetIntent > BattleIntent.Dash || targetPhase > BattleActionPhase.Hurt
                 || double.IsNaN(occurredAtMs) || double.IsInfinity(occurredAtMs) || occurredAtMs < 0
                 || double.IsNaN(targetPhaseAtMs) || double.IsInfinity(targetPhaseAtMs) || version < 4 && targetPhaseAtMs < 0
                 || (sourceObservedAtMs.HasValue ? phaseAtMs > sourceObservedAtMs.Value || occurredAtMs > sourceObservedAtMs.Value : phaseAtMs > occurredAtMs)
@@ -65,7 +65,7 @@ namespace T7R.Battle
         {
             if (double.IsNaN(along) || double.IsInfinity(along) || along < 0 || along > 1
                 || region > BattleHitRegion.Limb || bodyIndex < -1 || material < -1 || material > 7
-                || (flags & ~(BattleContactFlags.VelocityReady | BattleContactFlags.SourceAirborne | BattleContactFlags.TargetAirborne)) != 0)
+                || (flags & ~(BattleContactFlags.VelocityReady | BattleContactFlags.SourceAirborne | BattleContactFlags.TargetAirborne | BattleContactFlags.GuardVolume)) != 0)
                 throw new ArgumentException("Invalid contact impact.");
             Along = along; DefenceWeaponId = defenceWeaponId; Region = region;
             BodyIndex = bodyIndex; Material = material; Flags = flags;

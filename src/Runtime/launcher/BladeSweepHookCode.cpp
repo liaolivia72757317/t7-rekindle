@@ -128,6 +128,10 @@ Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase) {
         c.emit({0xF3,0x0F,0x59,0xC3}); scalar(0x11, 0, offsetof(BladeMailbox, baseVelocity) + i * 4);
     }
     c.bind(zeroSpan);
+    for (uint32_t i = 0; i < 6; ++i) {
+        load(0, offsetof(BladeMailbox, previousBase) + i * 4); save(offsetof(BladeMailbox, sweepBase) + i * 4);
+    }
+    c.emit({0xA1}); c.word(steps); save(offsetof(BladeMailbox, sweepSteps));
     auto section = [&](uint32_t first, uint32_t second, uint32_t rayMode) {
         c.store(mode, rayMode);
         for (uint32_t axis = 0; axis < 3; ++axis) {
@@ -158,6 +162,7 @@ Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase) {
     const auto continuous = c.jump();
     for (auto branch : reset) c.bind(branch);
     store(offsetof(BladeMailbox, spanMs), 0);
+    store(offsetof(BladeMailbox, sweepSteps), 0);
     c.bind(continuous);
     section(offsetof(BladeMailbox, base), offsetof(BladeMailbox, tip), 2);
     store(offsetof(BladeMailbox, traceReady), 1);
@@ -309,6 +314,7 @@ Bytes buildBladeSweepHook(uint32_t address, uint32_t imageBase) {
     resultCopy(collector + 0x20, 44); resultCopy(candidateTime, 48); resultCopy(candidateAlong, 52);
     resultCopy(candidateBody, 56); resultCopy(candidateRegion, 60);
     resultCopy(candidateDefence, 64);
+    c.emit({0xC7,0x47,68,0,0,0,0});
     c.emit({0xC7,0x47,4,0,0,0,0});
     c.emit({0xA1}); c.word(collector + 0x60); c.emit({0x3B,0x05}); c.word(sceneRoot);
     const auto bodyMaterial = c.branch(0x85);

@@ -15,6 +15,7 @@ namespace T7R.Core
         public bool MinimizeToTray { get; set; }
         public bool StartWithWindows { get; set; }
         public bool SkipStartupAnimation { get; set; }
+        public bool ShowGuardDebug { get; set; }
         public string UpdateChannel { get; set; } = "stable";
         public string OutputDeviceId { get; set; } = string.Empty;
         public string LogLevel { get; set; } = "INFO";

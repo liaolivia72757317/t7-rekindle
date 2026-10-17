@@ -226,6 +226,7 @@ fn training_kills_do_not_end_the_match_and_ordinary_sessions_keep_their_limit() 
 
 fn evidence(attacker: u32, target: u32, at: f64) -> Box<contacts::ContactEvent> {
     Box::new(contacts::ContactEvent {
+        guard_volume: false,
         actor_id: attacker,
         target_id: target,
         source_entity: u64::from(attacker),
@@ -285,12 +286,25 @@ fn defence(target: u32, at: f64, chamber: bool) -> Output {
         Intent::Guard(action::Direction::Up)
     });
     Output::Parry {
+        outcome: if chamber {
+            ParryOutcome::Chambered
+        } else {
+            ParryOutcome::Blocked
+        },
         attacker,
         target,
         weapon_id: 701,
         defence_weapon_id: 701,
         evidence,
     }
+}
+
+fn broken_defence(target: u32, at: f64) -> Output {
+    let mut event = defence(target, at, false);
+    if let Output::Parry { outcome, .. } = &mut event {
+        *outcome = ParryOutcome::Broken;
+    }
+    event
 }
 
 #[test]
@@ -333,7 +347,8 @@ fn training_scores_only_authoritative_successes_in_the_active_round() {
         for mut ignored in [
             vec![hit(2, 1, 5000., false, 10), defence(2, 5000., false)],
             vec![hit(1, 2, 5000., false, 0)],
-            vec![hit(2, 1, 5000., true, 10), defence(1, 5000., false)],
+            vec![hit(2, 1, 5000., true, 10), broken_defence(1, 5000.)],
+            vec![broken_defence(1, 5001.)],
             vec![hit(1, 2, 3999., false, 10), defence(1, 3999., false)],
             vec![hit(1, 2, 64000., false, 10), defence(1, 64000., false)],
         ] {

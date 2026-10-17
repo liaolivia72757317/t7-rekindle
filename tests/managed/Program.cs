@@ -133,6 +133,15 @@ namespace T7R.ManagedHarness
                     if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true);
                 }
             }
+            if (args.Length == 1 && args[0] == "--guard-debug-tests")
+            {
+                var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "t7r-guard-settings-" + Guid.NewGuid().ToString("N"));
+                var app = new T7R.Desktop.App(false); app.InitializeComponent();
+                app.ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+                try { GuardDebugTests.Run(directory); Console.WriteLine("guard debug preference, live toggle and rollback passed"); return 0; }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+                finally { app.Shutdown(); if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true); }
+            }
             if (args.Length >= 1 && args[0] == "--log-tests")
             {
                 var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "T7R-log-tests-" + Guid.NewGuid().ToString("N"));

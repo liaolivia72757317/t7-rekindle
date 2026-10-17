@@ -26,6 +26,7 @@ pub struct ContactBatch {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ContactEvent {
+    pub guard_volume: bool,
     pub actor_id: u32,
     pub target_id: u32,
     pub source_entity: u64,
@@ -73,6 +74,12 @@ impl ContactEvent {
             || (self.target_id != 0 && self.target_entity == 0)
             || self.sequence == 0
             || self.target_id == 0 && self.defence_weapon_id != 0
+            || self.guard_volume
+                && (self.target_id == 0
+                    || self.defence_weapon_id == 0
+                    || self.region != damage::Region::None
+                    || self.body_index != -1
+                    || self.target_intent == Some(Intent::Shield))
             || !self
                 .region
                 .valid_for_contact(self.target_id, self.defence_weapon_id)
@@ -134,6 +141,22 @@ impl ContactEvent {
         }
         Ok(())
     }
+}
+
+fn reject_guard(
+    e: &ContactEvent,
+    swing: &Swing,
+    reason: GuardRejectReason,
+    outputs: &mut Vec<Output>,
+) -> bool {
+    if e.guard_volume {
+        outputs.push(Output::GuardRejected {
+            reason,
+            strike_duration_ms: swing.strike_duration_ms,
+            evidence: Box::new(e.clone()),
+        });
+    }
+    false
 }
 
 fn intent_id(intent: Intent) -> u32 {
@@ -338,6 +361,12 @@ impl State {
         if swing.enemies >= resources.damage_rules().cleave_scale[weapon.cleave as usize].len() {
             return Ok(());
         }
+        let pending = swing.pending_breaks.get(&e.target_id).filter(|pending| {
+            pending.entity == e.target_entity && pending.life_at_ms == defender.contact_life_at_ms
+        });
+        if e.defence_weapon_id != 0 && pending.is_some() {
+            return Ok(());
+        }
         if e.defence_weapon_id != 0 && self.parry(e, &swing, index, config, resources, outputs)? {
             return Ok(());
         }
@@ -347,7 +376,13 @@ impl State {
         self.actor_mut(e.actor_id)?.swings[index]
             .hits
             .push(e.target_id);
-        self.apply_damage(e, &swing, config, resources, DamageMode::Regular, outputs)
+        let mode = pending.map_or(DamageMode::Regular, |pending| {
+            DamageMode::GuardBreak(pending.fraction)
+        });
+        self.actor_mut(e.actor_id)?.swings[index]
+            .pending_breaks
+            .remove(&e.target_id);
+        self.apply_damage(e, &swing, config, resources, mode, outputs)
     }
 
     fn parry(
@@ -361,7 +396,12 @@ impl State {
     ) -> io::Result<bool> {
         // A later observed phase must not grant defence before it began.
         if e.target_phase_at_ms > e.occurred_at_ms {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::FuturePhase,
+                outputs,
+            ));
         }
         let defender = &self.actors[&e.target_id];
         let target_action = defender.action.snapshot();
@@ -369,36 +409,72 @@ impl State {
             .defence_interrupted_at_ms
             .is_some_and(|at| e.target_phase_at_ms < at && at <= e.occurred_at_ms)
         {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::Interrupted,
+                outputs,
+            ));
         }
         let chamber =
             e.target_phase == Phase::Prepare && e.target_intent.is_some_and(Intent::is_attack);
         let holding = matches!(e.target_phase, Phase::Hold | Phase::ParrySuccess)
             && e.target_intent.is_some_and(Intent::is_guard);
         if !chamber && !holding {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::NotDefending,
+                outputs,
+            ));
         }
         let Some(intent) = e.target_intent else {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::NotDefending,
+                outputs,
+            ));
         };
         if let Intent::Guard(direction) = intent
             && !ordinary_guard_direction(direction, swing.intent)
         {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::Direction,
+                outputs,
+            ));
         }
         if chamber
-            && !guard::chamber_window(
-                guard_intent(intent),
-                guard_intent(swing.intent),
-                e.occurred_at_ms - e.target_phase_at_ms,
-                resources.guard_rules(),
-            )
-            .map_err(invalid)?
+            && !guard::chamber_direction_matches(guard_intent(intent), guard_intent(swing.intent))
         {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::Direction,
+                outputs,
+            ));
+        }
+        if chamber
+            && (e.occurred_at_ms < e.phase_at_ms as f64
+                || 3. * (e.occurred_at_ms - e.phase_at_ms as f64)
+                    > f64::from(swing.strike_duration_ms))
+        {
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::ChamberWindow,
+                outputs,
+            ));
         }
         let Some(defence) = defender.resources.damage.weapons.get(&e.defence_weapon_id) else {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::MissingWeapon,
+                outputs,
+            ));
         };
         if (defence.shield_max > 0) != (intent == Intent::Shield)
             || defence.shield_max > 0
@@ -409,7 +485,12 @@ impl State {
                     .unwrap_or(0)
                     == 0
         {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::ShieldState,
+                outputs,
+            ));
         }
         if e.defence_weapon_id
             != if intent == Intent::Shield {
@@ -418,7 +499,12 @@ impl State {
                 target_action.weapon_id
             }
         {
-            return Ok(false);
+            return Ok(reject_guard(
+                e,
+                swing,
+                GuardRejectReason::EquipmentChanged,
+                outputs,
+            ));
         }
         let attack = &self.actors[&e.actor_id].resources.damage.weapons[&swing.weapon_id];
         let context = guard::AttackContext {
@@ -447,12 +533,33 @@ impl State {
             guard::damage_fraction(gap, chamber, resources.guard_rules()).map_err(invalid)?;
         self.mark_attacked(e.target_id, e.occurred_at_ms)?;
         outputs.push(Output::Parry {
+            outcome: if fraction > 0. {
+                ParryOutcome::Broken
+            } else if chamber {
+                ParryOutcome::Chambered
+            } else {
+                ParryOutcome::Blocked
+            },
             attacker: e.actor_id,
             target: e.target_id,
             weapon_id: swing.weapon_id,
             defence_weapon_id: e.defence_weapon_id,
             evidence: Box::new(e.clone()),
         });
+        if fraction > 0. && e.guard_volume {
+            let life_at_ms = self.actors[&e.target_id].contact_life_at_ms;
+            self.actor_mut(e.actor_id)?.swings[index]
+                .pending_breaks
+                .insert(
+                    e.target_id,
+                    PendingGuardBreak {
+                        entity: e.target_entity,
+                        life_at_ms,
+                        fraction,
+                    },
+                );
+            return Ok(false);
+        }
         if fraction > 0. {
             self.actor_mut(e.actor_id)?.swings[index]
                 .hits

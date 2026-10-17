@@ -679,6 +679,7 @@ fn damage_output(case: DamageCase) -> Output {
         previous_health,
         weapon_id: 701,
         evidence: Box::new(ContactEvent {
+            guard_volume: false,
             actor_id: attacker,
             target_id: target,
             source_entity: 101,

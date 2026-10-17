@@ -44,8 +44,8 @@ pub use t7r_battle_core::{
 use t7r_battle_resources::ResourceBundle;
 use types::*;
 pub use types::{
-    ActorSnapshot, Config, EndReason, Input, Life, Member, MemberKind, Output, Pose, RankedScore,
-    Score, Settlement, SourceWorld, World,
+    ActorSnapshot, Config, EndReason, GuardRejectReason, Input, Life, Member, MemberKind, Output,
+    ParryOutcome, Pose, RankedScore, Score, Settlement, SourceWorld, World,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -181,6 +181,7 @@ fn sourced_attack(session: &mut BattleSession, source_id: u64, actor_id: u32) {
 }
 fn contact(sequence: u16, phase_at: u64, at: f64) -> ContactEvent {
     ContactEvent {
+        guard_volume: false,
         actor_id: 1,
         target_id: 2,
         source_entity: 101,

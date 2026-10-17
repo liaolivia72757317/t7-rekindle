@@ -13,6 +13,7 @@ pub(crate) fn encode_parry_for_client_clock(
         weapon_id,
         defence_weapon_id,
         evidence,
+        ..
     } = output
     else {
         return Err(invalid("expected parry output"));
@@ -116,6 +117,7 @@ mod tests {
     #[test]
     fn parry_feedback_matches_original_hit_and_sound_corpus() {
         let event = ContactEvent {
+            guard_volume: false,
             actor_id: 1,
             target_id: 2,
             source_entity: 101,
@@ -148,6 +150,7 @@ mod tests {
             material: 0,
         };
         let output = Output::Parry {
+            outcome: crate::battle_session::ParryOutcome::Blocked,
             attacker: 1,
             target: 2,
             weapon_id: 701,

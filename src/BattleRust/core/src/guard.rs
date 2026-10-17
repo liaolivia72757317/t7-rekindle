@@ -193,16 +193,19 @@ pub fn chamber_window(
     if !elapsed_ms.is_finite() {
         return Err(RuleError::InvalidEvidence);
     }
-    let direction = matches!(
+    Ok(chamber_direction_matches(defence, attack)
+        && f64::from(rules.chamber_start_ms) <= elapsed_ms
+        && elapsed_ms <= f64::from(rules.chamber_end_ms))
+}
+
+pub fn chamber_direction_matches(defence: AttackIntent, attack: AttackIntent) -> bool {
+    matches!(
         (defence, attack),
         (AttackIntent::Up, AttackIntent::Up | AttackIntent::Down)
             | (AttackIntent::Right, AttackIntent::Left)
             | (AttackIntent::Down, AttackIntent::Down)
             | (AttackIntent::Left, AttackIntent::Right)
-    );
-    Ok(direction
-        && f64::from(rules.chamber_start_ms) <= elapsed_ms
-        && elapsed_ms <= f64::from(rules.chamber_end_ms))
+    )
 }
 
 pub fn damage_fraction(gap: i32, chamber: bool, rules: &Rules) -> Result<f64, RuleError> {

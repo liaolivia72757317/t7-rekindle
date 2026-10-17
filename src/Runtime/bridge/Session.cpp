@@ -111,6 +111,13 @@ int32_t Session::setLogLevel(uint32_t level) {
     return T7RNB_OK;
 }
 
+int32_t Session::setGuardDebug(bool enabled) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (closing_) return T7RNB_INVALID_HANDLE;
+    showGuardDebug_.store(enabled);
+    return T7RNB_OK;
+}
+
 int32_t Session::setOutputDevice(const GUID& identifier) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (closing_) return T7RNB_INVALID_HANDLE;

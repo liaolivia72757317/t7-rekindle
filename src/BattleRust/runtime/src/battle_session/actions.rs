@@ -55,6 +55,7 @@ impl State {
                     weapon_id,
                     began_at_ms,
                     held_ms,
+                    strike_duration_ms,
                     contact_start_ms,
                     contact_end_ms,
                     ..
@@ -70,6 +71,8 @@ impl State {
                         weapon_id,
                         began_at_ms,
                         held_ms,
+                        strike_duration_ms,
+                        pending_breaks: BTreeMap::new(),
                         start_ms: contact_start_ms,
                         end_ms: contact_end_ms,
                         closed_at_ms: None,

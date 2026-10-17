@@ -92,7 +92,7 @@ struct RecordingSink final : t7r::bridge::BattleSnapshotSink {
         if (contactBusy) { --contactBusy; retryContact = bytes; return T7RGW_BUSY; }
         retryContact.clear();
         contactPayloads.push_back(bytes);
-        if (readBig(bytes, 0, 2) != 4) throw std::runtime_error("contact v4 required");
+        if (readBig(bytes, 0, 2) != 5) throw std::runtime_error("contact v5 required");
         T7RBattleContacts batch{};
         batch.throughAtMs = readBig(bytes, 28, 8);
         batch.count = static_cast<uint32_t>(readBig(bytes, 48, 2));
@@ -107,6 +107,7 @@ struct RecordingSink final : t7r::bridge::BattleSnapshotSink {
             e.phaseAtMs = readBig(bytes, at + 32, 8);
             e.targetIntent = bytes.at(at + 30); e.targetPhase = bytes.at(at + 31);
             e.defenceWeaponId = static_cast<uint32_t>(readBig(bytes, at + 64, 4));
+            e.flags = bytes.at(at + 71);
             e.region = bytes.at(at + 68); e.bodyIndex = static_cast<int8_t>(bytes.at(at + 69));
             const auto occurred = readBig(bytes, at + 48, 8);
             const auto phase = readBig(bytes, at + 40, 8);
@@ -625,15 +626,15 @@ void dynamicGatewayIngress() {
             auto weapon = sample.contacts.front();
             weapon.hit.targetId = 2; weapon.targetEntity = 102; weapon.targetState = 223;
             weapon.targetPosition = sample.actors[1].position;
-            weapon.hit.defenceWeaponId = 701;
+            weapon.hit.defenceWeaponId = 701; weapon.hit.guardVolume = true;
             sample.contacts.push_back(weapon);
-            auto body = weapon; body.hit.defenceWeaponId = 0; body.hit.region = 2;
+            auto body = weapon; body.hit.guardVolume = false; body.hit.defenceWeaponId = 0; body.hit.region = 2;
             sample.contacts.push_back(body);
             RecordingSink recorded;
             t7r::bridge::BattleSnapshotIngress recording(match, 4400, 4999, 999, recorded);
             recording.submit(sample); recording.flush();
             if (recorded.contacts.size() != 3 || recorded.contacts[1].defenceWeaponId != 701
-                || recorded.contacts[1].region != 0 || recorded.contacts[1].bodyIndex != -1
+                || recorded.contacts[1].region != 0 || recorded.contacts[1].bodyIndex != -1 || (recorded.contacts[1].flags & 8) == 0
                 || recorded.contacts[2].defenceWeaponId != 0 || recorded.contacts[2].region != 2)
                 throw std::runtime_error("native ingress changed weapon/body contact identity");
             ingress.submit(sample);

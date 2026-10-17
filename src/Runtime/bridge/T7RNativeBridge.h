@@ -234,6 +234,7 @@ T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_publish_titles(T7RNativeSessionHandle
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_get_title_request(T7RNativeSessionHandle session, T7RNativeTitleRequest* request);
 // Applies immediately to subsequent diagnostics; journal data is not filtered.
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_set_log_level(T7RNativeSessionHandle session, uint32_t level);
+T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_set_guard_debug(T7RNativeSessionHandle session, uint32_t enabled);
 // identifier is the 16-byte D3D9 DeviceIdentifier; all zero selects the system default.
 // Copied into subsequent Check/Start commands; does not change a running device.
 T7RNB_EXPORT int32_t T7RNB_CALL t7r_native_set_output_device(T7RNativeSessionHandle session, const uint8_t* identifier, uint32_t length);

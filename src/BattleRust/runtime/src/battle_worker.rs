@@ -506,7 +506,10 @@ fn output_bytes(events: &[Output], context: &OutputContext) -> io::Result<usize>
                     t7r_battle_core::battle_semantics::state::StateActor,
                 >())
                 .ok_or_else(|| invalid("battle output size overflow"))?,
-            Output::Damage { .. } | Output::Parry { .. } | Output::SurfaceHit { .. } => {
+            Output::Damage { .. }
+            | Output::Parry { .. }
+            | Output::SurfaceHit { .. }
+            | Output::GuardRejected { .. } => {
                 size_of::<crate::battle_session::contacts::ContactEvent>()
             }
             Output::Ended(settlement) => settlement
