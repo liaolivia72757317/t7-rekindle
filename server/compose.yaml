@@ -1,0 +1,52 @@
+name: t7r-server
+
+services:
+  server:
+    image: ${T7R_SERVER_IMAGE:?Set T7R_SERVER_IMAGE to a published image tag}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - ${T7R_SERVER_ENV_FILE:-/etc/t7r/server.env}
+
+  migrate:
+    image: ${T7R_SERVER_IMAGE:?Set T7R_SERVER_IMAGE to a published image tag}
+    profiles:
+      - migrate
+    env_file:
+      - ${T7R_MIGRATION_ENV_FILE:-/etc/t7r/migration.env}
+    command: ["--migrate"]
+
+  mysql:
+    image: docker.io/library/mysql:8.4.11
+    profiles:
+      - local-mysql
+    restart: unless-stopped
+    env_file:
+      - ${T7R_MYSQL_ENV_FILE:-/etc/t7r/mysql.env}
+    environment:
+      MYSQL_ROOT_HOST: localhost
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  redis:
+    image: docker.io/library/redis:8.6.6
+    profiles:
+      - local-redis
+    restart: unless-stopped
+    env_file:
+      - ${T7R_REDIS_ENV_FILE:-/etc/t7r/redis.env}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ -z "$$REDIS_PASSWORD" ]; then
+          echo 'REDIS_PASSWORD is required' >&2
+          exit 1
+        fi
+        exec docker-entrypoint.sh redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:

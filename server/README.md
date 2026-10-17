@@ -55,6 +55,60 @@ docker build --pull -t t7r-server:ci .
 
 构建上下文只发送已构建的 Jar；运行镜像使用 Java 25 JRE，进程以非 root 用户运行，容器内监听 `0.0.0.0:8080`。发布任务检查 Jar 不包含本地 `application-local.yml`；本地构建的 Jar 若包含该文件，仅用于本地验证。启动时仍需按下文注入数据库、Redis 等环境变量，并先执行数据库迁移；可通过 `docker run t7r-server:ci --migrate` 向入口命令传递迁移参数。
 
+### Podman Compose 单节点运行
+
+[`podman compose`](https://docs.podman.io/en/latest/markdown/podman-compose.1.html) 通过已安装的 Compose provider 运行本目录的 [`compose.yaml`](compose.yaml)。MySQL 8.4 与 Redis 8 是可选的本地服务，默认不启动；也可以使用远程中间件。HTTPS 反向代理需另行准备，Server 的 `8080` 端口仅映射到宿主机 `127.0.0.1:8080`。本地 MySQL 和 Redis 使用具名卷保存数据，不向宿主机发布端口。
+
+在宿主机创建仅部署账号可读的 `/etc/t7r/migration.env` 和 `/etc/t7r/server.env`，分别填入以下配置；`HOST` 是容器可达的数据库或 Redis 地址，各 `TOKEN` 应使用不同的实际值。启用 QQ 群成员校验时，`QQ_GROUP_COOKIE_KEY` 使用固定的 4–10 字符字符串。
+
+```dotenv
+# /etc/t7r/migration.env
+DB_URL=jdbc:mysql://HOST:3306/rekindle?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+MIGRATION_USER=rekindle_migration
+MIGRATION_PASSWORD=TOKEN
+```
+
+```dotenv
+# /etc/t7r/server.env
+DB_URL=jdbc:mysql://HOST:3306/rekindle?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+DB_USER=rekindle_runtime
+DB_PASSWORD=TOKEN
+REDIS_HOST=HOST
+REDIS_PORT=6379
+REDIS_PASSWORD=TOKEN
+QQ_GROUP_COOKIE_KEY=TOKEN
+COOKIE_SECURE=true
+```
+
+使用本地中间件时，创建仅部署账号可读的 `/etc/t7r/mysql.env` 和 `/etc/t7r/redis.env`：
+
+```dotenv
+# /etc/t7r/mysql.env
+MYSQL_ROOT_PASSWORD=TOKEN
+```
+
+```dotenv
+# /etc/t7r/redis.env
+REDIS_PASSWORD=TOKEN
+```
+
+Redis 的 `TOKEN` 与 `server.env` 中的 `REDIS_PASSWORD` 一致。启动本地中间件后，按 [`deploy/database.sql.example`](deploy/database.sql.example) 创建数据库、迁移账号和运行账号；本地 MySQL 的 SQL 账号来源 `HOST` 可填 `%`，容器不向宿主机发布数据库端口。本地连接时，将两个环境文件中的数据库地址设为 `mysql:3306`，将 `server.env` 的 `REDIS_HOST` 设为 `redis`。仅使用远程中间件时，跳过本地中间件启动，`HOST` 填容器可达的远程地址；MySQL 和 Redis 可分别选择本地或远程。
+
+在本目录执行，先迁移再启动；镜像使用 CI 发布的固定 `sha-` 标签，避免部署时隐式切换版本：
+
+```bash
+export T7R_SERVER_IMAGE=ghcr.io/OWNER/t7r-server:sha-COMMIT
+# 仅对选择本地运行的中间件执行；也可只启动 mysql 或 redis。
+podman compose --profile local-mysql --profile local-redis up -d mysql redis
+# 按 deploy/database.sql.example 完成数据库初始化后：
+podman compose run --rm migrate
+podman compose up -d server
+curl -fsS http://127.0.0.1:8080/actuator/health
+podman compose logs server
+```
+
+首次启动日志包含随机管理员密码，需限制日志访问。`podman compose` 需要安装 `docker-compose` 或 `podman-compose` 作为 provider；若使用 rootful Podman 并需要宿主机重启后自动恢复，启用 `podman-restart.service`。
+
 ## 首次部署
 
 1. 准备 MySQL 8.4 和独立 Redis 8 实例。根据 `deploy/database.sql.example` 创建数据库、迁移账号和仅有 DML 权限的运行账号，使用不同随机密码。
