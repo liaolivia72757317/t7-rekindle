@@ -39,6 +39,20 @@ namespace T7R.ManagedHarness
                 }
                 catch (Exception error) { Console.Error.WriteLine(error); return 1; }
             }
+            if (args.Length >= 1 && args[0] == "--theme-tests")
+            {
+                var app = new T7R.Desktop.App(false);
+                app.InitializeComponent();
+                app.ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    ThemePreferenceTests.Run(app, args.Length == 2 ? args[1] : null);
+                    Console.WriteLine("theme preference, persistence, live switching and high contrast checks passed");
+                    return 0;
+                }
+                catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+                finally { app.Shutdown(); }
+            }
             if (args.Length == 3 && args[0] == "--offline-battle-contract-tests")
             {
                 try

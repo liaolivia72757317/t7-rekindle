@@ -11,6 +11,7 @@ namespace T7R.ManagedHarness
             var app = new App(false);
             app.InitializeComponent();
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Program.RunGroup(nameof(ThemePreferenceTests), () => ThemePreferenceTests.Run(app, renderDirectory));
             MarkdownTests.Run();
             Program.RunGroup("Layout.Light", () => LauncherLayoutTests.Run(renderDirectory));
             var light = app.Resources["WindowBackgroundBrush"];

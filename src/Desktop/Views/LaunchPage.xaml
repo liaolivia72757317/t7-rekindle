@@ -9,7 +9,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <Border x:Name="HeroPanel" SizeChanged="OnHeroSizeChanged" Height="384" CornerRadius="8" Background="{DynamicResource PrimaryBrush}" ClipToBounds="True" AutomationProperties.Name="刀锋再起：熟悉的武将，久违的交锋。">
           <Grid>
-            <Image x:Name="HeroArtwork" Source="/T7-Rekindle;component/Resources/Assets/art/home-banner.png" Stretch="UniformToFill" Visibility="{DynamicResource LauncherArtworkVisibility}"
+            <Image x:Name="HeroArtwork" Source="/T7-Rekindle;component/Resources/Assets/art/home-banner.png" Stretch="UniformToFill" Visibility="{DynamicResource HomeBannerVisibility}"
                    ImageFailed="OnHeroFailed" IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality" />
             <StackPanel x:Name="HeroFallback" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="64,0,32,0">
               <StackPanel.Style>

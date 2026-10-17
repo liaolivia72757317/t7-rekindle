@@ -21,7 +21,7 @@ namespace T7R.Desktop.ViewModels
         private readonly AutomaticUpdateChecks _updateChecks;
         private readonly LogService _log = new LogService();
         private readonly DispatcherTimer _poller;
-        private readonly bool _darkTheme;
+        private bool _darkTheme;
         private string _clientDirectory;
         private string _playerName;
         private bool _hasEditedPlayerName;

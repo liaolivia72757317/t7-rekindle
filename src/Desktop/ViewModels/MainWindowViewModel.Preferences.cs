@@ -15,6 +15,34 @@ namespace T7R.Desktop.ViewModels
         internal Action<bool> RegisterStartup { get; set; } = WindowsStartupService.SetEnabled;
         public string PreferenceError { get => _preferenceError; private set => SetProperty(ref _preferenceError, value); }
         public string GameSettingsError { get => _gameSettingsError; private set => SetProperty(ref _gameSettingsError, value); }
+        public bool DarkTheme
+        {
+            get => _darkTheme;
+            set
+            {
+                if (_disposed || _darkTheme == value) return;
+                PreferenceError = string.Empty;
+                try
+                {
+                    var settings = CreateSettings(_savedDirectory, _savedName);
+                    settings.DarkTheme = value;
+                    _settings.SaveLauncherSettings(settings);
+                    _darkTheme = value;
+                    Notices.Resolve("preferences.save-failed");
+                }
+                catch (Exception error)
+                {
+                    _log.Error("保存主题设置失败", error);
+                    PreferenceError = "主题设置未保存，请重试";
+                    if (!IsSettingsSelected || SettingsTabIndex != 1)
+                        Notices.Publish("preferences.save-failed", PreferenceError, NoticeSeverity.Error, "查看设置",
+                            () => { IsSettingsSelected = true; SettingsTabIndex = 1; });
+                }
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.DataBind, new Action(() => OnPropertyChanged(nameof(DarkTheme))));
+            }
+        }
+
         public bool MinimizeToTray
         {
             get => _minimizeToTray;
