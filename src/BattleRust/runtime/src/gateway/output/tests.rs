@@ -393,6 +393,69 @@ fn respawn_recreates_bound_vision_and_reactivates_only_after_fresh_life_sample()
 }
 
 #[test]
+fn training_respawn_publishes_native_playing_without_selection_or_round_restart() {
+    let (roster, identity, mut current, rids) = respawn_fixture();
+    current.training = true;
+    let position = [459.267, 492.263, 90.0482];
+    let context = OutputContext {
+        at_ms: 1300,
+        actor_poses: BTreeMap::new(),
+    };
+    let (messages, next) = project_client_messages_with_scene(
+        &current,
+        &respawn_batch(1, position),
+        &context,
+        Some(-1000),
+        Some(5000),
+        Some(1),
+        &rids,
+        Some(SceneProjection {
+            roster: &roster,
+            identity: &identity,
+        }),
+    )
+    .unwrap();
+    let actor_messages = messages
+        .iter()
+        .filter(|message| message.command == 54)
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        actor_messages,
+        [
+            scene_wire::actor_play_result(0),
+            scene_wire::actor_state(101, 6, 6300).unwrap()
+        ]
+    );
+    assert!(messages.contains(
+        &scene_vision_wire::respawn_actor(1, position, 45., &roster, &identity).unwrap()
+    ));
+    assert!(
+        !messages
+            .iter()
+            .any(|message| matches!(message.command, 10 | 67 | 68))
+    );
+    let (active, _) = project_client_messages_with_scene(
+        &next,
+        &[Output::Life {
+            actor_id: 1,
+            state: Life::Alive,
+        }],
+        &context,
+        Some(-1000),
+        Some(5000),
+        Some(1),
+        &rids,
+        Some(SceneProjection {
+            roster: &roster,
+            identity: &identity,
+        }),
+    )
+    .unwrap();
+    assert_eq!(active, vec![scene_entry_wire::move_active(300, true)]);
+}
+
+#[test]
 fn bot_respawn_recreates_vision_at_authoritative_spawn_and_clears_motion() {
     let (roster, identity, mut current, rids) = respawn_fixture();
     current.bot_motion.insert(2, BotMotion::default());

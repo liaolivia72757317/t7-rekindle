@@ -66,6 +66,164 @@ fn choose(talk_id: i32, option: i32) -> training::Command {
     }
 }
 
+fn fallen_training_player(map: u32, died_at: u64) -> BattleSession {
+    let mut session = fixture(map);
+    command(&mut session, 1000, training::Command::Ready);
+    if map == 6009 {
+        command(&mut session, 1000, choose(2, 0));
+    }
+    command(
+        &mut session,
+        1000,
+        choose(if map == 6006 { 1 } else { 3 }, 0),
+    );
+    session
+        .dispatch(7, 4000, Input::Timers, |_| Ok(()))
+        .unwrap();
+    session.state.now_ms = died_at;
+    session
+        .state
+        .kill(2, 1, &session.config, &mut Vec::new())
+        .unwrap();
+    assert_eq!(
+        session.actor(1).unwrap().life,
+        Life::Dead {
+            died_at_ms: died_at,
+            respawn_at_ms: died_at + 8000,
+        }
+    );
+    session
+}
+
+#[test]
+fn training_slash_player_respawns_at_deadline_without_selection_or_play_request() {
+    let mut session = fallen_training_player(6006, 5000);
+    let before = session.actor(1).unwrap();
+    let training = session.state.training.as_ref().unwrap().snapshot.clone();
+    session
+        .dispatch(7, 12999, Input::Timers, |_| Ok(()))
+        .unwrap();
+    assert_eq!(session.actor(1).unwrap().life, before.life);
+    assert!(
+        session
+            .dispatch(7, 13000, Input::Timers, |_| Err(io::Error::other(
+                "output full"
+            )))
+            .is_err()
+    );
+    assert_eq!(session.actor(1).unwrap(), before);
+    let spawn = session.resources.camps()[1].respawns()[0];
+    // Fixed arena respawn does not wait for a user request or a fresh spectator sample.
+    assert!(session.state.fresh_world().is_none());
+    session.dispatch(7, 13000, Input::Timers, |events| {
+        assert!(events.iter().any(|event| matches!(event,
+            Output::Life { actor_id: 1, state: Life::Spawning { spawned_at_ms: 13000, spawn: sent } }
+                if *sent == spawn)));
+        assert!(!events.iter().any(|event| matches!(event,
+            Output::Life { actor_id: 1, state: Life::Selecting { .. } | Life::Waiting { .. } }
+                | Output::Training(_))));
+        Ok(())
+    }).unwrap();
+    let revived = session.actor(1).unwrap();
+    assert_eq!(
+        (revived.hero_id, revived.action.weapon_id, revived.score),
+        (before.hero_id, before.action.weapon_id, before.score)
+    );
+    assert_eq!(
+        revived.health,
+        session.state.actors[&1].resources.damage.max_health
+    );
+    assert_eq!(session.state.training.as_ref().unwrap().snapshot, training);
+    assert_eq!(spawn.position, [459.267, 492.263, 90.0482]);
+    session
+        .dispatch(
+            7,
+            13001,
+            Input::World(Arc::new(World {
+                epoch: 7,
+                sampled_at_ms: 13001,
+                actors: BTreeMap::from([(
+                    1,
+                    Pose {
+                        entity: 101,
+                        position: spawn.position,
+                        heading: spawn.heading,
+                        sequence: revived.action.sequence,
+                        contact: ai::ContactObservation::unavailable(),
+                    },
+                )]),
+            })),
+            |events| {
+                assert!(events.iter().any(|event| matches!(
+                    event,
+                    Output::Life {
+                        actor_id: 1,
+                        state: Life::Alive
+                    }
+                )));
+                Ok(())
+            },
+        )
+        .unwrap();
+    session
+        .dispatch(7, 13002, Input::Timers, |events| {
+            assert!(!events.iter().any(|event| matches!(
+                event,
+                Output::Life {
+                    actor_id: 1,
+                    state: Life::Spawning { .. }
+                }
+            )));
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn training_slash_pending_respawn_does_not_restart_a_finished_round() {
+    let mut session = fallen_training_player(6006, 63000);
+    let dead = session.actor(1).unwrap().life;
+    for at in [64000, 71000, 72000] {
+        session
+            .dispatch(7, at, Input::Timers, |events| {
+                assert!(!events.iter().any(|event| matches!(
+                    event,
+                    Output::Life {
+                        actor_id: 1,
+                        state: Life::Spawning { .. } | Life::Selecting { .. }
+                    }
+                )));
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(session.state.training.as_ref().unwrap().snapshot.state, 4);
+        assert_eq!(session.actor(1).unwrap().life, dead);
+    }
+    command(&mut session, 72001, training::Command::Dismiss);
+    let Life::Spawning { spawn, .. } = session.actor(1).unwrap().life else {
+        panic!("dismissing results must still return a fallen player to the instructor");
+    };
+    assert_eq!(spawn, session.resources.training_return().unwrap());
+}
+
+#[test]
+fn training_slash_auto_respawn_leaves_other_modes_selection_unchanged() {
+    for map in [6006, 6009] {
+        let mut session = fallen_training_player(map, 5000);
+        if map == 6006 {
+            session.state.training = None;
+            session.config.duration_ms = 120000;
+        }
+        session
+            .dispatch(7, 13000, Input::Timers, |_| Ok(()))
+            .unwrap();
+        assert_eq!(
+            session.actor(1).unwrap().life,
+            Life::Selecting { died_at_ms: 5000 }
+        );
+    }
+}
+
 #[test]
 fn training_round_uses_native_arena_points_and_walkable_navigation() {
     use t7r_battle_core::navigation::{DEFAULT_RADIUS, PathStatus};

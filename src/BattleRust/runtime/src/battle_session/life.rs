@@ -141,6 +141,17 @@ impl State {
                     respawn_at_ms,
                 } if now >= respawn_at_ms => {
                     if self.actors[&id].member.kind == MemberKind::Human {
+                        if let Some(training) = &self.training
+                            && training.snapshot.map_id == 6006
+                        {
+                            // The fixed training hero returns to the arena, not hero selection.
+                            if training.snapshot.state == 3 {
+                                let camp = usize::from(self.actors[&id].member.camp - 1);
+                                let spawn = resources.camps()[camp].respawns()[0];
+                                self.spawn_actor(id, spawn, resources, events)?;
+                            }
+                            continue;
+                        }
                         let life = Life::Selecting { died_at_ms };
                         self.actor_mut(id)?.life = life;
                         events.push(Output::Life {
