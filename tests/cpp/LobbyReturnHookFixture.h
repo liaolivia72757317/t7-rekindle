@@ -1,6 +1,7 @@
 #pragma once
 #include "SprintHookFixture.h"
 #include "../../src/Runtime/launcher/RoundEndHookCode.h"
+#include <iostream>
 
 namespace lobbyReturnFixture {
 using worldFixture::BASE;
@@ -119,5 +120,67 @@ void verify(HANDLE process, t7r::ClientWorld& reader, uint32_t mailbox, Step ste
     auto unknown = ORIGINAL; unknown.back() ^= 1;
     require(read(METHOD_OFFSET, unknown) == unknown, "unknown lobby bytecode was partially modified"); rejected();
     require(read(METHOD_OFFSET, ORIGINAL) == HOME, "lobby resource did not resume for valid input");
+
+    struct TutorialEdit { uint32_t offset; t7r::Bytes before, after; };
+    const std::vector<TutorialEdit> tutorial{
+        {28595,
+            {0xD0,0x66,0x2A,0x26,0x61,0xC6,1,0xD0,0x66,0x2B,0x27,0x61,0xC6,1,0xD0,0x66,0x2D,0x27,0x61,0xC6,1},
+            {0xD0,0x66,0x2A,0x27,0x61,0xC6,1,0xD0,0x66,0x2B,0x27,0x61,0xC6,1,0xD0,0x66,0x2D,0x26,0x61,0xC6,1}},
+        {28703, {0xD0,0x66,0x28,0x26,0x61,0xE0,1}, {0xD0,0x66,0x29,0x26,0x61,0xE0,1}},
+        {28742, {0xD0,0x66,0x26,0x26,0x61,0xE0,1}, {0xD0,0x66,0x29,0x26,0x61,0xE0,1}},
+        {29206,
+            {0xD0,0x30,0xD0,0x66,0x26,0x76,0x2A,0x12,8,0,0,0x29,0xD0,0x66,0x26,0x66,0xE0,1,0x96,0x12,7,0,0,0xD0,0x66,0x26,0x26,0x61,0xE0,1,0x47},
+            {0xD0,0x30,0xD0,0x66,0x29,0x76,0x2A,0x12,8,0,0,0x29,0xD0,0x66,0x29,0x66,0xE0,1,0x96,0x12,7,0,0,0xD0,0x66,0x29,0x26,0x61,0xE0,1,0x47}},
+        {29299, {0xD0,0x66,0x26,0x26,0x61,0xCE,1}, {0xD0,0x66,0x26,0x27,0x61,0xCE,1}},
+        {29459, {0xD0,0x66,0x28,0x26,0x61,0xCE,1}, {0xD0,0x66,0x28,0x27,0x61,0xCE,1}}
+    };
+    writeWord(process, STREAM + 8, 39132);
+    for (const auto& path : {"../data/ui/panel_newbie.gfx", "..\\DATA\\UI\\PANEL_NEWBIE.GFX"}) {
+        setPath(process, path);
+        for (const auto& edit : tutorial) {
+            t7r::Bytes source(4, 0xAA), expected = source;
+            source.insert(source.end(), edit.before.begin(), edit.before.end()); source.insert(source.end(), 4, 0xBB);
+            expected.insert(expected.end(), edit.after.begin(), edit.after.end()); expected.insert(expected.end(), 4, 0xBB);
+            require(read(edit.offset - 4, source) == expected, "tutorial tabs must be disabled and default to free training");
+            require(read(edit.offset - 4, source) == expected, "tutorial resource reread changed the result");
+            for (size_t split = 1; split < edit.before.size(); ++split) {
+                require(read(edit.offset, {edit.before.begin(), edit.before.begin() + split})
+                    == t7r::Bytes(edit.after.begin(), edit.after.begin() + split), "tutorial prefix short read");
+                require(read(edit.offset + static_cast<uint32_t>(split), {edit.before.begin() + split, edit.before.end()})
+                    == t7r::Bytes(edit.after.begin() + split, edit.after.end()), "tutorial suffix short read");
+            }
+            auto unknownTutorial = edit.before; unknownTutorial.back() ^= 1;
+            require(read(edit.offset, unknownTutorial) == unknownTutorial, "unknown tutorial bytecode was modified"); rejected();
+        }
+    }
+    // The third tab keeps the native enabled setter and the native selection branch.
+    const t7r::Bytes freeTab{0xD0,0x66,0x29,0x26,0x61,0xCE,1};
+    const t7r::Bytes freeSelected{0xD0,0x66,0x29,0x26,0x61,0xE0,1};
+    require(read(29619, freeTab) == freeTab && read(28731, freeSelected) == freeSelected,
+        "free training tab changed");
+    t7r::Bytes combined(46, 0xAA), combinedExpected = combined;
+    for (const auto index : {1u, 2u}) {
+        const auto& edit = tutorial[index];
+        const auto offset = edit.offset - tutorial[1].offset;
+        std::copy(edit.before.begin(), edit.before.end(), combined.begin() + offset);
+        std::copy(edit.after.begin(), edit.after.end(), combinedExpected.begin() + offset);
+    }
+    require(read(tutorial[1].offset, combined) == combinedExpected, "one read must apply both tutorial selection edits");
+    const auto& disabled = tutorial.back();
+    auto partial = read(disabled.offset, disabled.before, 4);
+    require(t7r::Bytes(partial.begin(), partial.begin() + 4) == t7r::Bytes(disabled.after.begin(), disabled.after.begin() + 4)
+        && t7r::Bytes(partial.begin() + 4, partial.end()) == t7r::Bytes(3, 0xCC), "tutorial read exceeded actual length");
+    for (int result : {0, -1})
+        require(read(disabled.offset, disabled.before, result) == t7r::Bytes(disabled.before.size(), 0xCC),
+            "failed tutorial read changed the buffer");
+    writeWord(process, STREAM + 8, 39133);
+    require(read(disabled.offset, disabled.before) == disabled.before, "wrong-size tutorial resource was modified"); rejected();
+    writeWord(process, STREAM + 8, 39132);
+    for (const auto& path : {"../data/ui/panel_newbie.gfx.bak", "../data/ui/panel_score.gfx", "short.gfx"}) {
+        setPath(process, path);
+        require(read(disabled.offset, disabled.before) == disabled.before, "tutorial adaptation changed another resource");
+    }
+    require(readWord(process, error) == 0, "valid tutorial resource reported mismatch");
+    std::cout << "x86 tutorial tabs disabled, free-training defaults, split reads and resource isolation passed\n";
 }
 }
