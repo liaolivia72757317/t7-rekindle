@@ -14,6 +14,10 @@ void GuardDebugDraw::install(HANDLE process, uint32_t imageBase) {
     if (process_ || !process) throw std::runtime_error("guard debug installation state");
     if (readClientMemory(process, imageBase + GUARD_DEBUG_UI_RVA, GUARD_DEBUG_UI_ORIGINAL.size()) != GUARD_DEBUG_UI_ORIGINAL)
         throw std::runtime_error("guard debug UI camera signature mismatch");
+    if (readClientMemory(process, imageBase + GUARD_DEBUG_COMPOSITE_RVA, GUARD_DEBUG_COMPOSITE_ORIGINAL.size())
+            != GUARD_DEBUG_COMPOSITE_ORIGINAL
+        || readClientMemory(process, imageBase + GUARD_DEBUG_UI_RETURN_RVA - 6, 6) != Bytes{0xFF,0x90,0x4C,1,0,0})
+        throw std::runtime_error("guard debug scene composition signature mismatch");
     const auto page = VirtualAllocEx(process, nullptr, GUARD_DEBUG_PAGE_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!page) throw std::runtime_error(errorText("guard debug allocation"));
     bool patchAttempted = false;
@@ -29,15 +33,20 @@ void GuardDebugDraw::install(HANDLE process, uint32_t imageBase) {
         if (!VirtualProtectEx(process, reinterpret_cast<void*>(pointer + GUARD_DEBUG_CODE), 0x2000, PAGE_EXECUTE_READ, &old)
             || !FlushInstructionCache(process, page, GUARD_DEBUG_PAGE_SIZE))
             throw std::runtime_error(errorText("guard debug code protection"));
-        auto jump = GUARD_DEBUG_UI_ORIGINAL;
-        jump[0] = 0xE9; jump[5] = 0x90;
-        const uint32_t delta = address + GUARD_DEBUG_CODE - (imageBase + GUARD_DEBUG_UI_RVA + 5);
-        std::memcpy(jump.data() + 1, &delta, 4);
         patchAttempted = true;
-        writeClientMemory(process, imageBase + GUARD_DEBUG_UI_RVA, jump);
+        for (const auto& entry : {std::pair<uint32_t, uint32_t>{GUARD_DEBUG_UI_RVA, GUARD_DEBUG_CODE},
+                                 {GUARD_DEBUG_COMPOSITE_RVA, GUARD_DEBUG_DRAW_CODE}}) {
+            Bytes jump{0xE9,0,0,0,0,0x90};
+            const uint32_t delta = address + entry.second - (imageBase + entry.first + 5);
+            std::memcpy(jump.data() + 1, &delta, 4);
+            writeClientMemory(process, imageBase + entry.first, jump);
+        }
         process_ = process; remote_ = address;
     } catch (...) {
-        if (patchAttempted) writeClientMemory(process, imageBase + GUARD_DEBUG_UI_RVA, GUARD_DEBUG_UI_ORIGINAL);
+        if (patchAttempted) {
+            writeClientMemory(process, imageBase + GUARD_DEBUG_COMPOSITE_RVA, GUARD_DEBUG_COMPOSITE_ORIGINAL);
+            writeClientMemory(process, imageBase + GUARD_DEBUG_UI_RVA, GUARD_DEBUG_UI_ORIGINAL);
+        }
         if (!VirtualFreeEx(process, page, 0, MEM_RELEASE)) throw std::runtime_error(errorText("guard debug rollback"));
         throw;
     }

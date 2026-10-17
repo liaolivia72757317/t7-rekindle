@@ -9,13 +9,18 @@ static_assert(sizeof(GuardDebugVertex) == 16, "debug line vertex layout");
 constexpr uint32_t GUARD_DEBUG_MAX_VERTICES = 32768;
 constexpr uint32_t GUARD_DEBUG_STAGING = 0x1000, GUARD_DEBUG_ACTIVE = 0x81000;
 constexpr uint32_t GUARD_DEBUG_CODE = 0x101000, GUARD_DEBUG_PAGE_SIZE = 0x103000;
+constexpr uint32_t GUARD_DEBUG_DRAW_CODE = 0x102000, GUARD_DEBUG_SCENE_VIEW = 0x100;
 constexpr uint32_t GUARD_DEBUG_UI_RVA = 0x2346A0;
+constexpr uint32_t GUARD_DEBUG_UI_RETURN_RVA = 0x32A261, GUARD_DEBUG_COMPOSITE_RVA = 0x32A27A;
 inline const Bytes GUARD_DEBUG_UI_ORIGINAL{0x55,0x8B,0xEC,0x83,0xEC,0x40};
+inline const Bytes GUARD_DEBUG_COMPOSITE_ORIGINAL{0xFF,0x90,0xC4,0x01,0,0};
 struct GuardDebugMailbox {
     uint32_t enabled = 0, pending = 0, count = 0, sampledTick = 0;
     uint32_t error = 0, frames = 0, drawing = 0, activeTick = 0, activeCount = 0;
     uint32_t stateBlock = 0, stream = 0, streamOffset = 0, streamStride = 0;
+    uint32_t sceneCameraReady = 0, sceneTarget = 0;
 };
+static_assert(sizeof(GuardDebugMailbox) <= 0x80, "debug mailbox overlaps identity matrix");
 Bytes buildGuardDebugHook(uint32_t address, uint32_t imageBase);
 std::vector<GuardDebugVertex> guardDebugVertices(const WorldSnapshot& world,
                                                const std::deque<BladeContactEvent>& contacts);

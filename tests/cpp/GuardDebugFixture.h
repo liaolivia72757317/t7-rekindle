@@ -12,6 +12,9 @@ constexpr uint32_t SAVED_MARKER = DATA + 16, CURRENT_STREAM = DATA + 20, BLOCK_R
 constexpr uint32_t LOST = DATA + 32, DRAW_ERROR = DATA + 36, CAMERA_MODE = DATA + 40, VIEW_SEEN = DATA + 44;
 constexpr uint32_t BLOCK = DATA + 0x100, BLOCK_TABLE = DATA + 0x120, STREAM = DATA + 0x180, STREAM_TABLE = DATA + 0x1A0;
 constexpr uint32_t FPU = DATA + 48, SSE = DATA + 52, ESP_BEFORE = DATA + 56, ESP_AFTER = DATA + 60;
+constexpr uint32_t VISIBLE = DATA + 64, COMPOSITES = DATA + 68, DEPTH_ENABLED = DATA + 72;
+constexpr uint32_t COMPOSITE_TARGET = DATA + 76;
+constexpr uint32_t COMPOSITE_TABLE = DATA + 0x400, SCENE_PASS = BASE + 0x32A240;
 inline void require(bool yes, const char* message) { if (!yes) throw std::runtime_error(message); }
 inline void put(HANDLE p, uint32_t at, uint32_t v) { worldFixture::writeWord(p, at, v); }
 inline uint32_t get(HANDLE p, uint32_t at) {
@@ -33,6 +36,10 @@ inline void prepare(HANDLE p) {
         if (item.first == 44) {
             c.emit({0x83,0x7C,0x24,8,2}); const auto skip = c.branch(0x85);
             c.emit({0x8B,0x44,0x24,12,0x8B,0x00,0xA3}); c.word(VIEW_SEEN); c.bind(skip);
+        }
+        if (item.first == 57) {
+            c.emit({0x83,0x7C,0x24,8,7}); const auto skip = c.branch(0x85);
+            c.emit({0x8B,0x44,0x24,12,0xA3}); c.word(DEPTH_ENABLED); c.bind(skip);
         }
         c.emit({0x33,0xC0}); stub(item.first, item.second, c);
     }
@@ -56,20 +63,41 @@ inline void prepare(HANDLE p) {
     t7r::WorldHookCode setStream; setStream.emit({0x8B,0x44,0x24,12,0xA3}); setStream.word(CURRENT_STREAM);
     setStream.emit({0x33,0xC0}); stub(100, 20, setStream);
     t7r::WorldHookCode draw; draw.emit({0xFF,0x05}); draw.word(DRAWS); draw.store(CURRENT_STREAM, 0);
+    draw.emit({0x83,0x3D}); draw.word(DEPTH_ENABLED); draw.emit({0}); const auto occluded = draw.branch(0x85);
+    draw.store(VISIBLE, 1); draw.bind(occluded);
     draw.emit({0xA1}); draw.word(DRAW_ERROR); stub(83, 20, draw);
     auto ui = t7r::GUARD_DEBUG_UI_ORIGINAL;
-    t7r::WorldHookCode tail; tail.store(RENDERER + 0x8AC, 0); tail.store(RENDERER + 0x8BC, 0x3F800000);
+    t7r::WorldHookCode tail; tail.store(RENDERER + 0x840, 0x3F800000);
+    tail.store(RENDERER + 0x8AC, 0); tail.store(RENDERER + 0x8BC, 0x3F800000);
     tail.emit({0xFF,0x05}); tail.word(UI_CALLS); tail.emit({0x8B,0xE5,0x5D,0xC2,4,0});
     ui.insert(ui.end(), tail.bytes.begin(), tail.bytes.end()); t7r::writeClientMemory(p, BASE + t7r::GUARD_DEBUG_UI_RVA, ui);
+    t7r::WorldHookCode composite;
+    composite.store(VISIBLE, 0); // The native full-screen composition replaces earlier debug lines.
+    composite.emit({0xA1}); composite.word(COMPOSITE_TARGET);
+    composite.emit({0x85,0xC0}); const auto sameTarget = composite.branch(0x84);
+    composite.emit({0xA3}); composite.word(RENDERER + 0x74C); composite.bind(sameTarget);
+    composite.emit({0xFF,0x05}); composite.word(COMPOSITES); composite.emit({0x33,0xC0});
+    put(p, COMPOSITE_TABLE + 0x1C4, stub(124, 8, composite));
+    put(p, BASE + 0x175B188 + 0x14C, BASE + t7r::GUARD_DEBUG_UI_RVA);
+    t7r::WorldHookCode scene;
+    scene.emit({0x56,0xBE}); scene.word(RENDERER);
+    scene.emit({0x8B,0xCE,0x6A,0,0xB8}); scene.word(BASE + 0x175B188);
+    scene.bytes.resize(0x1B, 0x90);
+    scene.emit({0xFF,0x90,0x4C,1,0,0});
+    scene.emit({0x6A,0,0x6A,10,0xB8}); scene.word(COMPOSITE_TABLE);
+    scene.bytes.resize(0x3A, 0x90);
+    scene.emit({0xFF,0x90,0xC4,1,0,0,0x5E,0xC3});
+    t7r::writeClientMemory(p, SCENE_PASS, scene.bytes);
     t7r::WorldHookCode dispatch;
     dispatch.emit({0x9C,0x60,0x83,0x3D}); dispatch.word(GATE); dispatch.emit({1}); const auto idle = dispatch.branch(0x85);
     dispatch.store(MARKER, 0x12345678); dispatch.store(CURRENT_STREAM, STREAM);
+    dispatch.store(RENDERER + 0x840, 0x40E00000);
     dispatch.store(RENDERER + 0x8AC, 0x3F800000); dispatch.store(RENDERER + 0x8BC, 0);
     dispatch.emit({0x83,0x3D}); dispatch.word(CAMERA_MODE); dispatch.emit({0}); const auto perspective = dispatch.branch(0x84);
     dispatch.store(RENDERER + 0x8AC, 0); dispatch.store(RENDERER + 0x8BC, 0x3F800000); dispatch.bind(perspective);
     dispatch.emit({0x89,0x25}); dispatch.word(ESP_BEFORE);
-    dispatch.emit({0xD9,0xE8,0xB8}); dispatch.word(0x3F800000); dispatch.emit({0x66,0x0F,0x6E,0xC0,0x6A,0,0xB9}); dispatch.word(RENDERER);
-    dispatch.call(BASE + t7r::GUARD_DEBUG_UI_RVA);
+    dispatch.emit({0xD9,0xE8,0xB8}); dispatch.word(0x3F800000); dispatch.emit({0x66,0x0F,0x6E,0xC0});
+    dispatch.call(SCENE_PASS);
     dispatch.emit({0x89,0x25}); dispatch.word(ESP_AFTER);
     dispatch.emit({0xD9,0x1D}); dispatch.word(FPU); dispatch.emit({0x66,0x0F,0x7E,0x05}); dispatch.word(SSE);
     dispatch.store(GATE, 0); dispatch.bind(idle); dispatch.emit({0x61,0x9D,0xC3});
@@ -102,19 +130,27 @@ inline void verify(HANDLE p, t7r::GuardDebugDraw& draw) {
     frame(p); require(get(p, DRAWS) == 0, "debug rendered by default");
     draw.update(true); frame(p); require(get(p, DRAWS) == 0, "debug rendered before a world snapshot");
     publish(); frame(p); require(get(p, DRAWS) == 1 && get(p, VIEW_SEEN) == 0x40E00000, "scene camera draw missing");
+    require(get(p, DEPTH_ENABLED) == 0, "composition target depth hid guard debug geometry");
+    require(get(p, VISIBLE) == 1 && get(p, COMPOSITES) == 3, "native composition overwrote guard debug geometry");
     frame(p); require(get(p, DRAWS) == 2, "immutable geometry not retained between publications");
     put(p, CAMERA_MODE, 1); frame(p); require(get(p, DRAWS) == 2, "UI projection was used for world drawing"); put(p, CAMERA_MODE, 0);
-    put(p, RENDERER + 0x74C, DATA + 0x300); frame(p); require(get(p, DRAWS) == 2, "offscreen target was drawn"); put(p, RENDERER + 0x74C, DATA + 0x200);
-    draw.update(false); frame(p); require(get(p, DRAWS) == 2, "live disable failed");
-    world.ready = false; publish(); frame(p); require(get(p, DRAWS) == 2, "unready world was drawn");
-    draw.update(true); frame(p); require(get(p, DRAWS) == 2, "unready world was re-enabled");
+    put(p, RENDERER + 0x74C, DATA + 0x300); publish(); frame(p);
+    require(get(p, DRAWS) == 3 && get(p, VISIBLE) == 1, "intermediate scene composition lost guard debug geometry");
+    put(p, COMPOSITE_TARGET, DATA + 0x200); frame(p);
+    require(get(p, DRAWS) == 3 && get(p, VISIBLE) == 0, "scene camera was reused on a different composition target");
+    put(p, COMPOSITE_TARGET, 0); put(p, RENDERER + 0x74C, 0); frame(p);
+    require(get(p, DRAWS) == 3, "missing composition target was drawn");
+    put(p, RENDERER + 0x74C, DATA + 0x200);
+    draw.update(false); frame(p); require(get(p, DRAWS) == 3, "live disable failed");
+    world.ready = false; publish(); frame(p); require(get(p, DRAWS) == 3, "unready world was drawn");
+    draw.update(true); frame(p); require(get(p, DRAWS) == 3, "unready world was re-enabled");
     world.ready = true;
-    publish(); put(p, LOST, 0x88760868); frame(p); require(get(p, DRAWS) == 2, "lost device was drawn");
-    put(p, LOST, 0); publish(); frame(p); require(get(p, DRAWS) == 3, "device reset did not resume drawing");
-    Sleep(260); frame(p); require(get(p, DRAWS) == 3, "stale world geometry was rendered");
+    publish(); put(p, LOST, 0x88760868); frame(p); require(get(p, DRAWS) == 3, "lost device was drawn");
+    put(p, LOST, 0); publish(); frame(p); require(get(p, DRAWS) == 4, "device reset did not resume drawing");
+    Sleep(260); frame(p); require(get(p, DRAWS) == 4, "stale world geometry was rendered");
     publish(); put(p, DRAW_ERROR, 0x8876086C); frame(p);
     bool failed = false; try { draw.update(true); } catch (const std::runtime_error&) { failed = true; }
     require(failed, "draw HRESULT was not surfaced");
-    frame(p); require(get(p, DRAWS) == 4 && get(p, UI_CALLS) >= 11, "drawing failure interfered with the original UI");
+    frame(p); require(get(p, DRAWS) == 5 && get(p, UI_CALLS) >= 11, "drawing failure interfered with the original UI");
 }
 }

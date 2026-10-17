@@ -4,6 +4,33 @@
 #include <d3d9.h>
 
 namespace t7r {
+namespace {
+Bytes captureSceneCamera(uint32_t address, uint32_t imageBase) {
+    WorldHookCode c;
+    const auto ready = address + static_cast<uint32_t>(offsetof(GuardDebugMailbox, sceneCameraReady));
+    c.emit({0x9C,0x60,0x81,0x7C,0x24,0x24}); c.word(imageBase + GUARD_DEBUG_UI_RETURN_RVA);
+    std::vector<size_t> exit{c.branch(0x85)};
+    c.store(ready, 0);
+    c.emit({0x83,0x3D}); c.word(address); c.emit({1}); exit.push_back(c.branch(0x85));
+    c.emit({0x3B,0x0D}); c.word(imageBase + 0x2D20008); exit.push_back(c.branch(0x85));
+    c.emit({0x81,0x39}); c.word(imageBase + 0x175B188); exit.push_back(c.branch(0x85));
+    c.emit({0x83,0xB9}); c.word(0x568); c.emit({0}); exit.push_back(c.branch(0x85));
+    c.emit({0x8B,0x81}); c.word(0x74C); c.emit({0x85,0xC0}); exit.push_back(c.branch(0x84));
+    c.emit({0x81,0xB9}); c.word(0x8AC); c.word(0x3F800000); exit.push_back(c.branch(0x85));
+    c.emit({0x83,0xB9}); c.word(0x8BC); c.emit({0}); exit.push_back(c.branch(0x85));
+    // Scene composition may target an intermediate texture instead of the primary target.
+    c.emit({0xA3}); c.word(address + static_cast<uint32_t>(offsetof(GuardDebugMailbox, sceneTarget)));
+    c.emit({0x8D,0xB1}); c.word(0x840); c.emit({0xBF}); c.word(address + GUARD_DEBUG_SCENE_VIEW);
+    c.emit({0xB9}); c.word(32); c.emit({0xFC,0xF3,0xA5}); c.store(ready, 1);
+    for (auto branch : exit) c.bind(branch);
+    c.emit({0x61,0x9D});
+    c.bytes.insert(c.bytes.end(), GUARD_DEBUG_UI_ORIGINAL.begin(), GUARD_DEBUG_UI_ORIGINAL.end());
+    c.emit({0xE9});
+    c.word(imageBase + GUARD_DEBUG_UI_RVA + static_cast<uint32_t>(GUARD_DEBUG_UI_ORIGINAL.size())
+        - (address + GUARD_DEBUG_CODE + static_cast<uint32_t>(c.bytes.size()) + 4));
+    return c.bytes;
+}
+}
 Bytes buildGuardDebugHook(uint32_t address, uint32_t imageBase) {
     if (!address || address > UINT32_MAX - GUARD_DEBUG_PAGE_SIZE || !imageBase
         || imageBase > UINT32_MAX - 0x2D2000C) throw std::runtime_error("guard debug hook address range");
@@ -19,18 +46,18 @@ Bytes buildGuardDebugHook(uint32_t address, uint32_t imageBase) {
     auto deviceCall = [&](uint32_t slot) { c.emit({0x56,0xFF,0x97}); c.word(slot * 4); };
     auto failed = [&](std::vector<size_t>& branches) { c.emit({0x85,0xC0}); branches.push_back(c.branch(0x88)); };
     auto recordError = [&] { c.emit({0xA3}); c.word(error); c.store(enabled, 0); };
-    c.emit({0x9C,0x60});
+    c.bytes = GUARD_DEBUG_COMPOSITE_ORIGINAL;
+    c.emit({0x9C,0x60,0x8B,0xCE}); // The native composition preserves ESI, its renderer.
     std::vector<size_t> exit;
     c.emit({0x83,0x3D}); c.word(enabled); c.emit({1}); exit.push_back(c.branch(0x85));
     c.emit({0x3B,0x0D}); c.word(imageBase + 0x2D20008); exit.push_back(c.branch(0x85));
     c.emit({0x81,0x39}); c.word(imageBase + 0x175B188); exit.push_back(c.branch(0x85));
     c.emit({0x83,0xB9}); c.word(0x568); c.emit({0}); exit.push_back(c.branch(0x85));
-    // Draw before the original UI camera overwrites the scene's cached matrices.
-    // Only the primary target and a perspective projection qualify, never UI or shadow passes.
+    // Draw after the native full-screen composition, using its saved scene camera.
+    c.emit({0x83,0x3D}); c.word(field(offsetof(GuardDebugMailbox, sceneCameraReady))); c.emit({1});
+    exit.push_back(c.branch(0x85)); c.store(field(offsetof(GuardDebugMailbox, sceneCameraReady)), 0);
     c.emit({0x8B,0x81}); c.word(0x74C); c.emit({0x85,0xC0}); exit.push_back(c.branch(0x84));
-    c.emit({0x3B,0x81}); c.word(0x748); exit.push_back(c.branch(0x85));
-    c.emit({0x81,0xB9}); c.word(0x8AC); c.word(0x3F800000); exit.push_back(c.branch(0x85));
-    c.emit({0x83,0xB9}); c.word(0x8BC); c.emit({0}); exit.push_back(c.branch(0x85));
+    c.emit({0x3B,0x05}); c.word(field(offsetof(GuardDebugMailbox, sceneTarget))); exit.push_back(c.branch(0x85));
     c.emit({0x33,0xC0,0xBA}); c.word(1);
     c.emit({0xF0,0x0F,0xB1,0x15}); c.word(drawing); exit.push_back(c.branch(0x85));
     c.emit({0x8B,0xD9,0x8B,0xEC,0x81,0xEC}); c.word(0x210);
@@ -65,10 +92,10 @@ Bytes buildGuardDebugHook(uint32_t address, uint32_t imageBase) {
     checkedCall(102, {1, 0});
     checkedCall(65, {0, 0});
     checkedCall(44, {address + 0x80, D3DTS_WORLD});
-    for (auto pair : {std::pair<uint32_t, uint32_t>{0x840, D3DTS_VIEW}, {0x880, D3DTS_PROJECTION}}) {
-        c.emit({0x8D,0x83}); c.word(pair.first); c.emit({0x50}); push(pair.second); deviceCall(44); failed(changed);
-    }
-    for (auto pair : {std::pair<uint32_t, uint32_t>{D3DRS_ZENABLE, D3DZB_TRUE},
+    checkedCall(44, {address + GUARD_DEBUG_SCENE_VIEW, D3DTS_VIEW});
+    checkedCall(44, {address + GUARD_DEBUG_SCENE_VIEW + 64, D3DTS_PROJECTION});
+    // The composition target does not retain scene depth; debug lines are an overlay.
+    for (auto pair : {std::pair<uint32_t, uint32_t>{D3DRS_ZENABLE, D3DZB_FALSE},
             {D3DRS_ZWRITEENABLE, FALSE}, {D3DRS_ZFUNC, D3DCMP_LESSEQUAL}, {D3DRS_LIGHTING, FALSE},
             {D3DRS_FOGENABLE, FALSE}, {D3DRS_ALPHABLENDENABLE, FALSE}, {D3DRS_ALPHATESTENABLE, FALSE},
             {D3DRS_STENCILENABLE, FALSE}, {D3DRS_SCISSORTESTENABLE, FALSE}, {D3DRS_CULLMODE, D3DCULL_NONE},
@@ -107,11 +134,13 @@ Bytes buildGuardDebugHook(uint32_t address, uint32_t imageBase) {
     c.emit({0x0F,0xAE,0x0C,0x24,0x8B,0xE5}); // FXRSTOR.
     for (auto branch : exit) c.bind(branch);
     c.emit({0x61,0x9D});
-    c.bytes.insert(c.bytes.end(), GUARD_DEBUG_UI_ORIGINAL.begin(), GUARD_DEBUG_UI_ORIGINAL.end());
     c.emit({0xE9});
-    c.word(imageBase + GUARD_DEBUG_UI_RVA + static_cast<uint32_t>(GUARD_DEBUG_UI_ORIGINAL.size())
-        - (address + GUARD_DEBUG_CODE + static_cast<uint32_t>(c.bytes.size()) + 4));
-    if (c.bytes.size() > 0x2000) throw std::runtime_error("guard debug code capacity");
-    return c.bytes;
+    c.word(imageBase + GUARD_DEBUG_COMPOSITE_RVA + static_cast<uint32_t>(GUARD_DEBUG_COMPOSITE_ORIGINAL.size())
+        - (address + GUARD_DEBUG_DRAW_CODE + static_cast<uint32_t>(c.bytes.size()) + 4));
+    auto code = captureSceneCamera(address, imageBase);
+    if (code.size() > 0x1000 || c.bytes.size() > 0x1000) throw std::runtime_error("guard debug code capacity");
+    code.resize(GUARD_DEBUG_DRAW_CODE - GUARD_DEBUG_CODE, 0);
+    code.insert(code.end(), c.bytes.begin(), c.bytes.end());
+    return code;
 }
 }
